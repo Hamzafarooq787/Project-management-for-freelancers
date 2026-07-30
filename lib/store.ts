@@ -445,6 +445,32 @@ export async function toggleToday(taskId: string): Promise<void> {
   if (updateError) throw updateError;
 }
 
+export async function toggleChecklistItem(taskId: string, itemId: string): Promise<void> {
+  const { data, error } = await getSupabase()
+    .from("tasks")
+    .select("checklist, project_id, status")
+    .eq("id", taskId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return;
+
+  const row = data as { checklist: ChecklistItem[]; project_id: string; status: TaskStatus };
+  const nextChecklist = row.checklist.map((item) =>
+    item.id === itemId ? { ...item, done: !item.done } : item,
+  );
+
+  const update: Record<string, unknown> = { checklist: nextChecklist, updated_at: nowIso() };
+  if (row.status === "done" && !isChecklistComplete(nextChecklist)) {
+    update.status = "in_progress";
+    update.completed_at = null;
+  }
+
+  const { error: updateError } = await getSupabase().from("tasks").update(update).eq("id", taskId);
+  if (updateError) throw updateError;
+
+  await touchProject(row.project_id);
+}
+
 export async function deleteTask(taskId: string): Promise<void> {
   const { error } = await getSupabase().from("tasks").delete().eq("id", taskId);
   if (error) throw error;
