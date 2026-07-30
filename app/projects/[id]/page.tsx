@@ -8,6 +8,7 @@ import { ArchiveToggle } from "@/components/ArchiveToggle";
 import { ClientDetailsCard } from "@/components/ClientDetailsCard";
 import { ProjectMetaCard } from "@/components/ProjectMetaCard";
 import { WebsiteDetailsCard } from "@/components/WebsiteDetailsCard";
+import { DailyReportPanel } from "@/components/DailyReportPanel";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { CheckCircle2 } from "lucide-react";
 
@@ -99,6 +100,12 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           <StageBoard project={project} tasks={tasks} />
         )}
       </section>
+
+      {project.type === "seo" && (
+        <section>
+          <DailyReportPanel project={project} tasks={tasks} />
+        </section>
+      )}
 
       <section>
         <div className="mb-3 flex items-center gap-2">
