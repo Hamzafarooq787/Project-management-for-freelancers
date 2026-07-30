@@ -29,6 +29,7 @@ export interface Task {
   dueDate: string | null;
   scheduledFor: string | null;
   checklist: ChecklistItem[];
+  images: string[];
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -75,6 +76,7 @@ export interface Project {
   endDate: string | null;
   websiteUrl: string;
   webDetails: WebDevDetails | null;
+  shareToken: string | null;
   createdAt: string;
   updatedAt: string;
   stages: Stage[];

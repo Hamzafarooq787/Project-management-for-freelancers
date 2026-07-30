@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import * as store from "./store";
-import { uploadLogo } from "./storage";
+import { uploadLogo, uploadTaskImage } from "./storage";
 import type {
   ChecklistItem,
   ClientDetails,
@@ -229,4 +229,92 @@ export async function updateBusinessProfileAction(formData: FormData) {
     logoUrl: uploadedLogoUrl ?? str(formData, "existingLogoUrl"),
   });
   revalidatePath("/settings");
+}
+
+export async function addTaskImageAction(formData: FormData) {
+  const taskId = str(formData, "taskId");
+  const projectId = str(formData, "projectId");
+  const file = formData.get("imageFile");
+  if (!taskId || !projectId || !(file instanceof File)) return;
+
+  const url = await uploadTaskImage(file, taskId);
+  if (!url) return;
+
+  await store.addTaskImage(taskId, url);
+  refresh(projectId);
+}
+
+export async function removeTaskImageAction(taskId: string, projectId: string, url: string) {
+  await store.removeTaskImage(taskId, url);
+  refresh(projectId);
+}
+
+export async function enableSharingAction(projectId: string): Promise<string> {
+  const token = await store.getOrCreateShareToken(projectId);
+  refresh(projectId);
+  return token;
+}
+
+export async function regenerateShareTokenAction(projectId: string): Promise<string> {
+  const token = await store.regenerateShareToken(projectId);
+  refresh(projectId);
+  return token;
+}
+
+export async function disableSharingAction(projectId: string) {
+  await store.disableSharing(projectId);
+  refresh(projectId);
+}
+
+/**
+ * Public, unauthenticated actions reachable from /share/[token]. These never trust a
+ * client-supplied projectId — the project is always resolved strictly from the share
+ * token itself, so a link only ever grants access to the one project it was created
+ * for, and a disabled/regenerated link (null or different token) grants nothing.
+ */
+export async function createClientTaskAction(formData: FormData) {
+  const token = str(formData, "shareToken");
+  const title = str(formData, "title");
+  if (!token || !title) return;
+
+  const project = await store.getProjectByShareToken(token);
+  if (!project) return;
+
+  const stageId = str(formData, "stageId") || null;
+  const notes = str(formData, "notes");
+  const imageFile = formData.get("imageFile");
+  const imageUrl = imageFile instanceof File ? await uploadTaskImage(imageFile, `client-${project.id}`) : null;
+
+  const task = await store.createTask({
+    projectId: project.id,
+    stageId,
+    title,
+    notes,
+    images: imageUrl ? [imageUrl] : [],
+  });
+
+  revalidatePath(`/share/${token}`);
+  refresh(project.id);
+  return task.id;
+}
+
+export async function addClientTaskImageAction(formData: FormData) {
+  const token = str(formData, "shareToken");
+  const taskId = str(formData, "taskId");
+  const file = formData.get("imageFile");
+  if (!token || !taskId || !(file instanceof File)) return;
+
+  const project = await store.getProjectByShareToken(token);
+  if (!project) return;
+
+  const tasks = await store.getTasksByProject(project.id);
+  const task = tasks.find((t) => t.id === taskId);
+  if (!task) return;
+
+  const url = await uploadTaskImage(file, taskId);
+  if (!url) return;
+
+  await store.addTaskImage(taskId, url);
+  revalidatePath(`/share/${token}`);
+  refresh(project.id);
 }

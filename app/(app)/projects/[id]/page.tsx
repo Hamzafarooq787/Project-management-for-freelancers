@@ -10,6 +10,7 @@ import { ProjectMetaCard } from "@/components/ProjectMetaCard";
 import { WebsiteDetailsCard } from "@/components/WebsiteDetailsCard";
 import { DailyReportPanel } from "@/components/DailyReportPanel";
 import { ProjectDetailTabs } from "@/components/ProjectDetailTabs";
+import { ShareLinkPanel } from "@/components/ShareLinkPanel";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { CheckCircle2 } from "lucide-react";
 
@@ -68,6 +69,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           }
         />
       )}
+
+      <ShareLinkPanel projectId={project.id} shareToken={project.shareToken} />
     </div>
   );
 

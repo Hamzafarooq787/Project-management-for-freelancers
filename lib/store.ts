@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getSupabase } from "./supabaseClient";
 import { PROJECT_TEMPLATES } from "./templates";
 import type {
@@ -33,6 +34,7 @@ interface ProjectRow {
   end_date: string | null;
   website_url: string;
   web_details: WebDevDetails | null;
+  share_token: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +57,7 @@ interface TaskRow {
   due_date: string | null;
   scheduled_for: string | null;
   checklist: ChecklistItem[];
+  images: string[];
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -77,6 +80,7 @@ function toTask(row: TaskRow): Task {
     dueDate: row.due_date,
     scheduledFor: row.scheduled_for,
     checklist: row.checklist ?? [],
+    images: row.images ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     completedAt: row.completed_at,
@@ -98,6 +102,7 @@ function toProject(row: ProjectRow, stages: Stage[]): Project {
     endDate: row.end_date,
     websiteUrl: row.website_url,
     webDetails: row.web_details,
+    shareToken: row.share_token,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     stages: [...stages].sort((a, b) => a.order - b.order),
@@ -321,6 +326,7 @@ export async function createTask(input: {
   priority?: TaskPriority;
   scheduledFor?: string | null;
   checklist?: ChecklistItem[];
+  images?: string[];
   markDoneOn?: string | null;
 }): Promise<Task> {
   const { count, error: countError } = await getSupabase()
@@ -342,6 +348,7 @@ export async function createTask(input: {
       priority: input.priority ?? "medium",
       scheduled_for: isBackdated ? null : (input.scheduledFor ?? null),
       checklist,
+      images: input.images ?? [],
       status: isBackdated ? "done" : "todo",
       completed_at: isBackdated ? toCompletedTimestamp(input.markDoneOn ?? null) : null,
       order_index: count ?? 0,
@@ -471,6 +478,44 @@ export async function toggleChecklistItem(taskId: string, itemId: string): Promi
   await touchProject(row.project_id);
 }
 
+export async function addTaskImage(taskId: string, url: string): Promise<void> {
+  const { data, error } = await getSupabase()
+    .from("tasks")
+    .select("images, project_id")
+    .eq("id", taskId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return;
+
+  const row = data as { images: string[]; project_id: string };
+  const { error: updateError } = await getSupabase()
+    .from("tasks")
+    .update({ images: [...(row.images ?? []), url], updated_at: nowIso() })
+    .eq("id", taskId);
+  if (updateError) throw updateError;
+
+  await touchProject(row.project_id);
+}
+
+export async function removeTaskImage(taskId: string, url: string): Promise<void> {
+  const { data, error } = await getSupabase()
+    .from("tasks")
+    .select("images, project_id")
+    .eq("id", taskId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return;
+
+  const row = data as { images: string[]; project_id: string };
+  const { error: updateError } = await getSupabase()
+    .from("tasks")
+    .update({ images: (row.images ?? []).filter((img) => img !== url), updated_at: nowIso() })
+    .eq("id", taskId);
+  if (updateError) throw updateError;
+
+  await touchProject(row.project_id);
+}
+
 export async function deleteTask(taskId: string): Promise<void> {
   const { error } = await getSupabase().from("tasks").delete().eq("id", taskId);
   if (error) throw error;
@@ -518,4 +563,67 @@ export async function updateBusinessProfile(patch: BusinessProfile): Promise<voi
     .from("business_profile")
     .upsert({ id: true, company_name: patch.companyName, logo_url: patch.logoUrl, updated_at: nowIso() });
   if (error) throw error;
+}
+
+/**
+ * A project's share_token being non-null is what "sharing enabled" means — there is
+ * no separate boolean flag. Disabling sharing clears the token; the previous link
+ * stops resolving to anything.
+ */
+export async function getOrCreateShareToken(projectId: string): Promise<string> {
+  const { data, error } = await getSupabase()
+    .from("projects")
+    .select("share_token")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (error) throw error;
+
+  const existing = (data as { share_token: string | null } | null)?.share_token;
+  if (existing) return existing;
+
+  const token = randomUUID().replace(/-/g, "");
+  const { error: updateError } = await getSupabase()
+    .from("projects")
+    .update({ share_token: token, updated_at: nowIso() })
+    .eq("id", projectId);
+  if (updateError) throw updateError;
+
+  return token;
+}
+
+export async function regenerateShareToken(projectId: string): Promise<string> {
+  const token = randomUUID().replace(/-/g, "");
+  const { error } = await getSupabase()
+    .from("projects")
+    .update({ share_token: token, updated_at: nowIso() })
+    .eq("id", projectId);
+  if (error) throw error;
+  return token;
+}
+
+export async function disableSharing(projectId: string): Promise<void> {
+  const { error } = await getSupabase()
+    .from("projects")
+    .update({ share_token: null, updated_at: nowIso() })
+    .eq("id", projectId);
+  if (error) throw error;
+}
+
+export async function getProjectByShareToken(token: string): Promise<Project | null> {
+  const { data, error } = await getSupabase()
+    .from("projects")
+    .select("*")
+    .eq("share_token", token)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const row = data as ProjectRow;
+  const { data: stageRows, error: stageError } = await getSupabase()
+    .from("stages")
+    .select("*")
+    .eq("project_id", row.id);
+  if (stageError) throw stageError;
+
+  return toProject(row, ((stageRows ?? []) as StageRow[]).map(toStage));
 }
