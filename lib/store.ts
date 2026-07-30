@@ -1,5 +1,14 @@
 import { nanoid } from "nanoid";
-import type { Project, ProjectType, Stage, Task, TaskPriority, TaskStatus } from "./types";
+import type {
+  ClientDetails,
+  Project,
+  ProjectType,
+  Stage,
+  Task,
+  TaskPriority,
+  TaskStatus,
+  WebDevDetails,
+} from "./types";
 import { PROJECT_TEMPLATES } from "./templates";
 
 /**
@@ -17,6 +26,25 @@ function makeStages(names: string[]): Stage[] {
   return names.map((name, i) => ({ id: nanoid(8), name, order: i }));
 }
 
+function emptyClientDetails(): ClientDetails {
+  return { name: "", company: "", email: "", phone: "", notes: "" };
+}
+
+function emptyWebDetails(): WebDevDetails {
+  return {
+    websiteName: "",
+    websiteUrl: "",
+    domainStatus: "pending",
+    logoUrl: "",
+    siteIconUrl: "",
+    openGraphImageUrl: "",
+    servicesDetails: "",
+    hostingDetails: "",
+    contactDetails: "",
+    notes: "",
+  };
+}
+
 function seed(): { projects: Project[]; tasks: Task[] } {
   const seoStages = makeStages(PROJECT_TEMPLATES.seo.stages);
   const webStages = makeStages(PROJECT_TEMPLATES.web_dev.stages);
@@ -28,10 +56,21 @@ function seed(): { projects: Project[]; tasks: Task[] } {
     id: nanoid(8),
     name: "One Stop Tyres",
     client: "One Stop Tyres Ltd",
+    clientDetails: {
+      name: "James Carter",
+      company: "One Stop Tyres Ltd",
+      email: "james@onestoptyres.co.uk",
+      phone: "+44 7700 900123",
+      notes: "Prefers weekly ranking updates over email.",
+    },
     type: "seo",
-    description: "Full SEO overhaul: on-page, technical SEO and backlink building.",
+    description: "Full SEO overhaul: on-page, technical SEO and off-page link building.",
     color: "#33d485",
     archived: false,
+    startDate: "2026-06-01",
+    endDate: "2026-09-30",
+    websiteUrl: "https://www.onestoptyres.co.uk",
+    webDetails: null,
     createdAt: t,
     updatedAt: t,
     stages: seoStages,
@@ -44,10 +83,32 @@ function seed(): { projects: Project[]; tasks: Task[] } {
     id: nanoid(8),
     name: "Bright & Co Website Redesign",
     client: "Bright & Co",
+    clientDetails: {
+      name: "Alicia Bright",
+      company: "Bright & Co",
+      email: "alicia@brightandco.com",
+      phone: "+1 415 555 0148",
+      notes: "Wants a staging link before every milestone review.",
+    },
     type: "web_dev",
     description: "Rebuild the marketing site on Next.js with a booking flow.",
     color: "#4fc3e0",
     archived: false,
+    startDate: "2026-07-01",
+    endDate: "2026-08-20",
+    websiteUrl: "https://www.brightandco.com",
+    webDetails: {
+      websiteName: "Bright & Co",
+      websiteUrl: "https://www.brightandco.com",
+      domainStatus: "purchased",
+      logoUrl: "https://www.brightandco.com/logo.svg",
+      siteIconUrl: "https://www.brightandco.com/favicon.ico",
+      openGraphImageUrl: "https://www.brightandco.com/og-cover.png",
+      servicesDetails: "Marketing site + online booking flow + payment integration.",
+      hostingDetails: "Vercel (Pro plan), domain via Namecheap.",
+      contactDetails: "Alicia Bright — alicia@brightandco.com — +1 415 555 0148",
+      notes: "Client owns the domain already; we manage hosting and deploys.",
+    },
     createdAt: t,
     updatedAt: t,
     stages: webStages,
@@ -57,10 +118,21 @@ function seed(): { projects: Project[]; tasks: Task[] } {
     id: nanoid(8),
     name: "Summer Sale Campaign",
     client: "Urban Fit Apparel",
+    clientDetails: {
+      name: "Priya Nair",
+      company: "Urban Fit Apparel",
+      email: "priya@urbanfitapparel.com",
+      phone: "+1 212 555 0199",
+      notes: "",
+    },
     type: "digital_marketing",
     description: "Paid social + email push for the summer collection launch.",
     color: "#f2b84b",
     archived: false,
+    startDate: "2026-07-10",
+    endDate: "2026-08-10",
+    websiteUrl: "https://www.urbanfitapparel.com",
+    webDetails: null,
     createdAt: t,
     updatedAt: t,
     stages: dmStages,
@@ -94,17 +166,19 @@ function seed(): { projects: Project[]; tasks: Task[] } {
   });
 
   const tasks: Task[] = [
-    task(oneStopTyres, "Keyword Research", "Compile core keyword list", "done", "high"),
+    task(oneStopTyres, "On-Page SEO", "Compile core keyword list", "done", "high"),
     task(oneStopTyres, "On-Page SEO", "Optimize title tags & meta descriptions", "done", "high"),
     task(oneStopTyres, "On-Page SEO", "Add internal linking to category pages", "in_progress", "high", "today"),
     task(oneStopTyres, "On-Page SEO", "Optimize image alt text site-wide", "todo", "medium"),
     task(oneStopTyres, "Technical SEO", "Fix duplicate title tags", "done", "high"),
     task(oneStopTyres, "Technical SEO", "Submit updated sitemap to Search Console", "todo", "medium", "today"),
     task(oneStopTyres, "Technical SEO", "Improve Core Web Vitals (LCP)", "todo", "high"),
-    task(oneStopTyres, "Backlinks", "Outreach to 10 local directories", "done", "medium"),
-    task(oneStopTyres, "Backlinks", "Guest post on tyre industry blog", "in_progress", "medium"),
-    task(oneStopTyres, "Backlinks", "Follow up with 5 pending link partners", "todo", "low", "today"),
-    task(oneStopTyres, "Reporting", "Prepare monthly ranking report", "todo", "medium"),
+    task(oneStopTyres, "Off-Page SEO", "Outreach to 10 local directories", "done", "medium"),
+    task(oneStopTyres, "Off-Page SEO", "Guest post on tyre industry blog", "in_progress", "medium"),
+    task(oneStopTyres, "Off-Page SEO", "Follow up with 5 pending link partners", "todo", "low", "today"),
+    task(oneStopTyres, "Social Media", "Post monthly tyre-care tips on Facebook", "todo", "low"),
+    task(oneStopTyres, "Google Business Profile", "Update opening hours & add new photos", "todo", "medium"),
+    task(oneStopTyres, "Google Business Profile", "Respond to 3 pending customer reviews", "in_progress", "medium", "today"),
 
     task(brightWebRedesign, "Discovery", "Client kickoff call & requirements doc", "done", "high"),
     task(brightWebRedesign, "Design / Wireframes", "Homepage + booking flow wireframes", "done", "high"),
@@ -135,33 +209,62 @@ export async function getProjects(): Promise<Project[]> {
   return [...db.projects].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
 }
 
+export async function getProjectsByType(type: ProjectType): Promise<Project[]> {
+  const all = await getProjects();
+  return all.filter((p) => p.type === type);
+}
+
 export async function getProject(id: string): Promise<Project | null> {
   return db.projects.find((p) => p.id === id) ?? null;
 }
 
 export async function createProject(input: {
   name: string;
-  client: string;
   type: ProjectType;
   description: string;
   color: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  websiteUrl?: string;
+  clientDetails: ClientDetails;
+  webDetails?: Partial<WebDevDetails> | null;
 }): Promise<Project> {
   const stages = makeStages(PROJECT_TEMPLATES[input.type].stages);
   const t = now();
   const project: Project = {
     id: nanoid(8),
     name: input.name,
-    client: input.client,
+    client: input.clientDetails.company || input.clientDetails.name,
+    clientDetails: input.clientDetails,
     type: input.type,
     description: input.description,
     color: input.color,
     archived: false,
+    startDate: input.startDate ?? null,
+    endDate: input.endDate ?? null,
+    websiteUrl: input.websiteUrl ?? "",
+    webDetails:
+      input.type === "web_dev"
+        ? { ...emptyWebDetails(), ...(input.webDetails ?? {}) }
+        : null,
     createdAt: t,
     updatedAt: t,
     stages,
   };
   db.projects.unshift(project);
   return project;
+}
+
+export async function updateProjectDetails(
+  id: string,
+  patch: Partial<
+    Pick<Project, "description" | "startDate" | "endDate" | "websiteUrl" | "clientDetails" | "webDetails">
+  >,
+): Promise<void> {
+  const project = await getProject(id);
+  if (!project) return;
+  Object.assign(project, patch);
+  touch(project);
 }
 
 export async function archiveProject(id: string, archived: boolean): Promise<void> {

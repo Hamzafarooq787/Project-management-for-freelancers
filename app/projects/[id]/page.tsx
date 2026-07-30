@@ -1,10 +1,14 @@
 import { notFound } from "next/navigation";
 import { getProject, getProjectProgress, getTasksByProject } from "@/lib/store";
-import { ProjectTypeBadge } from "@/components/Badges";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StageBoard } from "@/components/StageBoard";
+import { SeoStageTabs } from "@/components/SeoStageTabs";
 import { TaskRow } from "@/components/TaskRow";
 import { ArchiveToggle } from "@/components/ArchiveToggle";
+import { ClientDetailsCard } from "@/components/ClientDetailsCard";
+import { ProjectMetaCard } from "@/components/ProjectMetaCard";
+import { WebsiteDetailsCard } from "@/components/WebsiteDetailsCard";
+import { PROJECT_THEME } from "@/lib/projectTheme";
 import { CheckCircle2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -25,34 +29,75 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const stageName = (stageId: string | null) =>
     project.stages.find((s) => s.id === stageId)?.name ?? null;
 
+  const theme = PROJECT_THEME[project.type];
+  const Icon = theme.icon;
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: project.color }} />
+          <div className="flex items-center gap-2.5">
+            <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${theme.iconBg} ${theme.iconText}`}>
+              <Icon size={18} />
+            </span>
             <h1 className="text-2xl font-semibold text-neutral-50">{project.name}</h1>
           </div>
-          <p className="mt-1 text-sm text-neutral-500">{project.client}</p>
           <div className="mt-2 flex items-center gap-2">
-            <ProjectTypeBadge type={project.type} />
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${theme.iconBg} ${theme.iconText}`}>
+              {theme.label}
+            </span>
           </div>
-          {project.description && <p className="mt-3 max-w-xl text-sm text-neutral-400">{project.description}</p>}
         </div>
 
         <div className="flex flex-col items-end gap-3">
           <ArchiveToggle projectId={project.id} archived={project.archived} />
           <div className="w-48">
-            <ProgressBar done={progress.done} total={progress.total} color={project.color} />
+            <ProgressBar done={progress.done} total={progress.total} color={theme.accent} />
           </div>
         </div>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ClientDetailsCard projectId={project.id} client={project.clientDetails} />
+        <ProjectMetaCard
+          projectId={project.id}
+          description={project.description}
+          startDate={project.startDate}
+          endDate={project.endDate}
+          websiteUrl={project.websiteUrl}
+          showWebsiteUrl={project.type !== "web_dev"}
+        />
+      </div>
+
+      {project.type === "web_dev" && (
+        <WebsiteDetailsCard
+          projectId={project.id}
+          web={
+            project.webDetails ?? {
+              websiteName: "",
+              websiteUrl: project.websiteUrl,
+              domainStatus: "pending",
+              logoUrl: "",
+              siteIconUrl: "",
+              openGraphImageUrl: "",
+              servicesDetails: "",
+              hostingDetails: "",
+              contactDetails: "",
+              notes: "",
+            }
+          }
+        />
+      )}
+
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-400">
-          Stages &amp; Tasks
+          {project.type === "seo" ? "SEO Checklist" : "Stages & Tasks"}
         </h2>
-        <StageBoard project={project} tasks={tasks} />
+        {project.type === "seo" ? (
+          <SeoStageTabs project={project} tasks={tasks} />
+        ) : (
+          <StageBoard project={project} tasks={tasks} />
+        )}
       </section>
 
       <section>
