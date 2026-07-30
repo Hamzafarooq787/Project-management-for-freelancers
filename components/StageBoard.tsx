@@ -41,7 +41,7 @@ export function StageBoard({ project, tasks }: { project: Project; tasks: Task[]
             <ProgressBar done={done} total={stageTasks.length} color={project.color} className="mb-3" />
             <div className="flex flex-col gap-2">
               {stageTasks.map((task) => (
-                <TaskRow key={task.id} task={task} />
+                <TaskRow key={task.id} task={task} stageName={stage.name} stages={stages} />
               ))}
               <NewTaskForm projectId={project.id} stages={stages} />
             </div>
@@ -54,7 +54,7 @@ export function StageBoard({ project, tasks }: { project: Project; tasks: Task[]
           <h3 className="mb-2 text-sm font-semibold text-neutral-200">No Stage</h3>
           <div className="flex flex-col gap-2">
             {sortTasks(unstaged).map((task) => (
-              <TaskRow key={task.id} task={task} />
+              <TaskRow key={task.id} task={task} stages={stages} />
             ))}
           </div>
         </div>

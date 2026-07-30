@@ -349,6 +349,41 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
   if (data) await touchProject((data as { project_id: string }).project_id);
 }
 
+export async function updateTaskDetails(
+  taskId: string,
+  patch: {
+    title: string;
+    notes: string;
+    priority: TaskPriority;
+    stageId: string | null;
+    dueDate: string | null;
+    status: TaskStatus;
+    scheduledFor: "today" | null;
+  },
+): Promise<void> {
+  const update: Record<string, unknown> = {
+    title: patch.title,
+    notes: patch.notes,
+    priority: patch.priority,
+    stage_id: patch.stageId,
+    due_date: patch.dueDate,
+    status: patch.status,
+    scheduled_for: patch.status === "done" ? null : patch.scheduledFor,
+    completed_at: patch.status === "done" ? nowIso() : null,
+    updated_at: nowIso(),
+  };
+
+  const { data, error } = await getSupabase()
+    .from("tasks")
+    .update(update)
+    .eq("id", taskId)
+    .select("project_id")
+    .maybeSingle();
+  if (error) throw error;
+
+  if (data) await touchProject((data as { project_id: string }).project_id);
+}
+
 export async function toggleToday(taskId: string): Promise<void> {
   const { data, error } = await getSupabase()
     .from("tasks")
