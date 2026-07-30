@@ -1,28 +1,25 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { LayoutGrid, ListTodo, FileBarChart } from "lucide-react";
+import { ListTodo, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type TabKey = "overview" | "board" | "reports";
+type TabKey = "board" | "client";
 
-const TABS: { key: TabKey; label: string; icon: typeof LayoutGrid }[] = [
-  { key: "overview", label: "Overview", icon: LayoutGrid },
+const TABS: { key: TabKey; label: string; icon: typeof ListTodo }[] = [
   { key: "board", label: "Stages & Tasks", icon: ListTodo },
-  { key: "reports", label: "Reports", icon: FileBarChart },
+  { key: "client", label: "Client Details", icon: User },
 ];
 
 export function ProjectDetailTabs({
-  overview,
   board,
-  reports,
+  clientDetails,
 }: {
-  overview: ReactNode;
   board: ReactNode;
-  reports: ReactNode;
+  clientDetails: ReactNode;
 }) {
-  const [active, setActive] = useState<TabKey>("overview");
-  const content = { overview, board, reports } as const;
+  const [active, setActive] = useState<TabKey>("board");
+  const content = { board, client: clientDetails } as const;
 
   return (
     <div className="flex flex-col gap-5">

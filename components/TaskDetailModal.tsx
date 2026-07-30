@@ -37,11 +37,17 @@ export function TaskDetailModal({
     setChecklist((items) => items.map((it) => (it.id === id ? { ...it, text } : it)));
   }
   function toggleChecklistItem(id: string) {
-    setChecklist((items) => items.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
+    setChecklist((items) => {
+      const next = items.map((it) => (it.id === id ? { ...it, done: !it.done } : it));
+      if (next.some((it) => !it.done)) setStatus((s) => (s === "done" ? "in_progress" : s));
+      return next;
+    });
   }
   function removeChecklistItem(id: string) {
     setChecklist((items) => items.filter((it) => it.id !== id));
   }
+
+  const checklistComplete = checklist.every((item) => item.done);
 
   return (
     <div
@@ -130,6 +136,9 @@ export function TaskDetailModal({
                 </button>
               </div>
             ))}
+            {checklist.length > 0 && !checklistComplete && (
+              <p className="text-[11px] text-amber-400">Check off every item to be able to mark this task Done.</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -143,7 +152,9 @@ export function TaskDetailModal({
               >
                 <option value="todo">To Do</option>
                 <option value="in_progress">In Progress</option>
-                <option value="done">Done</option>
+                <option value="done" disabled={!checklistComplete}>
+                  Done{!checklistComplete ? " (finish checklist first)" : ""}
+                </option>
               </select>
             </div>
             <div>

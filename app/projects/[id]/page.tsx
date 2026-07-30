@@ -35,7 +35,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const theme = PROJECT_THEME[project.type];
   const Icon = theme.icon;
 
-  const overview = (
+  const clientDetailsTab = (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ClientDetailsCard projectId={project.id} client={project.clientDetails} />
@@ -102,10 +102,12 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           ))}
         </div>
       </section>
+
+      <section>
+        <DailyReportPanel project={project} tasks={tasks} businessProfile={businessProfile} />
+      </section>
     </div>
   );
-
-  const reports = <DailyReportPanel project={project} tasks={tasks} businessProfile={businessProfile} />;
 
   return (
     <div className="flex flex-col gap-6">
@@ -132,7 +134,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      <ProjectDetailTabs overview={overview} board={board} reports={reports} />
+      <ProjectDetailTabs board={board} clientDetails={clientDetailsTab} />
     </div>
   );
 }
