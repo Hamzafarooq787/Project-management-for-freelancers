@@ -43,7 +43,7 @@ export function StageBoard({ project, tasks }: { project: Project; tasks: Task[]
               {stageTasks.map((task) => (
                 <TaskRow key={task.id} task={task} stageName={stage.name} stages={stages} />
               ))}
-              <NewTaskForm projectId={project.id} stages={stages} />
+              <NewTaskForm projectId={project.id} stageId={stage.id} />
             </div>
           </div>
         );

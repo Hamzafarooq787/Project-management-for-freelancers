@@ -5,9 +5,10 @@ export interface ReportTaskGroup {
   tasks: Task[];
 }
 
-export interface SeoDailyReportInput {
+export interface DailyReportInput {
   project: Project;
   businessProfile: BusinessProfile;
+  reportTitle: string;
   date: string;
   displayDate: string;
   groups: ReportTaskGroup[];
@@ -72,7 +73,7 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-export async function generateSeoDailyReportPdf(input: SeoDailyReportInput): Promise<void> {
+export async function generateDailyReportPdf(input: DailyReportInput): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
@@ -131,7 +132,7 @@ export async function generateSeoDailyReportPdf(input: SeoDailyReportInput): Pro
     doc.setFont("helvetica", "bold");
     doc.setFontSize(17);
     doc.setTextColor(255, 255, 255);
-    doc.text("SEO Daily Report", PAGE_WIDTH / 2, 48, { align: "center" });
+    doc.text(input.reportTitle, PAGE_WIDTH / 2, 48, { align: "center" });
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
@@ -296,5 +297,5 @@ export async function generateSeoDailyReportPdf(input: SeoDailyReportInput): Pro
   }
 
   const safeName = input.project.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-  doc.save(`${safeName}-seo-report-${input.date}.pdf`);
+  doc.save(`${safeName}-report-${input.date}.pdf`);
 }

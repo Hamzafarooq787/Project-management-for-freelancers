@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, FileDown } from "lucide-react";
 import type { BusinessProfile, Project, Task } from "@/lib/types";
-import { generateSeoDailyReportPdf } from "@/lib/reportPdf";
+import { generateDailyReportPdf } from "@/lib/reportPdf";
+import { PROJECT_THEME } from "@/lib/projectTheme";
 
 function toLocalDateKey(iso: string): string {
   const d = new Date(iso);
@@ -65,9 +66,10 @@ export function DailyReportPanel({
   async function downloadPdf() {
     setGenerating(true);
     try {
-      await generateSeoDailyReportPdf({
+      await generateDailyReportPdf({
         project,
         businessProfile,
+        reportTitle: `${PROJECT_THEME[project.type].label} Daily Report`,
         date,
         displayDate,
         groups: [...grouped.entries()].map(([name, groupTasks]) => ({ name, tasks: groupTasks })),

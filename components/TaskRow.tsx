@@ -1,12 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Circle, Star, Trash2, Timer } from "lucide-react";
+import { Check, Circle, Star, Trash2, Timer, ListChecks } from "lucide-react";
 import type { Stage, Task } from "@/lib/types";
 import { PriorityBadge } from "./Badges";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { deleteTaskAction, toggleTodayAction, updateTaskStatusAction } from "@/lib/actions";
 import { TaskDetailModal } from "./TaskDetailModal";
+
+function todayKey(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export function TaskRow({
   task,
@@ -23,6 +31,8 @@ export function TaskRow({
 }) {
   const [isPending, startTransition] = useTransition();
   const [detailOpen, setDetailOpen] = useState(false);
+  const isScheduledToday = task.scheduledFor === todayKey();
+  const checklistDone = task.checklist.filter((c) => c.done).length;
 
   function cycleStatus() {
     const next = task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "done" : "todo";
@@ -82,20 +92,26 @@ export function TaskRow({
               {projectName}
             </span>
           )}
+          {task.checklist.length > 0 && (
+            <span className="flex items-center gap-1 rounded-full border border-base-600 px-2 py-0.5 text-[11px] text-neutral-400">
+              <ListChecks size={11} />
+              {checklistDone}/{task.checklist.length}
+            </span>
+          )}
           <span className="text-[11px] text-neutral-500">{formatRelativeDate(task.updatedAt)}</span>
         </div>
       </button>
 
       <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
-          title={task.scheduledFor === "today" ? "Remove from Today" : "Add to Today"}
+          title={isScheduledToday ? "Remove from Today" : "Schedule for today"}
           onClick={() => startTransition(() => toggleTodayAction(task.id, task.projectId))}
           className={cn(
             "rounded-md p-1.5 hover:bg-base-700/60",
-            task.scheduledFor === "today" ? "text-amber-400" : "text-neutral-500",
+            isScheduledToday ? "text-amber-400" : "text-neutral-500",
           )}
         >
-          <Star size={14} fill={task.scheduledFor === "today" ? "currentColor" : "none"} />
+          <Star size={14} fill={isScheduledToday ? "currentColor" : "none"} />
         </button>
         <button
           title="Delete task"

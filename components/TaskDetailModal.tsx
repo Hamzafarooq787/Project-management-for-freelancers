@@ -1,10 +1,18 @@
 "use client";
 
-import { useRef, useTransition } from "react";
-import { X, Trash2, Clock, CalendarDays } from "lucide-react";
-import type { Stage, Task } from "@/lib/types";
+import { useRef, useState, useTransition } from "react";
+import { X, Trash2, Clock, CalendarDays, ListChecks } from "lucide-react";
+import type { ChecklistItem, Stage, Task, TaskStatus } from "@/lib/types";
 import { deleteTaskAction, updateTaskDetailsAction } from "@/lib/actions";
 import { formatRelativeDate } from "@/lib/utils";
+
+function todayKey(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export function TaskDetailModal({
   task,
@@ -19,6 +27,21 @@ export function TaskDetailModal({
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [isPending, startTransition] = useTransition();
+  const [status, setStatus] = useState<TaskStatus>(task.status);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(task.checklist);
+
+  function addChecklistItem() {
+    setChecklist((items) => [...items, { id: crypto.randomUUID(), text: "", done: false }]);
+  }
+  function updateChecklistItem(id: string, text: string) {
+    setChecklist((items) => items.map((it) => (it.id === id ? { ...it, text } : it)));
+  }
+  function toggleChecklistItem(id: string) {
+    setChecklist((items) => items.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
+  }
+  function removeChecklistItem(id: string) {
+    setChecklist((items) => items.filter((it) => it.id !== id));
+  }
 
   return (
     <div
@@ -42,6 +65,7 @@ export function TaskDetailModal({
         <form
           ref={formRef}
           action={(formData) => {
+            formData.set("checklistJson", JSON.stringify(checklist));
             startTransition(async () => {
               await updateTaskDetailsAction(formData);
               onClose();
@@ -73,12 +97,48 @@ export function TaskDetailModal({
             />
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-neutral-400">
+                <ListChecks size={13} />
+                Checklist
+              </span>
+              <button type="button" onClick={addChecklistItem} className="text-xs text-accent-400 hover:text-accent-300">
+                + Add item
+              </button>
+            </div>
+            {checklist.map((item) => (
+              <div key={item.id} className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={item.done}
+                  onChange={() => toggleChecklistItem(item.id)}
+                  className="accent-accent-500"
+                />
+                <input
+                  value={item.text}
+                  onChange={(e) => updateChecklistItem(item.id, e.target.value)}
+                  placeholder="Checklist item"
+                  className="w-full rounded-md border border-base-600 bg-base-900 px-2.5 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeChecklistItem(item.id)}
+                  className="shrink-0 text-neutral-500 hover:text-rose-400"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-400">Status</label>
               <select
                 name="status"
-                defaultValue={task.status}
+                value={status}
+                onChange={(e) => setStatus(e.target.value as TaskStatus)}
                 className="w-full rounded-md border border-base-600 bg-base-900 px-3 py-2 text-sm text-neutral-100 focus:border-accent-500 focus:outline-none"
               >
                 <option value="todo">To Do</option>
@@ -127,16 +187,28 @@ export function TaskDetailModal({
             </div>
           </div>
 
-          <label className="flex w-fit items-center gap-2 rounded-md border border-base-600 bg-base-900 px-3 py-2 text-xs text-neutral-300">
-            <input
-              type="checkbox"
-              name="scheduledFor"
-              value="today"
-              defaultChecked={task.scheduledFor === "today"}
-              className="accent-accent-500"
-            />
-            Scheduled for today
-          </label>
+          {status === "done" ? (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-400">Completed on</label>
+              <input
+                type="date"
+                name="completedDate"
+                defaultValue={(task.completedAt ?? "").slice(0, 10) || todayKey()}
+                max={todayKey()}
+                className="w-full rounded-md border border-base-600 bg-base-900 px-3 py-2 text-sm text-neutral-100 focus:border-accent-500 focus:outline-none"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-400">Schedule for</label>
+              <input
+                type="date"
+                name="scheduledFor"
+                defaultValue={task.scheduledFor ?? ""}
+                className="w-full rounded-md border border-base-600 bg-base-900 px-3 py-2 text-sm text-neutral-100 focus:border-accent-500 focus:outline-none"
+              />
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-3 rounded-lg bg-base-900/50 px-3 py-2 text-[11px] text-neutral-500">
             <span className="flex items-center gap-1">

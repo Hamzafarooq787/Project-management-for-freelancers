@@ -1,9 +1,18 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import * as store from "./store";
 import { uploadLogo } from "./storage";
-import type { ClientDetails, DomainStatus, ProjectType, TaskPriority, TaskStatus, WebDevDetails } from "./types";
+import type {
+  ChecklistItem,
+  ClientDetails,
+  DomainStatus,
+  ProjectType,
+  TaskPriority,
+  TaskStatus,
+  WebDevDetails,
+} from "./types";
 
 function refresh(projectId?: string) {
   revalidatePath("/");
@@ -14,6 +23,30 @@ function refresh(projectId?: string) {
 
 function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
+}
+
+interface RawChecklistItem {
+  id?: unknown;
+  text?: unknown;
+  done?: unknown;
+}
+
+function parseChecklistJson(formData: FormData): ChecklistItem[] {
+  const raw = str(formData, "checklistJson");
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as RawChecklistItem[])
+      .filter((item) => item && typeof item.text === "string" && item.text.trim() !== "")
+      .map((item) => ({
+        id: typeof item.id === "string" && item.id ? item.id : randomUUID(),
+        text: String(item.text).trim(),
+        done: Boolean(item.done),
+      }));
+  } catch {
+    return [];
+  }
 }
 
 export async function createProjectAction(formData: FormData) {
@@ -122,14 +155,16 @@ export async function updateWebDetailsAction(formData: FormData) {
 }
 
 export async function createTaskAction(formData: FormData) {
-  const projectId = String(formData.get("projectId") ?? "");
-  const stageId = String(formData.get("stageId") ?? "") || null;
-  const title = String(formData.get("title") ?? "").trim();
-  const priority = String(formData.get("priority") ?? "medium") as TaskPriority;
-  const scheduledFor = formData.get("scheduledFor") === "today" ? "today" : null;
+  const projectId = str(formData, "projectId");
+  const stageId = str(formData, "stageId") || null;
+  const title = str(formData, "title");
+  const priority = (str(formData, "priority") || "medium") as TaskPriority;
+  const scheduledFor = str(formData, "scheduledFor") || null;
+  const markDoneOn = str(formData, "markDoneOn") || null;
+  const checklist = parseChecklistJson(formData);
   if (!projectId || !title) return;
 
-  await store.createTask({ projectId, stageId, title, priority, scheduledFor });
+  await store.createTask({ projectId, stageId, title, priority, scheduledFor, checklist, markDoneOn });
   refresh(projectId);
 }
 
@@ -145,7 +180,9 @@ export async function updateTaskDetailsAction(formData: FormData) {
     stageId: str(formData, "stageId") || null,
     dueDate: str(formData, "dueDate") || null,
     status: (str(formData, "status") || "todo") as TaskStatus,
-    scheduledFor: formData.get("scheduledFor") === "today" ? "today" : null,
+    scheduledFor: str(formData, "scheduledFor") || null,
+    checklist: parseChecklistJson(formData),
+    completedDate: str(formData, "completedDate") || null,
   });
   refresh(projectId);
 }
