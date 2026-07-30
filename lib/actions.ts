@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import * as store from "./store";
-import { uploadLogo, uploadTaskImage } from "./storage";
+import { uploadLogo, uploadTaskFile } from "./storage";
 import type {
   ChecklistItem,
   ClientDetails,
@@ -164,7 +164,14 @@ export async function createTaskAction(formData: FormData) {
   const checklist = parseChecklistJson(formData);
   if (!projectId || !title) return;
 
-  await store.createTask({ projectId, stageId, title, priority, scheduledFor, checklist, markDoneOn });
+  const task = await store.createTask({ projectId, stageId, title, priority, scheduledFor, checklist, markDoneOn });
+
+  const attachments = formData.getAll("attachmentFile").filter((f): f is File => f instanceof File && f.size > 0);
+  for (const attachment of attachments) {
+    const uploaded = await uploadTaskFile(attachment, task.id);
+    if (uploaded) await store.addTaskFile(task.id, uploaded);
+  }
+
   refresh(projectId);
 }
 
@@ -231,21 +238,21 @@ export async function updateBusinessProfileAction(formData: FormData) {
   revalidatePath("/settings");
 }
 
-export async function addTaskImageAction(formData: FormData) {
+export async function addTaskFileAction(formData: FormData) {
   const taskId = str(formData, "taskId");
   const projectId = str(formData, "projectId");
-  const file = formData.get("imageFile");
+  const file = formData.get("file");
   if (!taskId || !projectId || !(file instanceof File)) return;
 
-  const url = await uploadTaskImage(file, taskId);
-  if (!url) return;
+  const uploaded = await uploadTaskFile(file, taskId);
+  if (!uploaded) return;
 
-  await store.addTaskImage(taskId, url);
+  await store.addTaskFile(taskId, uploaded);
   refresh(projectId);
 }
 
-export async function removeTaskImageAction(taskId: string, projectId: string, url: string) {
-  await store.removeTaskImage(taskId, url);
+export async function removeTaskFileAction(taskId: string, projectId: string, url: string) {
+  await store.removeTaskFile(taskId, url);
   refresh(projectId);
 }
 
@@ -282,26 +289,29 @@ export async function createClientTaskAction(formData: FormData) {
 
   const stageId = str(formData, "stageId") || null;
   const notes = str(formData, "notes");
-  const imageFile = formData.get("imageFile");
-  const imageUrl = imageFile instanceof File ? await uploadTaskImage(imageFile, `client-${project.id}`) : null;
 
   const task = await store.createTask({
     projectId: project.id,
     stageId,
     title,
     notes,
-    images: imageUrl ? [imageUrl] : [],
   });
+
+  const attachments = formData.getAll("attachmentFile").filter((f): f is File => f instanceof File && f.size > 0);
+  for (const attachment of attachments) {
+    const uploaded = await uploadTaskFile(attachment, `client-${task.id}`);
+    if (uploaded) await store.addTaskFile(task.id, uploaded);
+  }
 
   revalidatePath(`/share/${token}`);
   refresh(project.id);
   return task.id;
 }
 
-export async function addClientTaskImageAction(formData: FormData) {
+export async function addClientTaskFileAction(formData: FormData) {
   const token = str(formData, "shareToken");
   const taskId = str(formData, "taskId");
-  const file = formData.get("imageFile");
+  const file = formData.get("file");
   if (!token || !taskId || !(file instanceof File)) return;
 
   const project = await store.getProjectByShareToken(token);
@@ -311,10 +321,10 @@ export async function addClientTaskImageAction(formData: FormData) {
   const task = tasks.find((t) => t.id === taskId);
   if (!task) return;
 
-  const url = await uploadTaskImage(file, taskId);
-  if (!url) return;
+  const uploaded = await uploadTaskFile(file, `client-${taskId}`);
+  if (!uploaded) return;
 
-  await store.addTaskImage(taskId, url);
+  await store.addTaskFile(taskId, uploaded);
   revalidatePath(`/share/${token}`);
   refresh(project.id);
 }

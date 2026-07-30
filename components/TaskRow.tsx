@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Circle, Star, Trash2, Timer, ListChecks, Image as ImageIcon } from "lucide-react";
+import { Check, Circle, Star, Trash2, Timer, ListChecks, Paperclip } from "lucide-react";
 import type { Stage, Task } from "@/lib/types";
 import { PriorityBadge } from "./Badges";
 import { cn, formatRelativeDate } from "@/lib/utils";
@@ -104,10 +104,10 @@ export function TaskRow({
                 {checklistDone}/{task.checklist.length}
               </span>
             )}
-            {task.images.length > 0 && (
+            {task.files.length > 0 && (
               <span className="flex items-center gap-1 rounded-full border border-base-600 px-2 py-0.5 text-[11px] text-neutral-400">
-                <ImageIcon size={11} />
-                {task.images.length}
+                <Paperclip size={11} />
+                {task.files.length}
               </span>
             )}
             <span className="text-[11px] text-neutral-500">{formatRelativeDate(task.updatedAt)}</span>

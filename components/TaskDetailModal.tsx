@@ -5,7 +5,7 @@ import { X, Trash2, Clock, CalendarDays, ListChecks } from "lucide-react";
 import type { ChecklistItem, Stage, Task, TaskStatus } from "@/lib/types";
 import { deleteTaskAction, updateTaskDetailsAction } from "@/lib/actions";
 import { formatRelativeDate } from "@/lib/utils";
-import { TaskImages } from "./TaskImages";
+import { TaskFiles } from "./TaskFiles";
 
 function todayKey(): string {
   const d = new Date();
@@ -142,7 +142,7 @@ export function TaskDetailModal({
             )}
           </div>
 
-          <TaskImages taskId={task.id} projectId={task.projectId} images={task.images} />
+          <TaskFiles taskId={task.id} projectId={task.projectId} files={task.files} />
 
           <div className="grid grid-cols-2 gap-3">
             <div>

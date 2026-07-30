@@ -9,6 +9,7 @@ import type {
   ProjectType,
   Stage,
   Task,
+  TaskFile,
   TaskPriority,
   TaskStatus,
   WebDevDetails,
@@ -57,11 +58,19 @@ interface TaskRow {
   due_date: string | null;
   scheduled_for: string | null;
   checklist: ChecklistItem[];
-  images: string[];
+  files: (TaskFile | string)[];
   created_at: string;
   updated_at: string;
   completed_at: string | null;
   order_index: number;
+}
+
+/** Normalizes legacy plain-string image URLs (from before file attachments were
+ * generalized) alongside the current {url, name, type, size} shape. */
+function normalizeFiles(files: (TaskFile | string)[] | null | undefined): TaskFile[] {
+  return (files ?? []).map((f) =>
+    typeof f === "string" ? { url: f, name: f.split("/").pop() || "file", type: "image/*", size: 0 } : f,
+  );
 }
 
 function toStage(row: StageRow): Stage {
@@ -80,7 +89,7 @@ function toTask(row: TaskRow): Task {
     dueDate: row.due_date,
     scheduledFor: row.scheduled_for,
     checklist: row.checklist ?? [],
-    images: row.images ?? [],
+    files: normalizeFiles(row.files),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     completedAt: row.completed_at,
@@ -326,7 +335,7 @@ export async function createTask(input: {
   priority?: TaskPriority;
   scheduledFor?: string | null;
   checklist?: ChecklistItem[];
-  images?: string[];
+  files?: TaskFile[];
   markDoneOn?: string | null;
 }): Promise<Task> {
   const { count, error: countError } = await getSupabase()
@@ -348,7 +357,7 @@ export async function createTask(input: {
       priority: input.priority ?? "medium",
       scheduled_for: isBackdated ? null : (input.scheduledFor ?? null),
       checklist,
-      images: input.images ?? [],
+      files: input.files ?? [],
       status: isBackdated ? "done" : "todo",
       completed_at: isBackdated ? toCompletedTimestamp(input.markDoneOn ?? null) : null,
       order_index: count ?? 0,
@@ -478,38 +487,38 @@ export async function toggleChecklistItem(taskId: string, itemId: string): Promi
   await touchProject(row.project_id);
 }
 
-export async function addTaskImage(taskId: string, url: string): Promise<void> {
+export async function addTaskFile(taskId: string, file: TaskFile): Promise<void> {
   const { data, error } = await getSupabase()
     .from("tasks")
-    .select("images, project_id")
+    .select("files, project_id")
     .eq("id", taskId)
     .maybeSingle();
   if (error) throw error;
   if (!data) return;
 
-  const row = data as { images: string[]; project_id: string };
+  const row = data as { files: (TaskFile | string)[]; project_id: string };
   const { error: updateError } = await getSupabase()
     .from("tasks")
-    .update({ images: [...(row.images ?? []), url], updated_at: nowIso() })
+    .update({ files: [...normalizeFiles(row.files), file], updated_at: nowIso() })
     .eq("id", taskId);
   if (updateError) throw updateError;
 
   await touchProject(row.project_id);
 }
 
-export async function removeTaskImage(taskId: string, url: string): Promise<void> {
+export async function removeTaskFile(taskId: string, url: string): Promise<void> {
   const { data, error } = await getSupabase()
     .from("tasks")
-    .select("images, project_id")
+    .select("files, project_id")
     .eq("id", taskId)
     .maybeSingle();
   if (error) throw error;
   if (!data) return;
 
-  const row = data as { images: string[]; project_id: string };
+  const row = data as { files: (TaskFile | string)[]; project_id: string };
   const { error: updateError } = await getSupabase()
     .from("tasks")
-    .update({ images: (row.images ?? []).filter((img) => img !== url), updated_at: nowIso() })
+    .update({ files: normalizeFiles(row.files).filter((f) => f.url !== url), updated_at: nowIso() })
     .eq("id", taskId);
   if (updateError) throw updateError;
 

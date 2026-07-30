@@ -41,7 +41,7 @@ export function ShareLinkPanel({
         <div className="flex flex-col gap-2">
           <p className="text-sm text-neutral-400">
             Generate a link you can send to your client. From it, they can view this project&apos;s tasks, add
-            new tasks, and upload images — no account needed.
+            new tasks, and attach files — no account needed.
           </p>
           <button
             disabled={isPending}
@@ -69,7 +69,7 @@ export function ShareLinkPanel({
             </button>
           </div>
           <p className="text-xs text-neutral-500">
-            Anyone with this link can add tasks and images to this project. Regenerate it to invalidate the old
+            Anyone with this link can add tasks and attach files to this project. Regenerate it to invalidate the old
             link, or disable sharing entirely.
           </p>
           <div className="flex gap-2">

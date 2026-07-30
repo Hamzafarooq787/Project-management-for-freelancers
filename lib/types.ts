@@ -18,6 +18,13 @@ export interface ChecklistItem {
   done: boolean;
 }
 
+export interface TaskFile {
+  url: string;
+  name: string;
+  type: string;
+  size: number;
+}
+
 export interface Task {
   id: string;
   projectId: string;
@@ -29,7 +36,7 @@ export interface Task {
   dueDate: string | null;
   scheduledFor: string | null;
   checklist: ChecklistItem[];
-  images: string[];
+  files: TaskFile[];
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;

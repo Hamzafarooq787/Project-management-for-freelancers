@@ -29,19 +29,40 @@ back to showing the company/client name as text instead. Uploads go through a
 Server Action straight into Supabase Storage (the `logos` bucket), so no
 client-side Supabase key is ever needed.
 
-## Task images & client sharing
+## Task files & client sharing
 
-Any task can carry image attachments — add them from the task detail modal
-(or, on the client-facing link below, directly from the client). Images are
-stored in a public `task-images` Supabase Storage bucket and can be viewed or
-downloaded any time.
+Any task can carry file attachments of any kind — add them from the task
+detail modal, right when creating a task, or (on the client-facing link
+below) directly from the client. Files are stored in a public `task-files`
+Supabase Storage bucket and can be downloaded or removed any time. Every task
+is fully editable — title, notes, checklist, status, priority, stage, dates,
+and files — across SEO, Web Development, and every other project type.
 
 Every project has a **Client Link** control (in the project's Client Details
 tab): generate a unique, unguessable URL (`/share/<token>`) and send it to
 your client. From that link — no account needed — they can see the project's
-task board, add new tasks, and attach images, but can't edit, delete, or mark
+task board, add new tasks, and attach files, but can't edit, delete, or mark
 anything as done; that stays under your control. Regenerate the link any time
 to invalidate the old one, or disable sharing entirely.
+
+## Logging in
+
+The app (everything except `/share/<token>` client links, which are
+intentionally public) requires you to be signed in. There's no public sign-up
+page — you create your own account directly in Supabase:
+
+1. In the Supabase dashboard, go to **Authentication > Users**.
+2. Click **Add user > Create new user**, enter your email and a password, and
+   make sure **Auto Confirm User** is checked (so you don't need to click an
+   email confirmation link).
+3. Go to `/login` in the app and sign in with that email/password.
+
+Session checking happens in `middleware.ts` using the public anon key —
+that key only ever performs `.auth.*` calls (sign in, sign out, check
+session). It has no access to your projects/tasks/etc. even if used
+directly, since every table has Row Level Security enabled with no
+policies; all real data access still goes through the service-role client
+described above.
 
 ## Setting up Supabase (step by step)
 
@@ -77,6 +98,12 @@ to invalidate the old one, or disable sharing entirely.
 > [`supabase/migrations/004_task_images_and_client_sharing.sql`](./supabase/migrations/004_task_images_and_client_sharing.sql) —
 > it adds an `images` column to tasks, a `share_token` column to projects, and
 > the `task-images` storage bucket.
+>
+> Already ran it before task attachments supported any file type (not just
+> images)? Also run
+> [`supabase/migrations/005_task_files.sql`](./supabase/migrations/005_task_files.sql) —
+> it renames the `images` column to `files` and adds a `task-files` storage
+> bucket for the new uploads.
 
 ### 3. Get your API credentials
 
@@ -85,6 +112,8 @@ to invalidate the old one, or disable sharing entirely.
 3. Copy the **`service_role`** key under **Project API keys** — click "Reveal"
    first. This is a secret key with full database access; never put it in a
    `NEXT_PUBLIC_*` variable or commit it to git.
+4. Also copy the **`anon` / `public`** key from the same page — this one is
+   safe to expose to the browser (see "Logging in" above for why).
 
 ### 4. Add the environment variables
 
@@ -94,20 +123,25 @@ to invalidate the old one, or disable sharing entirely.
 cp .env.example .env.local
 ```
 
-Then fill in the two values in `.env.local`:
+Then fill in all four values in `.env.local`:
 
 ```
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
+
+(`SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL` are the same value — one is
+server-only, the other is exposed to the browser for the login flow.)
 
 `.env.local` is already gitignored, so it stays out of version control.
 
 **On Vercel (or wherever you deploy):**
 
 1. Open your project on [vercel.com](https://vercel.com) > **Settings > Environment Variables**.
-2. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` with the same values, for
-   the **Production** and **Preview** environments.
+2. Add all four variables above with the same values, for the **Production**
+   and **Preview** environments.
 3. Redeploy (or just push — the next deploy will pick them up).
 
 ### 5. Run it
