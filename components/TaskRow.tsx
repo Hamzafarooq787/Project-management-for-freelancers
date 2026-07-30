@@ -1,24 +1,28 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Check, Circle, Star, Trash2, Timer } from "lucide-react";
-import type { Task } from "@/lib/types";
+import type { Stage, Task } from "@/lib/types";
 import { PriorityBadge } from "./Badges";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { deleteTaskAction, toggleTodayAction, updateTaskStatusAction } from "@/lib/actions";
+import { TaskDetailModal } from "./TaskDetailModal";
 
 export function TaskRow({
   task,
   stageName,
+  stages = [],
   showProject,
   projectName,
 }: {
   task: Task;
   stageName?: string | null;
+  stages?: Stage[];
   showProject?: boolean;
   projectName?: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [detailOpen, setDetailOpen] = useState(false);
 
   function cycleStatus() {
     const next = task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "done" : "todo";
@@ -53,11 +57,15 @@ export function TaskRow({
         )}
       </button>
 
-      <div className="min-w-0 flex-1">
+      <button
+        onClick={() => setDetailOpen(true)}
+        title="View task details"
+        className="min-w-0 flex-1 cursor-pointer text-left"
+      >
         <p
           className={cn(
-            "text-sm text-neutral-100",
-            task.status === "done" && "text-neutral-500 line-through",
+            "text-sm text-neutral-100 hover:text-accent-300",
+            task.status === "done" && "text-neutral-500 line-through hover:text-neutral-400",
           )}
         >
           {task.title}
@@ -76,7 +84,7 @@ export function TaskRow({
           )}
           <span className="text-[11px] text-neutral-500">{formatRelativeDate(task.updatedAt)}</span>
         </div>
-      </div>
+      </button>
 
       <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
@@ -97,6 +105,15 @@ export function TaskRow({
           <Trash2 size={14} />
         </button>
       </div>
+
+      {detailOpen && (
+        <TaskDetailModal
+          task={task}
+          stages={stages}
+          projectName={projectName}
+          onClose={() => setDetailOpen(false)}
+        />
+      )}
     </div>
   );
 }

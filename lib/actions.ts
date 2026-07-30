@@ -127,6 +127,23 @@ export async function createTaskAction(formData: FormData) {
   refresh(projectId);
 }
 
+export async function updateTaskDetailsAction(formData: FormData) {
+  const taskId = str(formData, "taskId");
+  const projectId = str(formData, "projectId");
+  if (!taskId || !projectId) return;
+
+  await store.updateTaskDetails(taskId, {
+    title: str(formData, "title"),
+    notes: str(formData, "notes"),
+    priority: (str(formData, "priority") || "medium") as TaskPriority,
+    stageId: str(formData, "stageId") || null,
+    dueDate: str(formData, "dueDate") || null,
+    status: (str(formData, "status") || "todo") as TaskStatus,
+    scheduledFor: formData.get("scheduledFor") === "today" ? "today" : null,
+  });
+  refresh(projectId);
+}
+
 export async function updateTaskStatusAction(taskId: string, projectId: string, status: TaskStatus) {
   await store.updateTaskStatus(taskId, status);
   refresh(projectId);

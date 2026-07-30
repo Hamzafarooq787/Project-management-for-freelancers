@@ -114,7 +114,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
             </p>
           )}
           {completed.map((task) => (
-            <TaskRow key={task.id} task={task} stageName={stageName(task.stageId)} />
+            <TaskRow key={task.id} task={task} stageName={stageName(task.stageId)} stages={project.stages} />
           ))}
         </div>
       </section>

@@ -30,6 +30,7 @@ export default async function TodayPage() {
               key={task.id}
               task={task}
               stageName={stageName}
+              stages={project?.stages ?? []}
               showProject
               projectName={project?.name}
             />

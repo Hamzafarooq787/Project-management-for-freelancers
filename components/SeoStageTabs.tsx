@@ -73,7 +73,7 @@ export function SeoStageTabs({ project, tasks }: { project: Project; tasks: Task
           />
           <div className="flex flex-col gap-2">
             {activeTasks.map((task) => (
-              <TaskRow key={task.id} task={task} />
+              <TaskRow key={task.id} task={task} stages={stages} />
             ))}
             <NewTaskForm projectId={project.id} stages={[activeStage]} />
           </div>

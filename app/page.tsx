@@ -75,6 +75,7 @@ export default async function DashboardPage() {
               key={task.id}
               task={task}
               stageName={stageNameById(task.projectId, task.stageId)}
+              stages={projectById.get(task.projectId)?.stages ?? []}
               showProject
               projectName={projectById.get(task.projectId)?.name}
             />
