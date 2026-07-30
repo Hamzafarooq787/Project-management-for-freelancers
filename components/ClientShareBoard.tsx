@@ -1,11 +1,11 @@
 "use client";
 
 import { useRef, useTransition } from "react";
-import { ImagePlus } from "lucide-react";
+import { Paperclip, Download, FileText } from "lucide-react";
 import type { Project, Stage, Task } from "@/lib/types";
-import { addClientTaskImageAction, createClientTaskAction } from "@/lib/actions";
+import { addClientTaskFileAction, createClientTaskAction } from "@/lib/actions";
 import { PriorityBadge } from "./Badges";
-import { cn } from "@/lib/utils";
+import { cn, formatFileSize } from "@/lib/utils";
 
 const STATUS_STYLES: Record<Task["status"], string> = {
   todo: "bg-base-700/60 text-neutral-300",
@@ -81,13 +81,17 @@ function ClientTaskCard({ task, shareToken }: { task: Task; shareToken: string }
   const [isPending, startTransition] = useTransition();
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.set("shareToken", shareToken);
-    formData.set("taskId", task.id);
-    formData.set("imageFile", file);
-    startTransition(() => addClientTaskImageAction(formData));
+    const selected = Array.from(e.target.files ?? []);
+    if (selected.length === 0) return;
+    startTransition(async () => {
+      for (const file of selected) {
+        const formData = new FormData();
+        formData.set("shareToken", shareToken);
+        formData.set("taskId", task.id);
+        formData.set("file", file);
+        await addClientTaskFileAction(formData);
+      }
+    });
     e.target.value = "";
   }
 
@@ -121,27 +125,37 @@ function ClientTaskCard({ task, shareToken }: { task: Task; shareToken: string }
         </ul>
       )}
 
-      {task.images.length > 0 && (
-        <div className="mt-2 grid grid-cols-4 gap-1.5 sm:grid-cols-6">
-          {task.images.map((url) => (
-            <a
-              key={url}
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="block overflow-hidden rounded-md border border-base-600"
+      {task.files.length > 0 && (
+        <div className="mt-2 flex flex-col gap-1.5">
+          {task.files.map((file) => (
+            <div
+              key={file.url}
+              className="flex items-center gap-2 rounded-md border border-base-600 bg-base-900 px-2.5 py-1.5"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="Attachment" className="h-14 w-full object-cover" />
-            </a>
+              <FileText size={13} className="shrink-0 text-neutral-500" />
+              <span className="min-w-0 flex-1 truncate text-xs text-neutral-200">{file.name}</span>
+              {file.size > 0 && (
+                <span className="shrink-0 text-[11px] text-neutral-500">{formatFileSize(file.size)}</span>
+              )}
+              <a
+                href={file.url}
+                download={file.name}
+                target="_blank"
+                rel="noreferrer"
+                title="Download"
+                className="shrink-0 rounded-md p-1 text-neutral-400 hover:text-accent-300"
+              >
+                <Download size={13} />
+              </a>
+            </div>
           ))}
         </div>
       )}
 
       <label className="mt-2 flex w-fit cursor-pointer items-center gap-1.5 text-xs text-accent-400 hover:text-accent-300">
-        <ImagePlus size={13} />
-        {isPending ? "Uploading…" : "Add image"}
-        <input type="file" accept="image/*" onChange={handleFile} disabled={isPending} className="hidden" />
+        <Paperclip size={13} />
+        {isPending ? "Uploading…" : "Add files"}
+        <input type="file" multiple onChange={handleFile} disabled={isPending} className="hidden" />
       </label>
     </div>
   );
@@ -191,9 +205,9 @@ function NewClientTaskForm({ shareToken, stages }: { shareToken: string; stages:
           </select>
         )}
         <label className="flex cursor-pointer items-center gap-1.5 text-xs text-neutral-400">
-          <ImagePlus size={13} />
-          Attach image
-          <input type="file" name="imageFile" accept="image/*" className="hidden" />
+          <Paperclip size={13} />
+          Attach files
+          <input type="file" name="attachmentFile" multiple className="hidden" />
         </label>
       </div>
       <button

@@ -29,17 +29,19 @@ back to showing the company/client name as text instead. Uploads go through a
 Server Action straight into Supabase Storage (the `logos` bucket), so no
 client-side Supabase key is ever needed.
 
-## Task images & client sharing
+## Task files & client sharing
 
-Any task can carry image attachments — add them from the task detail modal
-(or, on the client-facing link below, directly from the client). Images are
-stored in a public `task-images` Supabase Storage bucket and can be viewed or
-downloaded any time.
+Any task can carry file attachments of any kind — add them from the task
+detail modal, right when creating a task, or (on the client-facing link
+below) directly from the client. Files are stored in a public `task-files`
+Supabase Storage bucket and can be downloaded or removed any time. Every task
+is fully editable — title, notes, checklist, status, priority, stage, dates,
+and files — across SEO, Web Development, and every other project type.
 
 Every project has a **Client Link** control (in the project's Client Details
 tab): generate a unique, unguessable URL (`/share/<token>`) and send it to
 your client. From that link — no account needed — they can see the project's
-task board, add new tasks, and attach images, but can't edit, delete, or mark
+task board, add new tasks, and attach files, but can't edit, delete, or mark
 anything as done; that stays under your control. Regenerate the link any time
 to invalidate the old one, or disable sharing entirely.
 
@@ -96,6 +98,12 @@ described above.
 > [`supabase/migrations/004_task_images_and_client_sharing.sql`](./supabase/migrations/004_task_images_and_client_sharing.sql) —
 > it adds an `images` column to tasks, a `share_token` column to projects, and
 > the `task-images` storage bucket.
+>
+> Already ran it before task attachments supported any file type (not just
+> images)? Also run
+> [`supabase/migrations/005_task_files.sql`](./supabase/migrations/005_task_files.sql) —
+> it renames the `images` column to `files` and adds a `task-files` storage
+> bucket for the new uploads.
 
 ### 3. Get your API credentials
 

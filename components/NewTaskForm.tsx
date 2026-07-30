@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Plus, X, ListChecks } from "lucide-react";
+import { Plus, X, ListChecks, Paperclip } from "lucide-react";
 import { createTaskAction } from "@/lib/actions";
 
 function todayKey(): string {
@@ -151,6 +151,12 @@ export function NewTaskForm({ projectId, stageId }: { projectId: string; stageId
           )}
         </>
       )}
+
+      <label className="flex w-fit cursor-pointer items-center gap-1.5 text-xs text-neutral-400 hover:text-accent-300">
+        <Paperclip size={13} />
+        Attach files
+        <input type="file" name="attachmentFile" multiple className="hidden" />
+      </label>
 
       <button
         type="submit"

@@ -42,7 +42,7 @@ create table if not exists tasks (
   due_date date,
   scheduled_for date,
   checklist jsonb not null default '[]'::jsonb,
-  images jsonb not null default '[]'::jsonb,
+  files jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   completed_at timestamptz,
@@ -72,11 +72,11 @@ insert into storage.buckets (id, name, public)
 values ('logos', 'logos', true)
 on conflict (id) do nothing;
 
--- Storage bucket for images attached to individual tasks. Public for the same
--- reason as the logos bucket (so <img> tags and direct downloads work), and
--- only ever written to via the service role key.
+-- Storage bucket for files attached to individual tasks (any file type). Public
+-- for the same reason as the logos bucket (so downloads work directly by URL),
+-- and only ever written to via the service role key.
 insert into storage.buckets (id, name, public)
-values ('task-images', 'task-images', true)
+values ('task-files', 'task-files', true)
 on conflict (id) do nothing;
 
 -- Row Level Security, intentionally with no policies: the app only ever talks to
