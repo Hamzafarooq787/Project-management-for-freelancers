@@ -5,7 +5,8 @@ import {
   getOpenTasks,
   getProjectProgressMap,
   getProjects,
-  getTodayTasks,
+  getTasksScheduledOn,
+  todayDateKey,
 } from "@/lib/store";
 import { StatCard } from "@/components/StatCard";
 import { TaskRow } from "@/components/TaskRow";
@@ -17,7 +18,7 @@ export default async function DashboardPage() {
   const [openTasks, projects, todayTasks, completedTasks, progress] = await Promise.all([
     getOpenTasks(),
     getProjects(),
-    getTodayTasks(),
+    getTasksScheduledOn(todayDateKey()),
     getCompletedTasks(),
     getProjectProgressMap(),
   ]);

@@ -53,6 +53,11 @@ client-side Supabase key is ever needed.
 > Already ran `schema.sql` before logo uploads existed? Just run
 > [`supabase/migrations/002_logos_and_business_profile.sql`](./supabase/migrations/002_logos_and_business_profile.sql)
 > once — it only adds the new table and storage bucket, nothing destructive.
+>
+> Already ran it before task checklists / date-based scheduling existed? Also run
+> [`supabase/migrations/003_task_checklist_and_schedule_date.sql`](./supabase/migrations/003_task_checklist_and_schedule_date.sql) —
+> it adds a `checklist` column and converts `scheduled_for` from a `'today'`-only
+> flag into a real date.
 
 ### 3. Get your API credentials
 

@@ -12,6 +12,12 @@ export interface Stage {
   order: number;
 }
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 export interface Task {
   id: string;
   projectId: string;
@@ -21,7 +27,8 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate: string | null;
-  scheduledFor: "today" | null;
+  scheduledFor: string | null;
+  checklist: ChecklistItem[];
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;

@@ -11,16 +11,7 @@ export const PROJECT_TEMPLATES: Record<ProjectType, ProjectTemplate> = {
     type: "web_dev",
     label: "Web Development",
     description: "Design, build, test and ship a website or app.",
-    stages: [
-      "Discovery",
-      "Design / Wireframes",
-      "Frontend Development",
-      "Backend Development",
-      "Testing & QA",
-      "Deployment",
-      "Client Review",
-      "Maintenance",
-    ],
+    stages: ["Create Pages", "Services", "Contact Details", "Hosting Details"],
   },
   digital_marketing: {
     type: "digital_marketing",

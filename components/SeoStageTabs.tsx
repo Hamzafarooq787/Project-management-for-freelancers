@@ -75,7 +75,7 @@ export function SeoStageTabs({ project, tasks }: { project: Project; tasks: Task
             {activeTasks.map((task) => (
               <TaskRow key={task.id} task={task} stages={stages} />
             ))}
-            <NewTaskForm projectId={project.id} stages={[activeStage]} />
+            <NewTaskForm projectId={project.id} stageId={activeStage.id} />
           </div>
         </div>
       )}

@@ -9,6 +9,7 @@ import { ClientDetailsCard } from "@/components/ClientDetailsCard";
 import { ProjectMetaCard } from "@/components/ProjectMetaCard";
 import { WebsiteDetailsCard } from "@/components/WebsiteDetailsCard";
 import { DailyReportPanel } from "@/components/DailyReportPanel";
+import { ProjectDetailTabs } from "@/components/ProjectDetailTabs";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { CheckCircle2 } from "lucide-react";
 
@@ -34,31 +35,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const theme = PROJECT_THEME[project.type];
   const Icon = theme.icon;
 
-  return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${theme.iconBg} ${theme.iconText}`}>
-              <Icon size={18} />
-            </span>
-            <h1 className="text-2xl font-semibold text-neutral-50">{project.name}</h1>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${theme.iconBg} ${theme.iconText}`}>
-              {theme.label}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-end gap-3">
-          <ArchiveToggle projectId={project.id} archived={project.archived} />
-          <div className="w-48">
-            <ProgressBar done={progress.done} total={progress.total} color={theme.accent} />
-          </div>
-        </div>
-      </div>
-
+  const overview = (
+    <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ClientDetailsCard projectId={project.id} client={project.clientDetails} />
         <ProjectMetaCard
@@ -90,7 +68,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           }
         />
       )}
+    </div>
+  );
 
+  const board = (
+    <div className="flex flex-col gap-8">
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-400">
           {project.type === "seo" ? "SEO Checklist" : "Stages & Tasks"}
@@ -101,12 +83,6 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           <StageBoard project={project} tasks={tasks} />
         )}
       </section>
-
-      {project.type === "seo" && (
-        <section>
-          <DailyReportPanel project={project} tasks={tasks} businessProfile={businessProfile} />
-        </section>
-      )}
 
       <section>
         <div className="mb-3 flex items-center gap-2">
@@ -126,6 +102,37 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           ))}
         </div>
       </section>
+    </div>
+  );
+
+  const reports = <DailyReportPanel project={project} tasks={tasks} businessProfile={businessProfile} />;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${theme.iconBg} ${theme.iconText}`}>
+              <Icon size={18} />
+            </span>
+            <h1 className="text-2xl font-semibold text-neutral-50">{project.name}</h1>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${theme.iconBg} ${theme.iconText}`}>
+              {theme.label}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end gap-3">
+          <ArchiveToggle projectId={project.id} archived={project.archived} />
+          <div className="w-48">
+            <ProgressBar done={progress.done} total={progress.total} color={theme.accent} />
+          </div>
+        </div>
+      </div>
+
+      <ProjectDetailTabs overview={overview} board={board} reports={reports} />
     </div>
   );
 }

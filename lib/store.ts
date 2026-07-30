@@ -2,6 +2,7 @@ import { getSupabase } from "./supabaseClient";
 import { PROJECT_TEMPLATES } from "./templates";
 import type {
   BusinessProfile,
+  ChecklistItem,
   ClientDetails,
   Project,
   ProjectType,
@@ -52,7 +53,8 @@ interface TaskRow {
   status: TaskStatus;
   priority: TaskPriority;
   due_date: string | null;
-  scheduled_for: "today" | null;
+  scheduled_for: string | null;
+  checklist: ChecklistItem[];
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -74,6 +76,7 @@ function toTask(row: TaskRow): Task {
     priority: row.priority,
     dueDate: row.due_date,
     scheduledFor: row.scheduled_for,
+    checklist: row.checklist ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     completedAt: row.completed_at,
@@ -118,6 +121,14 @@ function emptyWebDetails(): WebDevDetails {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+export function todayDateKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function toCompletedTimestamp(dateKey: string | null): string {
+  return `${dateKey || todayDateKey()}T12:00:00.000Z`;
 }
 
 async function touchProject(projectId: string): Promise<void> {
@@ -284,9 +295,9 @@ export async function getOpenTasks(): Promise<Task[]> {
   });
 }
 
-export async function getTodayTasks(): Promise<Task[]> {
+export async function getTasksScheduledOn(date: string): Promise<Task[]> {
   const open = await getOpenTasks();
-  return open.filter((t) => t.scheduledFor === "today");
+  return open.filter((t) => t.scheduledFor === date);
 }
 
 export async function getCompletedTasks(): Promise<Task[]> {
@@ -304,13 +315,17 @@ export async function createTask(input: {
   title: string;
   notes?: string;
   priority?: TaskPriority;
-  scheduledFor?: "today" | null;
+  scheduledFor?: string | null;
+  checklist?: ChecklistItem[];
+  markDoneOn?: string | null;
 }): Promise<Task> {
   const { count, error: countError } = await getSupabase()
     .from("tasks")
     .select("*", { count: "exact", head: true })
     .eq("project_id", input.projectId);
   if (countError) throw countError;
+
+  const isBackdated = Boolean(input.markDoneOn);
 
   const { data, error } = await getSupabase()
     .from("tasks")
@@ -320,7 +335,10 @@ export async function createTask(input: {
       title: input.title,
       notes: input.notes ?? "",
       priority: input.priority ?? "medium",
-      scheduled_for: input.scheduledFor ?? null,
+      scheduled_for: isBackdated ? null : (input.scheduledFor ?? null),
+      checklist: input.checklist ?? [],
+      status: isBackdated ? "done" : "todo",
+      completed_at: isBackdated ? toCompletedTimestamp(input.markDoneOn ?? null) : null,
       order_index: count ?? 0,
     })
     .select()
@@ -359,7 +377,9 @@ export async function updateTaskDetails(
     stageId: string | null;
     dueDate: string | null;
     status: TaskStatus;
-    scheduledFor: "today" | null;
+    scheduledFor: string | null;
+    checklist: ChecklistItem[];
+    completedDate: string | null;
   },
 ): Promise<void> {
   const update: Record<string, unknown> = {
@@ -370,7 +390,8 @@ export async function updateTaskDetails(
     due_date: patch.dueDate,
     status: patch.status,
     scheduled_for: patch.status === "done" ? null : patch.scheduledFor,
-    completed_at: patch.status === "done" ? nowIso() : null,
+    checklist: patch.checklist,
+    completed_at: patch.status === "done" ? toCompletedTimestamp(patch.completedDate) : null,
     updated_at: nowIso(),
   };
 
@@ -394,7 +415,9 @@ export async function toggleToday(taskId: string): Promise<void> {
   if (error) throw error;
   if (!data) return;
 
-  const next = (data as { scheduled_for: "today" | null }).scheduled_for === "today" ? null : "today";
+  const today = todayDateKey();
+  const current = (data as { scheduled_for: string | null }).scheduled_for;
+  const next = current === today ? null : today;
   const { error: updateError } = await getSupabase()
     .from("tasks")
     .update({ scheduled_for: next, updated_at: nowIso() })
