@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { LayoutDashboard, ListChecks, FolderKanban, Plus, Leaf } from "lucide-react";
+import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Leaf } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/today", label: "Today", icon: ListChecks },
   { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -41,8 +42,8 @@ export function Sidebar() {
       </Link>
 
       <div className="mt-auto rounded-xl border border-base-700/60 bg-base-850 p-3 text-xs text-neutral-500">
-        Data is running on an in-memory demo store. Connect Supabase to persist your
-        projects permanently.
+        Set your company name and logo in Settings so client reports are properly
+        branded.
       </div>
     </aside>
   );

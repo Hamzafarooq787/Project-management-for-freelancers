@@ -34,6 +34,12 @@ export interface ClientDetails {
   email: string;
   phone: string;
   notes: string;
+  logoUrl: string;
+}
+
+export interface BusinessProfile {
+  companyName: string;
+  logoUrl: string;
 }
 
 export interface WebDevDetails {

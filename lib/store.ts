@@ -1,6 +1,7 @@
 import { getSupabase } from "./supabaseClient";
 import { PROJECT_TEMPLATES } from "./templates";
 import type {
+  BusinessProfile,
   ClientDetails,
   Project,
   ProjectType,
@@ -427,4 +428,25 @@ export async function getProjectProgressMap(): Promise<
     map[row.project_id] = entry;
   }
   return map;
+}
+
+export async function getBusinessProfile(): Promise<BusinessProfile> {
+  const { data, error } = await getSupabase()
+    .from("business_profile")
+    .select("company_name, logo_url")
+    .eq("id", true)
+    .maybeSingle();
+  if (error) throw error;
+
+  return {
+    companyName: (data as { company_name: string } | null)?.company_name ?? "",
+    logoUrl: (data as { logo_url: string } | null)?.logo_url ?? "",
+  };
+}
+
+export async function updateBusinessProfile(patch: BusinessProfile): Promise<void> {
+  const { error } = await getSupabase()
+    .from("business_profile")
+    .upsert({ id: true, company_name: patch.companyName, logo_url: patch.logoUrl, updated_at: nowIso() });
+  if (error) throw error;
 }

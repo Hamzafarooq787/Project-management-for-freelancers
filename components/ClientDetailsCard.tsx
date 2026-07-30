@@ -7,6 +7,7 @@ import { updateClientDetailsAction } from "@/lib/actions";
 
 export function ClientDetailsCard({ projectId, client }: { projectId: string; client: ClientDetails }) {
   const [editing, setEditing] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   const hasAnyDetails = client.name || client.company || client.email || client.phone;
@@ -23,6 +24,20 @@ export function ClientDetailsCard({ projectId, client }: { projectId: string; cl
             <Pencil size={12} />
             Edit
           </button>
+        </div>
+
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-base-600 bg-base-900">
+            {client.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={client.logoUrl} alt={client.company || "Client logo"} className="h-full w-full object-contain" />
+            ) : (
+              <Building2 size={18} className="text-neutral-600" />
+            )}
+          </div>
+          <p className="text-sm text-neutral-300">
+            {client.logoUrl ? "Logo on file" : "No logo uploaded — reports will show the client name instead"}
+          </p>
         </div>
 
         {hasAnyDetails ? (
@@ -49,15 +64,51 @@ export function ClientDetailsCard({ projectId, client }: { projectId: string; cl
       action={async (formData) => {
         await updateClientDetailsAction(formData);
         setEditing(false);
+        setPreview(null);
       }}
       className="flex flex-col gap-3 rounded-xl2 border border-accent-500/30 bg-base-850 p-4"
     >
       <input type="hidden" name="projectId" value={projectId} />
+      <input type="hidden" name="existingLogoUrl" value={client.logoUrl} />
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">Client Details</h2>
-        <button type="button" onClick={() => setEditing(false)} className="text-neutral-500 hover:text-neutral-300">
+        <button
+          type="button"
+          onClick={() => {
+            setEditing(false);
+            setPreview(null);
+          }}
+          className="text-neutral-500 hover:text-neutral-300"
+        >
           <X size={15} />
         </button>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-neutral-400">Client logo</label>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-base-600 bg-base-900">
+            {preview || client.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preview ?? client.logoUrl} alt="Logo preview" className="h-full w-full object-contain" />
+            ) : (
+              <Building2 size={18} className="text-neutral-600" />
+            )}
+          </div>
+          <input
+            type="file"
+            name="logoFile"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              setPreview(file ? URL.createObjectURL(file) : null);
+            }}
+            className="flex-1 text-sm text-neutral-400 file:mr-3 file:rounded-md file:border-0 file:bg-base-700 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-neutral-200 hover:file:bg-base-600"
+          />
+        </div>
+        <p className="mt-1 text-xs text-neutral-500">
+          Without a logo, reports will show the client&apos;s name instead.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -20,6 +20,15 @@ which only ever runs on the server (Server Components / Server Actions) and
 bypasses Row Level Security — the anon/public key is not used anywhere in this
 app, so there's nothing to leak to the browser.
 
+## Branding & client reports
+
+Go to **Settings** to set your company name and upload your logo — this brands
+every SEO daily report PDF alongside the client's own logo (uploaded from that
+project's Client Details card). If either logo is missing, the report falls
+back to showing the company/client name as text instead. Uploads go through a
+Server Action straight into Supabase Storage (the `logos` bucket), so no
+client-side Supabase key is ever needed.
+
 ## Setting up Supabase (step by step)
 
 ### 1. Create a Supabase project
@@ -35,10 +44,15 @@ app, so there's nothing to leak to the browser.
 
 1. In the Supabase dashboard, open **SQL Editor** in the left sidebar.
 2. Click **New query**, paste in the contents of [`supabase/schema.sql`](./supabase/schema.sql),
-   and click **Run**. This creates the `projects`, `stages`, and `tasks` tables
-   and enables Row Level Security on all three.
+   and click **Run**. This creates the `projects`, `stages`, `tasks`, and
+   `business_profile` tables (enabling Row Level Security on all of them) and a
+   public `logos` storage bucket for client/company logo uploads.
 3. (Optional) Run [`supabase/seed.sql`](./supabase/seed.sql) the same way if you
    want to start with the two example projects instead of an empty dashboard.
+
+> Already ran `schema.sql` before logo uploads existed? Just run
+> [`supabase/migrations/002_logos_and_business_profile.sql`](./supabase/migrations/002_logos_and_business_profile.sql)
+> once — it only adds the new table and storage bucket, nothing destructive.
 
 ### 3. Get your API credentials
 
