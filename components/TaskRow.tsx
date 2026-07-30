@@ -5,7 +5,12 @@ import { Check, Circle, Star, Trash2, Timer, ListChecks } from "lucide-react";
 import type { Stage, Task } from "@/lib/types";
 import { PriorityBadge } from "./Badges";
 import { cn, formatRelativeDate } from "@/lib/utils";
-import { deleteTaskAction, toggleTodayAction, updateTaskStatusAction } from "@/lib/actions";
+import {
+  deleteTaskAction,
+  toggleChecklistItemAction,
+  toggleTodayAction,
+  updateTaskStatusAction,
+} from "@/lib/actions";
 import { TaskDetailModal } from "./TaskDetailModal";
 
 function todayKey(): string {
@@ -71,40 +76,58 @@ export function TaskRow({
         )}
       </button>
 
-      <button
-        onClick={() => setDetailOpen(true)}
-        title="View task details"
-        className="min-w-0 flex-1 cursor-pointer text-left"
-      >
-        <p
-          className={cn(
-            "text-sm text-neutral-100 hover:text-accent-300",
-            task.status === "done" && "text-neutral-500 line-through hover:text-neutral-400",
-          )}
-        >
-          {task.title}
-        </p>
-        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          <PriorityBadge priority={task.priority} />
-          {stageName && (
-            <span className="rounded-full border border-base-600 px-2 py-0.5 text-[11px] text-neutral-400">
-              {stageName}
-            </span>
-          )}
-          {showProject && projectName && (
-            <span className="rounded-full bg-base-700/60 px-2 py-0.5 text-[11px] text-neutral-300">
-              {projectName}
-            </span>
-          )}
-          {task.checklist.length > 0 && (
-            <span className="flex items-center gap-1 rounded-full border border-base-600 px-2 py-0.5 text-[11px] text-neutral-400">
-              <ListChecks size={11} />
-              {checklistDone}/{task.checklist.length}
-            </span>
-          )}
-          <span className="text-[11px] text-neutral-500">{formatRelativeDate(task.updatedAt)}</span>
-        </div>
-      </button>
+      <div className="min-w-0 flex-1">
+        <button onClick={() => setDetailOpen(true)} title="View task details" className="w-full cursor-pointer text-left">
+          <p
+            className={cn(
+              "text-sm text-neutral-100 hover:text-accent-300",
+              task.status === "done" && "text-neutral-500 line-through hover:text-neutral-400",
+            )}
+          >
+            {task.title}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <PriorityBadge priority={task.priority} />
+            {stageName && (
+              <span className="rounded-full border border-base-600 px-2 py-0.5 text-[11px] text-neutral-400">
+                {stageName}
+              </span>
+            )}
+            {showProject && projectName && (
+              <span className="rounded-full bg-base-700/60 px-2 py-0.5 text-[11px] text-neutral-300">
+                {projectName}
+              </span>
+            )}
+            {task.checklist.length > 0 && (
+              <span className="flex items-center gap-1 rounded-full border border-base-600 px-2 py-0.5 text-[11px] text-neutral-400">
+                <ListChecks size={11} />
+                {checklistDone}/{task.checklist.length}
+              </span>
+            )}
+            <span className="text-[11px] text-neutral-500">{formatRelativeDate(task.updatedAt)}</span>
+          </div>
+        </button>
+
+        {task.checklist.length > 0 && (
+          <div className="mt-2 flex flex-col gap-1 border-l border-base-700/60 pl-2.5">
+            {task.checklist.map((item) => (
+              <label key={item.id} className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={item.done}
+                  onChange={() =>
+                    startTransition(() => toggleChecklistItemAction(task.id, task.projectId, item.id))
+                  }
+                  className="accent-accent-500"
+                />
+                <span className={cn(item.done ? "text-neutral-500 line-through" : "text-neutral-300")}>
+                  {item.text}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button

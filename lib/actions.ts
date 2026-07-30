@@ -197,6 +197,11 @@ export async function toggleTodayAction(taskId: string, projectId: string) {
   refresh(projectId);
 }
 
+export async function toggleChecklistItemAction(taskId: string, projectId: string, itemId: string) {
+  await store.toggleChecklistItem(taskId, itemId);
+  refresh(projectId);
+}
+
 export async function deleteTaskAction(taskId: string, projectId: string) {
   await store.deleteTask(taskId);
   refresh(projectId);

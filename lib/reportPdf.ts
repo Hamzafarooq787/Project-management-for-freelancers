@@ -220,7 +220,19 @@ export async function generateDailyReportPdf(input: DailyReportInput): Promise<v
       doc.setFontSize(10.5);
       const titleLines = doc.splitTextToSize(task.title, CONTENT_WIDTH - 24) as string[];
       const noteLines = task.notes ? (doc.splitTextToSize(task.notes, CONTENT_WIDTH - 24) as string[]) : [];
-      const cardHeight = 14 + titleLines.length * 14 + 16 + (noteLines.length ? noteLines.length * 12 + 4 : 0) + 10;
+      const checklistLineGroups = task.checklist.map(
+        (item) => doc.splitTextToSize(item.text, CONTENT_WIDTH - 44) as string[],
+      );
+      const checklistHeight =
+        checklistLineGroups.reduce((sum, lines) => sum + lines.length * 12 + 3, 0) +
+        (task.checklist.length > 0 ? 4 : 0);
+      const cardHeight =
+        14 +
+        titleLines.length * 14 +
+        16 +
+        (noteLines.length ? noteLines.length * 12 + 4 : 0) +
+        checklistHeight +
+        10;
 
       ensureSpace(cardHeight + 8);
 
@@ -258,6 +270,37 @@ export async function generateDailyReportPdf(input: DailyReportInput): Promise<v
         doc.setFontSize(9.5);
         textColor(COLORS.textMuted);
         doc.text(noteLines, MARGIN_X + 12, cardY + 4);
+        cardY += noteLines.length * 12 + 4;
+      }
+
+      if (task.checklist.length > 0) {
+        cardY += 6;
+        const boxSize = 7;
+        const boxX = MARGIN_X + 14;
+        for (let i = 0; i < task.checklist.length; i++) {
+          const item = task.checklist[i]!;
+          const lines = checklistLineGroups[i]!;
+          const boxY = cardY - boxSize + 2;
+
+          if (item.done) {
+            fillColor(COLORS.headerBand);
+            doc.roundedRect(boxX, boxY, boxSize, boxSize, 1.5, 1.5, "F");
+            doc.setDrawColor(255, 255, 255);
+            doc.setLineWidth(0.8);
+            doc.line(boxX + 1.3, boxY + 3.8, boxX + 2.8, boxY + 5.3);
+            doc.line(boxX + 2.8, boxY + 5.3, boxX + 5.7, boxY + 1.5);
+          } else {
+            drawColor(COLORS.cardBorder);
+            doc.setLineWidth(0.8);
+            doc.roundedRect(boxX, boxY, boxSize, boxSize, 1.5, 1.5, "S");
+          }
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9.5);
+          textColor(item.done ? COLORS.textMuted : COLORS.textDark);
+          doc.text(lines, boxX + boxSize + 6, cardY);
+          cardY += lines.length * 12 + 3;
+        }
       }
 
       y += cardHeight + 8;
