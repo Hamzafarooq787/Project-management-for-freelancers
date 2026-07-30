@@ -376,3 +376,18 @@ export async function getProjectProgress(projectId: string): Promise<{ done: num
   const done = tasks.filter((t) => t.status === "done").length;
   return { done, total: tasks.length };
 }
+
+export async function getProjectProgressMap(): Promise<
+  Record<string, { done: number; total: number; openCount: number }>
+> {
+  const map: Record<string, { done: number; total: number; openCount: number }> = {};
+  for (const project of db.projects) {
+    const tasks = db.tasks.filter((t) => t.projectId === project.id);
+    map[project.id] = {
+      done: tasks.filter((t) => t.status === "done").length,
+      total: tasks.length,
+      openCount: tasks.filter((t) => t.status !== "done").length,
+    };
+  }
+  return map;
+}

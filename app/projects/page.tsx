@@ -1,24 +1,13 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { getProjectProgress, getProjects, getTasksByProject } from "@/lib/store";
+import { getProjectProgressMap, getProjects } from "@/lib/store";
 import { ProjectTypeTabs } from "@/components/ProjectTypeTabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
-  const projects = await getProjects();
+  const [projects, progress] = await Promise.all([getProjects(), getProjectProgressMap()]);
   const active = projects.filter((p) => !p.archived);
-
-  const progress: Record<string, { done: number; total: number; openCount: number }> = {};
-  await Promise.all(
-    active.map(async (project) => {
-      const [{ done, total }, tasks] = await Promise.all([
-        getProjectProgress(project.id),
-        getTasksByProject(project.id),
-      ]);
-      progress[project.id] = { done, total, openCount: tasks.filter((t) => t.status !== "done").length };
-    }),
-  );
 
   return (
     <div className="flex flex-col gap-6">

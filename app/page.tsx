@@ -1,18 +1,25 @@
 import Link from "next/link";
-import { ListTodo, FolderKanban, Star, CheckCircle2, ArrowRight } from "lucide-react";
-import { getCompletedTasks, getOpenTasks, getProjects, getTodayTasks } from "@/lib/store";
+import { ListTodo, FolderKanban, Star, CheckCircle2, ArrowRight, Plus } from "lucide-react";
+import {
+  getCompletedTasks,
+  getOpenTasks,
+  getProjectProgressMap,
+  getProjects,
+  getTodayTasks,
+} from "@/lib/store";
 import { StatCard } from "@/components/StatCard";
 import { TaskRow } from "@/components/TaskRow";
-import { ProjectCard } from "@/components/ProjectCard";
+import { ProjectTypeTabs } from "@/components/ProjectTypeTabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [openTasks, projects, todayTasks, completedTasks] = await Promise.all([
+  const [openTasks, projects, todayTasks, completedTasks, progress] = await Promise.all([
     getOpenTasks(),
     getProjects(),
     getTodayTasks(),
     getCompletedTasks(),
+    getProjectProgressMap(),
   ]);
 
   const activeProjects = projects.filter((p) => !p.archived);
@@ -24,12 +31,22 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-neutral-50">Dashboard</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Everything open, across every project, in one place.
-        </p>
-      </div>
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-neutral-50">Projects</h1>
+            <p className="mt-1 text-sm text-neutral-500">SEO and web development, kept in their own lanes.</p>
+          </div>
+          <Link
+            href="/projects/new"
+            className="flex items-center gap-2 rounded-lg bg-accent-500 px-3 py-2 text-sm font-medium text-base-950 hover:bg-accent-400 shadow-glow"
+          >
+            <Plus size={16} />
+            New Project
+          </Link>
+        </div>
+        <ProjectTypeTabs projects={activeProjects} progress={progress} />
+      </section>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Open tasks" value={openTasks.length} icon={ListTodo} tone="accent" />
@@ -61,20 +78,6 @@ export default async function DashboardPage() {
               showProject
               projectName={projectById.get(task.projectId)?.name}
             />
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">Projects</h2>
-          <Link href="/projects" className="flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300">
-            View all <ArrowRight size={12} />
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {activeProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
           ))}
         </div>
       </section>
