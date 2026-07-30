@@ -131,6 +131,10 @@ function toCompletedTimestamp(dateKey: string | null): string {
   return `${dateKey || todayDateKey()}T12:00:00.000Z`;
 }
 
+function isChecklistComplete(checklist: ChecklistItem[]): boolean {
+  return checklist.every((item) => item.done);
+}
+
 async function touchProject(projectId: string): Promise<void> {
   const { error } = await getSupabase()
     .from("projects")
@@ -325,7 +329,8 @@ export async function createTask(input: {
     .eq("project_id", input.projectId);
   if (countError) throw countError;
 
-  const isBackdated = Boolean(input.markDoneOn);
+  const checklist = input.checklist ?? [];
+  const isBackdated = Boolean(input.markDoneOn) && isChecklistComplete(checklist);
 
   const { data, error } = await getSupabase()
     .from("tasks")
@@ -336,7 +341,7 @@ export async function createTask(input: {
       notes: input.notes ?? "",
       priority: input.priority ?? "medium",
       scheduled_for: isBackdated ? null : (input.scheduledFor ?? null),
-      checklist: input.checklist ?? [],
+      checklist,
       status: isBackdated ? "done" : "todo",
       completed_at: isBackdated ? toCompletedTimestamp(input.markDoneOn ?? null) : null,
       order_index: count ?? 0,
@@ -350,12 +355,25 @@ export async function createTask(input: {
 }
 
 export async function updateTaskStatus(taskId: string, status: TaskStatus): Promise<void> {
+  let resolvedStatus = status;
+
+  if (status === "done") {
+    const { data: existing, error: fetchError } = await getSupabase()
+      .from("tasks")
+      .select("checklist")
+      .eq("id", taskId)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    const checklist = (existing as { checklist: ChecklistItem[] } | null)?.checklist ?? [];
+    if (!isChecklistComplete(checklist)) resolvedStatus = "in_progress";
+  }
+
   const update: Record<string, unknown> = {
-    status,
+    status: resolvedStatus,
     updated_at: nowIso(),
-    completed_at: status === "done" ? nowIso() : null,
+    completed_at: resolvedStatus === "done" ? nowIso() : null,
   };
-  if (status === "done") update.scheduled_for = null;
+  if (resolvedStatus === "done") update.scheduled_for = null;
 
   const { data, error } = await getSupabase()
     .from("tasks")
@@ -382,16 +400,18 @@ export async function updateTaskDetails(
     completedDate: string | null;
   },
 ): Promise<void> {
+  const status = patch.status === "done" && !isChecklistComplete(patch.checklist) ? "in_progress" : patch.status;
+
   const update: Record<string, unknown> = {
     title: patch.title,
     notes: patch.notes,
     priority: patch.priority,
     stage_id: patch.stageId,
     due_date: patch.dueDate,
-    status: patch.status,
-    scheduled_for: patch.status === "done" ? null : patch.scheduledFor,
+    status,
+    scheduled_for: status === "done" ? null : patch.scheduledFor,
     checklist: patch.checklist,
-    completed_at: patch.status === "done" ? toCompletedTimestamp(patch.completedDate) : null,
+    completed_at: status === "done" ? toCompletedTimestamp(patch.completedDate) : null,
     updated_at: nowIso(),
   };
 

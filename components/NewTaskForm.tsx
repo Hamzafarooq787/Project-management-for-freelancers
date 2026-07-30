@@ -125,23 +125,31 @@ export function NewTaskForm({ projectId, stageId }: { projectId: string; stageId
         ))}
       </div>
 
-      <label className="flex items-center gap-1.5 text-xs text-neutral-400">
-        <input
-          type="checkbox"
-          checked={backdate}
-          onChange={(e) => setBackdate(e.target.checked)}
-          className="accent-accent-500"
-        />
-        Already completed (log past work)
-      </label>
-      {backdate && (
-        <input
-          type="date"
-          name="markDoneOn"
-          defaultValue={todayKey()}
-          max={todayKey()}
-          className="rounded-md border border-base-600 bg-base-900 px-2 py-1.5 text-xs text-neutral-300 focus:border-accent-500 focus:outline-none"
-        />
+      {checklist.filter((t) => t.trim()).length > 0 ? (
+        <p className="text-[11px] text-neutral-500">
+          Tasks with a checklist start as To Do — check items off to complete them.
+        </p>
+      ) : (
+        <>
+          <label className="flex items-center gap-1.5 text-xs text-neutral-400">
+            <input
+              type="checkbox"
+              checked={backdate}
+              onChange={(e) => setBackdate(e.target.checked)}
+              className="accent-accent-500"
+            />
+            Already completed (log past work)
+          </label>
+          {backdate && (
+            <input
+              type="date"
+              name="markDoneOn"
+              defaultValue={todayKey()}
+              max={todayKey()}
+              className="rounded-md border border-base-600 bg-base-900 px-2 py-1.5 text-xs text-neutral-300 focus:border-accent-500 focus:outline-none"
+            />
+          )}
+        </>
       )}
 
       <button

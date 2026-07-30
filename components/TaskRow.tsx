@@ -36,6 +36,10 @@ export function TaskRow({
 
   function cycleStatus() {
     const next = task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "done" : "todo";
+    if (next === "done" && task.checklist.some((c) => !c.done)) {
+      setDetailOpen(true);
+      return;
+    }
     startTransition(() => updateTaskStatusAction(task.id, task.projectId, next));
   }
 
