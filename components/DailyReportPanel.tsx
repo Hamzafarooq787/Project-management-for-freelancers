@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { CalendarClock, FileDown } from "lucide-react";
-import type { Project, Task } from "@/lib/types";
+import type { BusinessProfile, Project, Task } from "@/lib/types";
+import { generateSeoDailyReportPdf } from "@/lib/reportPdf";
 
 function toLocalDateKey(iso: string): string {
   const d = new Date(iso);
@@ -16,7 +18,15 @@ function todayKey(): string {
   return toLocalDateKey(new Date().toISOString());
 }
 
-export function DailyReportPanel({ project, tasks }: { project: Project; tasks: Task[] }) {
+export function DailyReportPanel({
+  project,
+  tasks,
+  businessProfile,
+}: {
+  project: Project;
+  tasks: Task[];
+  businessProfile: BusinessProfile;
+}) {
   const [date, setDate] = useState(todayKey());
   const [notes, setNotes] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -55,97 +65,14 @@ export function DailyReportPanel({ project, tasks }: { project: Project; tasks: 
   async function downloadPdf() {
     setGenerating(true);
     try {
-      const { jsPDF } = await import("jspdf");
-      const doc = new jsPDF({ unit: "pt", format: "a4" });
-      const marginX = 48;
-      const rightEdge = 548;
-      let y = 56;
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(18);
-      doc.setTextColor(20);
-      doc.text(project.name, marginX, y);
-      y += 22;
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.setTextColor(90);
-      const clientLine = project.clientDetails.company || project.clientDetails.name || project.client;
-      if (clientLine) {
-        doc.text(`Client: ${clientLine}`, marginX, y);
-        y += 16;
-      }
-      doc.text(`SEO Daily Report — ${displayDate}`, marginX, y);
-      y += 26;
-
-      doc.setDrawColor(210);
-      doc.line(marginX, y, rightEdge, y);
-      y += 24;
-
-      if (grouped.size === 0) {
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(11);
-        doc.setTextColor(120);
-        doc.text("No tasks were completed on this date.", marginX, y);
-        y += 20;
-      }
-
-      for (const [group, stageTasks] of grouped) {
-        if (y > 760) {
-          doc.addPage();
-          y = 56;
-        }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(13);
-        doc.setTextColor(20, 110, 70);
-        doc.text(group, marginX, y);
-        y += 18;
-
-        for (const task of stageTasks) {
-          if (y > 780) {
-            doc.addPage();
-            y = 56;
-          }
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(11);
-          doc.setTextColor(30);
-          const lines = doc.splitTextToSize(`•  ${task.title}`, 480) as string[];
-          doc.text(lines, marginX + 8, y);
-          y += 16 * lines.length;
-
-          if (task.notes) {
-            doc.setTextColor(120);
-            const noteLines = doc.splitTextToSize(task.notes, 460) as string[];
-            doc.text(noteLines, marginX + 22, y);
-            y += 14 * noteLines.length;
-          }
-        }
-        y += 10;
-      }
-
-      if (notes.trim()) {
-        if (y > 700) {
-          doc.addPage();
-          y = 56;
-        }
-        y += 10;
-        doc.setDrawColor(230);
-        doc.line(marginX, y, rightEdge, y);
-        y += 20;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.setTextColor(20);
-        doc.text("Notes for client", marginX, y);
-        y += 18;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(11);
-        doc.setTextColor(50);
-        const noteLines = doc.splitTextToSize(notes.trim(), 480) as string[];
-        doc.text(noteLines, marginX, y);
-      }
-
-      const safeName = project.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-      doc.save(`${safeName}-seo-report-${date}.pdf`);
+      await generateSeoDailyReportPdf({
+        project,
+        businessProfile,
+        date,
+        displayDate,
+        groups: [...grouped.entries()].map(([name, groupTasks]) => ({ name, tasks: groupTasks })),
+        clientNote: notes,
+      });
     } finally {
       setGenerating(false);
     }
@@ -177,6 +104,16 @@ export function DailyReportPanel({ project, tasks }: { project: Project; tasks: 
       </div>
 
       <p className="mb-3 text-xs text-neutral-500">{displayDate}</p>
+
+      {!businessProfile.companyName && !businessProfile.logoUrl && (
+        <p className="mb-3 rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
+          Add your company name and logo in{" "}
+          <Link href="/settings" className="underline hover:text-amber-200">
+            Settings
+          </Link>{" "}
+          so reports are properly branded.
+        </p>
+      )}
 
       {grouped.size === 0 ? (
         <p className="rounded-lg border border-dashed border-base-700 p-6 text-center text-sm text-neutral-500">

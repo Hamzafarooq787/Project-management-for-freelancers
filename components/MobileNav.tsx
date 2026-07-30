@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { LayoutDashboard, ListChecks, FolderKanban, Plus } from "lucide-react";
+import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/today", label: "Today", icon: ListChecks },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/projects/new", label: "New", icon: Plus },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function MobileNav() {

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProject, getProjectProgress, getTasksByProject } from "@/lib/store";
+import { getBusinessProfile, getProject, getProjectProgress, getTasksByProject } from "@/lib/store";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StageBoard } from "@/components/StageBoard";
 import { SeoStageTabs } from "@/components/SeoStageTabs";
@@ -18,9 +18,10 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const project = await getProject(params.id);
   if (!project) notFound();
 
-  const [tasks, progress] = await Promise.all([
+  const [tasks, progress, businessProfile] = await Promise.all([
     getTasksByProject(project.id),
     getProjectProgress(project.id),
+    getBusinessProfile(),
   ]);
 
   const completed = tasks
@@ -103,7 +104,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
       {project.type === "seo" && (
         <section>
-          <DailyReportPanel project={project} tasks={tasks} />
+          <DailyReportPanel project={project} tasks={tasks} businessProfile={businessProfile} />
         </section>
       )}
 

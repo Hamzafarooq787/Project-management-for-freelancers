@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import * as store from "./store";
+import { uploadLogo } from "./storage";
 import type { ClientDetails, DomainStatus, ProjectType, TaskPriority, TaskStatus, WebDevDetails } from "./types";
 
 function refresh(projectId?: string) {
@@ -32,6 +33,7 @@ export async function createProjectAction(formData: FormData) {
     email: str(formData, "clientEmail"),
     phone: str(formData, "clientPhone"),
     notes: str(formData, "clientNotes"),
+    logoUrl: "",
   };
 
   const webDetails: Partial<WebDevDetails> | null =
@@ -69,12 +71,16 @@ export async function updateClientDetailsAction(formData: FormData) {
   const projectId = str(formData, "projectId");
   if (!projectId) return;
 
+  const logoFile = formData.get("logoFile");
+  const uploadedLogoUrl = logoFile instanceof File ? await uploadLogo(logoFile, `clients/${projectId}`) : null;
+
   const clientDetails: ClientDetails = {
     name: str(formData, "clientName"),
     company: str(formData, "clientCompany"),
     email: str(formData, "clientEmail"),
     phone: str(formData, "clientPhone"),
     notes: str(formData, "clientNotes"),
+    logoUrl: uploadedLogoUrl ?? str(formData, "existingLogoUrl"),
   };
 
   await store.updateProjectDetails(projectId, { clientDetails });
@@ -170,4 +176,15 @@ export async function addStageAction(formData: FormData) {
 export async function archiveProjectAction(projectId: string, archived: boolean) {
   await store.archiveProject(projectId, archived);
   refresh(projectId);
+}
+
+export async function updateBusinessProfileAction(formData: FormData) {
+  const logoFile = formData.get("logoFile");
+  const uploadedLogoUrl = logoFile instanceof File ? await uploadLogo(logoFile, "company") : null;
+
+  await store.updateBusinessProfile({
+    companyName: str(formData, "companyName"),
+    logoUrl: uploadedLogoUrl ?? str(formData, "existingLogoUrl"),
+  });
+  revalidatePath("/settings");
 }

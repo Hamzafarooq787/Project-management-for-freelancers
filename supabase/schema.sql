@@ -50,6 +50,25 @@ create index if not exists stages_project_id_idx on stages (project_id);
 create index if not exists tasks_project_id_idx on tasks (project_id);
 create index if not exists tasks_stage_id_idx on tasks (stage_id);
 
+-- Single-row table holding your own business branding (company name + logo) that
+-- appears on generated reports. The boolean primary key + check constraint is a
+-- standard Postgres trick to guarantee at most one row can ever exist.
+create table if not exists business_profile (
+  id boolean primary key default true,
+  company_name text not null default '',
+  logo_url text not null default '',
+  updated_at timestamptz not null default now(),
+  constraint business_profile_singleton check (id)
+);
+
+-- Storage bucket for client and company logos uploaded from the app. Public so the
+-- generated PDF reports (and <img> tags in the browser) can load them directly by
+-- URL; only the service role key can write to it, since RLS/storage writes bypass
+-- policies for that key.
+insert into storage.buckets (id, name, public)
+values ('logos', 'logos', true)
+on conflict (id) do nothing;
+
 -- Row Level Security, intentionally with no policies: the app only ever talks to
 -- Supabase from server-side code using the service role key, which bypasses RLS.
 -- Enabling RLS here means the anon/public API key (if it ever leaked) grants zero
@@ -57,3 +76,4 @@ create index if not exists tasks_stage_id_idx on tasks (stage_id);
 alter table projects enable row level security;
 alter table stages enable row level security;
 alter table tasks enable row level security;
+alter table business_profile enable row level security;
