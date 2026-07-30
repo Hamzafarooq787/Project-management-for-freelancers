@@ -8,31 +8,83 @@ marketing client projects: what to do today, what's open, and what's done.
 - Next.js 14 (App Router) + TypeScript
 - Tailwind CSS (dark theme, green/accent palette)
 - Server Actions for all mutations (no client-side API calls)
+- Supabase (Postgres) for data storage
 
-## Current data layer
+## Data layer
 
-`lib/store.ts` holds an in-memory demo data store (seeded with example SEO, web
-dev and digital marketing projects) so the whole app can be designed and used
-before a real database is wired up. Every function in that file is `async` and
-already shaped like a query, so swapping it for Supabase later is a matter of
-replacing the function bodies with `supabase.from(...)` calls — no page or
-component code should need to change.
+`lib/store.ts` is the only file that talks to the database. Every function is
+`async` and shaped like the app's domain types (`lib/types.ts`), so pages and
+components never touch Supabase directly. Access goes through
+`lib/supabaseClient.ts`, a lazily-created client using the **service role key**,
+which only ever runs on the server (Server Components / Server Actions) and
+bypasses Row Level Security — the anon/public key is not used anywhere in this
+app, so there's nothing to leak to the browser.
 
-### Wiring up Supabase next
+## Setting up Supabase (step by step)
 
-1. Create tables mirroring `lib/types.ts`: `projects`, `stages`, `tasks`.
-2. Add `@supabase/supabase-js` and a `lib/supabase.ts` client using
-   `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` (server-side only)
-   env vars.
-3. Replace the bodies of the functions in `lib/store.ts` with Supabase queries,
-   keeping the same signatures.
-4. Add Supabase Auth if you want to log in before seeing your projects.
+### 1. Create a Supabase project
 
-## Getting started
+1. Go to [supabase.com](https://supabase.com) and sign in (or create an account).
+2. Click **New project**, pick an organization, name it (e.g. `freelance-hq`),
+   set a database password (save it somewhere — you won't need it for this app,
+   but you'll want it if you ever connect directly to Postgres), and choose a
+   region close to you.
+3. Wait for the project to finish provisioning (~2 minutes).
+
+### 2. Create the tables
+
+1. In the Supabase dashboard, open **SQL Editor** in the left sidebar.
+2. Click **New query**, paste in the contents of [`supabase/schema.sql`](./supabase/schema.sql),
+   and click **Run**. This creates the `projects`, `stages`, and `tasks` tables
+   and enables Row Level Security on all three.
+3. (Optional) Run [`supabase/seed.sql`](./supabase/seed.sql) the same way if you
+   want to start with the two example projects instead of an empty dashboard.
+
+### 3. Get your API credentials
+
+1. In the Supabase dashboard, go to **Project Settings > API**.
+2. Copy the **Project URL** (looks like `https://xxxxx.supabase.co`).
+3. Copy the **`service_role`** key under **Project API keys** — click "Reveal"
+   first. This is a secret key with full database access; never put it in a
+   `NEXT_PUBLIC_*` variable or commit it to git.
+
+### 4. Add the environment variables
+
+**Locally:**
+
+```bash
+cp .env.example .env.local
+```
+
+Then fill in the two values in `.env.local`:
+
+```
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+`.env.local` is already gitignored, so it stays out of version control.
+
+**On Vercel (or wherever you deploy):**
+
+1. Open your project on [vercel.com](https://vercel.com) > **Settings > Environment Variables**.
+2. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` with the same values, for
+   the **Production** and **Preview** environments.
+3. Redeploy (or just push — the next deploy will pick them up).
+
+### 5. Run it
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000 — the dashboard, projects, and task boards are now
+reading and writing to your Supabase database.
+
+## Getting started (without Supabase configured)
+
+The app still builds and lints without the two env vars set, since every
+data-driven route renders dynamically (no build-time database calls). It will
+throw a clear error at request time, though, so you do need Supabase configured
+to actually run it.

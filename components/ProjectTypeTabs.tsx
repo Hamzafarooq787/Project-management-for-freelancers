@@ -5,6 +5,7 @@ import type { Project, ProjectType } from "@/lib/types";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { cn } from "@/lib/utils";
 import { ProjectCardClient } from "./ProjectCardClient";
+import { DragScrollRow } from "./DragScrollRow";
 
 const TABS: { type: ProjectType; label: string }[] = [
   { type: "seo", label: "SEO" },
@@ -78,15 +79,16 @@ export function ProjectTypeTabs({
           <p className="text-sm text-neutral-400">No {theme.label.toLowerCase()} projects yet.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <DragScrollRow className="-mx-1 px-1 pb-2">
           {filtered.map((project) => (
-            <ProjectCardClient
-              key={project.id}
-              project={project}
-              progress={progress[project.id] ?? { done: 0, total: 0, openCount: 0 }}
-            />
+            <div key={project.id} className="w-72 shrink-0">
+              <ProjectCardClient
+                project={project}
+                progress={progress[project.id] ?? { done: 0, total: 0, openCount: 0 }}
+              />
+            </div>
           ))}
-        </div>
+        </DragScrollRow>
       )}
     </div>
   );
