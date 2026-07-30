@@ -43,6 +43,25 @@ task board, add new tasks, and attach images, but can't edit, delete, or mark
 anything as done; that stays under your control. Regenerate the link any time
 to invalidate the old one, or disable sharing entirely.
 
+## Logging in
+
+The app (everything except `/share/<token>` client links, which are
+intentionally public) requires you to be signed in. There's no public sign-up
+page — you create your own account directly in Supabase:
+
+1. In the Supabase dashboard, go to **Authentication > Users**.
+2. Click **Add user > Create new user**, enter your email and a password, and
+   make sure **Auto Confirm User** is checked (so you don't need to click an
+   email confirmation link).
+3. Go to `/login` in the app and sign in with that email/password.
+
+Session checking happens in `middleware.ts` using the public anon key —
+that key only ever performs `.auth.*` calls (sign in, sign out, check
+session). It has no access to your projects/tasks/etc. even if used
+directly, since every table has Row Level Security enabled with no
+policies; all real data access still goes through the service-role client
+described above.
+
 ## Setting up Supabase (step by step)
 
 ### 1. Create a Supabase project
@@ -85,6 +104,8 @@ to invalidate the old one, or disable sharing entirely.
 3. Copy the **`service_role`** key under **Project API keys** — click "Reveal"
    first. This is a secret key with full database access; never put it in a
    `NEXT_PUBLIC_*` variable or commit it to git.
+4. Also copy the **`anon` / `public`** key from the same page — this one is
+   safe to expose to the browser (see "Logging in" above for why).
 
 ### 4. Add the environment variables
 
@@ -94,20 +115,25 @@ to invalidate the old one, or disable sharing entirely.
 cp .env.example .env.local
 ```
 
-Then fill in the two values in `.env.local`:
+Then fill in all four values in `.env.local`:
 
 ```
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
+
+(`SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL` are the same value — one is
+server-only, the other is exposed to the browser for the login flow.)
 
 `.env.local` is already gitignored, so it stays out of version control.
 
 **On Vercel (or wherever you deploy):**
 
 1. Open your project on [vercel.com](https://vercel.com) > **Settings > Environment Variables**.
-2. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` with the same values, for
-   the **Production** and **Preview** environments.
+2. Add all four variables above with the same values, for the **Production**
+   and **Preview** environments.
 3. Redeploy (or just push — the next deploy will pick them up).
 
 ### 5. Run it

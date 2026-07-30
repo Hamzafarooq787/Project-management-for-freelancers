@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Leaf } from "lucide-react";
+import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Leaf, LogOut } from "lucide-react";
 import type { Project } from "@/lib/types";
 import { SidebarProjectGroups } from "./SidebarProjectGroups";
+import { logoutAction } from "@/app/login/actions";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -50,9 +51,20 @@ export function Sidebar({ projects }: { projects: Project[] }) {
         <SidebarProjectGroups projects={projects} />
       </div>
 
-      <div className="mt-auto rounded-xl border border-base-700/60 bg-base-850 p-3 text-xs text-neutral-500">
-        Set your company name and logo in Settings so client reports are properly
-        branded.
+      <div className="mt-auto flex flex-col gap-3">
+        <div className="rounded-xl border border-base-700/60 bg-base-850 p-3 text-xs text-neutral-500">
+          Set your company name and logo in Settings so client reports are properly
+          branded.
+        </div>
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-400 hover:bg-base-800 hover:text-rose-400 transition-colors"
+          >
+            <LogOut size={17} />
+            Log out
+          </button>
+        </form>
       </div>
     </aside>
   );
