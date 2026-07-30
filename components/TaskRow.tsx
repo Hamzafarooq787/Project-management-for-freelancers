@@ -1,0 +1,102 @@
+"use client";
+
+import { useTransition } from "react";
+import { Check, Circle, Star, Trash2, Timer } from "lucide-react";
+import type { Task } from "@/lib/types";
+import { PriorityBadge } from "./Badges";
+import { cn, formatRelativeDate } from "@/lib/utils";
+import { deleteTaskAction, toggleTodayAction, updateTaskStatusAction } from "@/lib/actions";
+
+export function TaskRow({
+  task,
+  stageName,
+  showProject,
+  projectName,
+}: {
+  task: Task;
+  stageName?: string | null;
+  showProject?: boolean;
+  projectName?: string;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  function cycleStatus() {
+    const next = task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "done" : "todo";
+    startTransition(() => updateTaskStatusAction(task.id, task.projectId, next));
+  }
+
+  return (
+    <div
+      className={cn(
+        "group flex items-start gap-3 rounded-lg border border-base-700/50 bg-base-850/60 px-3 py-2.5 transition-opacity",
+        isPending && "opacity-50",
+      )}
+    >
+      <button
+        onClick={cycleStatus}
+        title="Click to change status"
+        className={cn(
+          "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors",
+          task.status === "done"
+            ? "border-accent-500 bg-accent-500 text-base-950"
+            : task.status === "in_progress"
+              ? "border-sky-400 text-sky-400"
+              : "border-neutral-600 text-transparent hover:border-accent-400",
+        )}
+      >
+        {task.status === "done" ? (
+          <Check size={12} strokeWidth={3} />
+        ) : task.status === "in_progress" ? (
+          <Timer size={11} />
+        ) : (
+          <Circle size={6} />
+        )}
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <p
+          className={cn(
+            "text-sm text-neutral-100",
+            task.status === "done" && "text-neutral-500 line-through",
+          )}
+        >
+          {task.title}
+        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <PriorityBadge priority={task.priority} />
+          {stageName && (
+            <span className="rounded-full border border-base-600 px-2 py-0.5 text-[11px] text-neutral-400">
+              {stageName}
+            </span>
+          )}
+          {showProject && projectName && (
+            <span className="rounded-full bg-base-700/60 px-2 py-0.5 text-[11px] text-neutral-300">
+              {projectName}
+            </span>
+          )}
+          <span className="text-[11px] text-neutral-500">{formatRelativeDate(task.updatedAt)}</span>
+        </div>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          title={task.scheduledFor === "today" ? "Remove from Today" : "Add to Today"}
+          onClick={() => startTransition(() => toggleTodayAction(task.id, task.projectId))}
+          className={cn(
+            "rounded-md p-1.5 hover:bg-base-700/60",
+            task.scheduledFor === "today" ? "text-amber-400" : "text-neutral-500",
+          )}
+        >
+          <Star size={14} fill={task.scheduledFor === "today" ? "currentColor" : "none"} />
+        </button>
+        <button
+          title="Delete task"
+          onClick={() => startTransition(() => deleteTaskAction(task.id, task.projectId))}
+          className="rounded-md p-1.5 text-neutral-500 hover:bg-rose-500/10 hover:text-rose-400"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
