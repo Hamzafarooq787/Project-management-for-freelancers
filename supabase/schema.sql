@@ -19,6 +19,7 @@ create table if not exists projects (
   end_date date,
   website_url text not null default '',
   web_details jsonb,
+  share_token text unique,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -41,6 +42,7 @@ create table if not exists tasks (
   due_date date,
   scheduled_for date,
   checklist jsonb not null default '[]'::jsonb,
+  images jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   completed_at timestamptz,
@@ -68,6 +70,13 @@ create table if not exists business_profile (
 -- policies for that key.
 insert into storage.buckets (id, name, public)
 values ('logos', 'logos', true)
+on conflict (id) do nothing;
+
+-- Storage bucket for images attached to individual tasks. Public for the same
+-- reason as the logos bucket (so <img> tags and direct downloads work), and
+-- only ever written to via the service role key.
+insert into storage.buckets (id, name, public)
+values ('task-images', 'task-images', true)
 on conflict (id) do nothing;
 
 -- Row Level Security, intentionally with no policies: the app only ever talks to

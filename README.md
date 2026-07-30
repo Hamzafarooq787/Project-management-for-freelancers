@@ -29,6 +29,20 @@ back to showing the company/client name as text instead. Uploads go through a
 Server Action straight into Supabase Storage (the `logos` bucket), so no
 client-side Supabase key is ever needed.
 
+## Task images & client sharing
+
+Any task can carry image attachments — add them from the task detail modal
+(or, on the client-facing link below, directly from the client). Images are
+stored in a public `task-images` Supabase Storage bucket and can be viewed or
+downloaded any time.
+
+Every project has a **Client Link** control (in the project's Client Details
+tab): generate a unique, unguessable URL (`/share/<token>`) and send it to
+your client. From that link — no account needed — they can see the project's
+task board, add new tasks, and attach images, but can't edit, delete, or mark
+anything as done; that stays under your control. Regenerate the link any time
+to invalidate the old one, or disable sharing entirely.
+
 ## Setting up Supabase (step by step)
 
 ### 1. Create a Supabase project
@@ -58,6 +72,11 @@ client-side Supabase key is ever needed.
 > [`supabase/migrations/003_task_checklist_and_schedule_date.sql`](./supabase/migrations/003_task_checklist_and_schedule_date.sql) —
 > it adds a `checklist` column and converts `scheduled_for` from a `'today'`-only
 > flag into a real date.
+>
+> Already ran it before task images / client sharing existed? Also run
+> [`supabase/migrations/004_task_images_and_client_sharing.sql`](./supabase/migrations/004_task_images_and_client_sharing.sql) —
+> it adds an `images` column to tasks, a `share_token` column to projects, and
+> the `task-images` storage bucket.
 
 ### 3. Get your API credentials
 
