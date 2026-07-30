@@ -4,16 +4,8 @@ export const PROJECT_TEMPLATES: Record<ProjectType, ProjectTemplate> = {
   seo: {
     type: "seo",
     label: "SEO",
-    description: "Keyword research, on-page, technical SEO and link building.",
-    stages: [
-      "Keyword Research",
-      "On-Page SEO",
-      "Technical SEO",
-      "Content Optimization",
-      "Backlinks",
-      "Local SEO",
-      "Reporting",
-    ],
+    description: "On-page, technical, off-page, social and Google Business Profile management.",
+    stages: ["On-Page SEO", "Technical SEO", "Off-Page SEO", "Social Media", "Google Business Profile"],
   },
   web_dev: {
     type: "web_dev",

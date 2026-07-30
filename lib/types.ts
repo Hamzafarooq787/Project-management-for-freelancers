@@ -4,6 +4,8 @@ export type TaskStatus = "todo" | "in_progress" | "done";
 
 export type TaskPriority = "low" | "medium" | "high";
 
+export type DomainStatus = "purchased" | "pending" | "not_required";
+
 export interface Stage {
   id: string;
   name: string;
@@ -26,14 +28,40 @@ export interface Task {
   order: number;
 }
 
+export interface ClientDetails {
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  notes: string;
+}
+
+export interface WebDevDetails {
+  websiteName: string;
+  websiteUrl: string;
+  domainStatus: DomainStatus;
+  logoUrl: string;
+  siteIconUrl: string;
+  openGraphImageUrl: string;
+  servicesDetails: string;
+  hostingDetails: string;
+  contactDetails: string;
+  notes: string;
+}
+
 export interface Project {
   id: string;
   name: string;
   client: string;
+  clientDetails: ClientDetails;
   type: ProjectType;
   description: string;
   color: string;
   archived: boolean;
+  startDate: string | null;
+  endDate: string | null;
+  websiteUrl: string;
+  webDetails: WebDevDetails | null;
   createdAt: string;
   updatedAt: string;
   stages: Stage[];

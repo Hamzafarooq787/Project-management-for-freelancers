@@ -1,21 +1,31 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { getProjects } from "@/lib/store";
-import { ProjectCard } from "@/components/ProjectCard";
+import { getProjectProgress, getProjects, getTasksByProject } from "@/lib/store";
+import { ProjectTypeTabs } from "@/components/ProjectTypeTabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
   const projects = await getProjects();
   const active = projects.filter((p) => !p.archived);
-  const archived = projects.filter((p) => p.archived);
+
+  const progress: Record<string, { done: number; total: number; openCount: number }> = {};
+  await Promise.all(
+    active.map(async (project) => {
+      const [{ done, total }, tasks] = await Promise.all([
+        getProjectProgress(project.id),
+        getTasksByProject(project.id),
+      ]);
+      progress[project.id] = { done, total, openCount: tasks.filter((t) => t.status !== "done").length };
+    }),
+  );
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-neutral-50">Projects</h1>
-          <p className="mt-1 text-sm text-neutral-500">SEO, web development and marketing, all in one list.</p>
+          <p className="mt-1 text-sm text-neutral-500">SEO and web development, kept in their own lanes.</p>
         </div>
         <Link
           href="/projects/new"
@@ -26,22 +36,7 @@ export default async function ProjectsPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {active.map((project) => (
-          <ProjectCard key={project.id} project={project} />
-        ))}
-      </div>
-
-      {archived.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">Archived</h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 opacity-60">
-            {archived.map((project) => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
-          </div>
-        </section>
-      )}
+      <ProjectTypeTabs projects={active} progress={progress} />
     </div>
   );
 }

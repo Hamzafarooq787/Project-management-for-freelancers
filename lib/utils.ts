@@ -22,10 +22,3 @@ export const PRIORITY_LABEL: Record<string, string> = {
   medium: "Medium",
   high: "High",
 };
-
-export const PROJECT_TYPE_LABEL: Record<string, string> = {
-  seo: "SEO",
-  web_dev: "Web Development",
-  digital_marketing: "Digital Marketing",
-  other: "Other",
-};

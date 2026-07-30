@@ -2,14 +2,16 @@ import Link from "next/link";
 import { CalendarRange } from "lucide-react";
 import type { Project } from "@/lib/types";
 import { ProgressBar } from "./ProgressBar";
-import { getProjectProgress, getTasksByProject } from "@/lib/store";
 import { PROJECT_THEME, formatTimeframe } from "@/lib/projectTheme";
 import { cn } from "@/lib/utils";
 
-export async function ProjectCard({ project }: { project: Project }) {
-  const { done, total } = await getProjectProgress(project.id);
-  const tasks = await getTasksByProject(project.id);
-  const openCount = tasks.filter((t) => t.status !== "done").length;
+export function ProjectCardClient({
+  project,
+  progress,
+}: {
+  project: Project;
+  progress: { done: number; total: number; openCount: number };
+}) {
   const theme = PROJECT_THEME[project.type];
   const Icon = theme.icon;
 
@@ -22,15 +24,13 @@ export async function ProjectCard({ project }: { project: Project }) {
         theme.cardBorder,
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", theme.iconBg, theme.iconText)}>
-            <Icon size={17} />
-          </span>
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold text-neutral-100">{project.name}</h3>
-            <p className="truncate text-xs text-neutral-500">{project.client}</p>
-          </div>
+      <div className="flex items-start gap-3">
+        <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", theme.iconBg, theme.iconText)}>
+          <Icon size={17} />
+        </span>
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-neutral-100">{project.name}</h3>
+          <p className="truncate text-xs text-neutral-500">{project.client}</p>
         </div>
       </div>
 
@@ -43,10 +43,10 @@ export async function ProjectCard({ project }: { project: Project }) {
         <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", theme.iconBg, theme.iconText)}>
           {theme.label}
         </span>
-        <span className="text-[11px] text-neutral-500">{openCount} open</span>
+        <span className="text-[11px] text-neutral-500">{progress.openCount} open</span>
       </div>
 
-      <ProgressBar done={done} total={total} color={theme.accent} className="mt-4" />
+      <ProgressBar done={progress.done} total={progress.total} color={theme.accent} className="mt-4" />
     </Link>
   );
 }
