@@ -15,11 +15,11 @@ import { StatCard } from "@/components/StatCard";
 import { TaskRow } from "@/components/TaskRow";
 import { ProjectTypeTabs } from "@/components/ProjectTypeTabs";
 import type { ProjectPaymentSummary } from "@/components/ProjectCardClient";
-import { currentMonthKey, formatGroupedMoney, groupByCurrency } from "@/lib/utils";
+import { currentMonthKey, formatMoney, resolveSelectedCurrency, sortCurrencies } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: { currency?: string } }) {
   const profile = await getCurrentProfile();
   const isAdmin = profile?.role === "admin";
   const [allOpenTasks, projects, allTodayTasks, allCompletedTasks, progress, plans, payments] = await Promise.all([
@@ -68,21 +68,19 @@ export default async function DashboardPage() {
     paymentByProject[plan.projectId] = list;
   }
 
-  const collectedThisMonth = groupByCurrency(
-    payments.filter((p) => p.kind === "monthly" && p.period === thisMonth),
-    (p) => p.amount,
-    (p) => p.currency,
-  );
-  const monthlyRecurring = groupByCurrency(
-    plans.filter((p) => p.planType === "monthly_fixed"),
-    (p) => p.amount,
-    (p) => p.currency,
-  );
-  const outstanding = groupByCurrency(
-    plans.filter((p) => p.planType === "one_time").map(summaryForPlan),
-    (summary) => summary.pending,
-    (summary) => summary.currency,
-  );
+  const currencies = sortCurrencies(Array.from(new Set(plans.map((p) => p.currency))));
+  const summaryCurrency = resolveSelectedCurrency(currencies, searchParams.currency);
+
+  const collectedThisMonth = payments
+    .filter((p) => p.kind === "monthly" && p.period === thisMonth && p.currency === summaryCurrency)
+    .reduce((sum, p) => sum + p.amount, 0);
+  const monthlyRecurring = plans
+    .filter((p) => p.planType === "monthly_fixed" && p.currency === summaryCurrency)
+    .reduce((sum, p) => sum + p.amount, 0);
+  const outstanding = plans
+    .filter((p) => p.planType === "one_time" && p.currency === summaryCurrency)
+    .map(summaryForPlan)
+    .reduce((sum, summary) => sum + summary.pending, 0);
 
   return (
     <div className="flex flex-col gap-8">
@@ -114,16 +112,35 @@ export default async function DashboardPage() {
 
       {isAdmin && plans.length > 0 && (
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">Account Summary</h2>
-            <Link href="/finance" className="flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300">
-              Full finance view <ArrowRight size={12} />
-            </Link>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
+              Account Summary {currencies.length > 1 && `· ${summaryCurrency}`}
+            </h2>
+            <div className="flex flex-wrap items-center gap-3">
+              {currencies.length > 1 && (
+                <div className="flex gap-1 rounded-lg border border-base-700/60 bg-base-850 p-1">
+                  {currencies.map((c) => (
+                    <Link
+                      key={c}
+                      href={`/?currency=${c}`}
+                      className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                        summaryCurrency === c ? "bg-accent-500 text-base-950" : "text-neutral-400 hover:text-neutral-200"
+                      }`}
+                    >
+                      {c}
+                    </Link>
+                  ))}
+                </div>
+              )}
+              <Link href="/finance" className="flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300">
+                Full finance view <ArrowRight size={12} />
+              </Link>
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <StatCard label="Collected this month" value={formatGroupedMoney(collectedThisMonth)} icon={Wallet} tone="accent" />
-            <StatCard label="Monthly recurring" value={formatGroupedMoney(monthlyRecurring)} icon={TrendingUp} tone="amber" />
-            <StatCard label="Outstanding (one-time)" value={formatGroupedMoney(outstanding)} icon={AlertCircle} tone="rose" />
+            <StatCard label="Collected this month" value={formatMoney(collectedThisMonth, summaryCurrency)} icon={Wallet} tone="accent" />
+            <StatCard label="Monthly recurring" value={formatMoney(monthlyRecurring, summaryCurrency)} icon={TrendingUp} tone="amber" />
+            <StatCard label="Outstanding (one-time)" value={formatMoney(outstanding, summaryCurrency)} icon={AlertCircle} tone="rose" />
           </div>
         </section>
       )}

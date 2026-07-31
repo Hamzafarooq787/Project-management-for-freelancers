@@ -37,20 +37,25 @@ export function formatMoney(amount: number, currency: string): string {
   return `${currencySymbol(currency)}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** Sums amounts per currency instead of blending different currencies together. */
-export function groupByCurrency<T>(items: T[], amount: (item: T) => number, currency: (item: T) => string): Record<string, number> {
-  const totals: Record<string, number> = {};
-  for (const item of items) {
-    const key = currency(item);
-    totals[key] = (totals[key] ?? 0) + amount(item);
-  }
-  return totals;
+const CURRENCY_ORDER = ["PKR", "USD", "GBP"];
+
+/** PKR first, then USD/GBP, then anything else alphabetically. */
+export function sortCurrencies(currencies: string[]): string[] {
+  return [...currencies].sort((a, b) => {
+    const ia = CURRENCY_ORDER.indexOf(a);
+    const ib = CURRENCY_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
 }
 
-export function formatGroupedMoney(totals: Record<string, number>): string {
-  const entries = Object.entries(totals).filter(([, amount]) => amount !== 0);
-  if (entries.length === 0) return "—";
-  return entries.map(([currency, amount]) => formatMoney(amount, currency)).join(" · ");
+/** Picks `requested` if it's one of the available currencies, else the default (first available, PKR if none). */
+export function resolveSelectedCurrency(available: string[], requested: string | undefined): string {
+  const currencies = available.length > 0 ? available : ["PKR"];
+  if (requested && currencies.includes(requested)) return requested;
+  return currencies[0] ?? "PKR";
 }
 
 export function currentMonthKey(): string {

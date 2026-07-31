@@ -5,7 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { listAllPayments, listPaymentPlans, getProjects } from "@/lib/store";
 import { StatCard } from "@/components/StatCard";
 import { PROJECT_THEME } from "@/lib/projectTheme";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, resolveSelectedCurrency, sortCurrencies } from "@/lib/utils";
 import type { PaymentPlan, Project } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +17,6 @@ const RANGE_LABEL: Record<RangeKey, string> = {
   "6m": "Last 6 months",
   year: "This year",
 };
-
-const CURRENCY_ORDER = ["PKR", "USD", "GBP"];
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
@@ -45,16 +43,9 @@ export default async function FinancePage({ searchParams }: { searchParams: { ra
 
   const [allPayments, allPlans, projects] = await Promise.all([listAllPayments(), listPaymentPlans(), getProjects()]);
 
-  const currencies = Array.from(new Set(allPlans.map((p) => p.currency))).sort((a, b) => {
-    const ia = CURRENCY_ORDER.indexOf(a);
-    const ib = CURRENCY_ORDER.indexOf(b);
-    if (ia === -1 && ib === -1) return a.localeCompare(b);
-    if (ia === -1) return 1;
-    if (ib === -1) return -1;
-    return ia - ib;
-  });
-  if (currencies.length === 0) currencies.push("PKR");
-  const currency = currencies.includes(searchParams.currency ?? "") ? (searchParams.currency as string) : (currencies[0] ?? "PKR");
+  const currencies = sortCurrencies(Array.from(new Set(allPlans.map((p) => p.currency))));
+  const currency = resolveSelectedCurrency(currencies, searchParams.currency);
+  if (currencies.length === 0) currencies.push(currency);
 
   const projectById = new Map<string, Project>(projects.map((p) => [p.id, p]));
   const plans = allPlans.filter((p) => p.currency === currency);
