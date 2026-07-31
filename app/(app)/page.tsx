@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ListTodo, FolderKanban, Star, CheckCircle2, ArrowRight, Plus, Wallet, TrendingUp, AlertCircle } from "lucide-react";
+import { ListTodo, FolderKanban, Star, CheckCircle2, ArrowRight, Plus, Wallet, TrendingUp, AlertCircle, PiggyBank, Hourglass } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth";
 import {
   getCompletedTasks,
@@ -82,6 +82,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
     .map(summaryForPlan)
     .reduce((sum, summary) => sum + summary.pending, 0);
 
+  const summariesForCurrency = plans.filter((p) => p.currency === summaryCurrency).map(summaryForPlan);
+  const totalReceived = summariesForCurrency.reduce((sum, summary) => sum + summary.received, 0);
+  const totalPending = summariesForCurrency.reduce((sum, summary) => sum + summary.pending, 0);
+
   return (
     <div className="flex flex-col gap-8">
       <section>
@@ -137,7 +141,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
               </Link>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <StatCard label="Total received" value={formatMoney(totalReceived, summaryCurrency)} icon={PiggyBank} tone="accent" />
+            <StatCard label="Total pending" value={formatMoney(totalPending, summaryCurrency)} icon={Hourglass} tone="rose" />
             <StatCard label="Collected this month" value={formatMoney(collectedThisMonth, summaryCurrency)} icon={Wallet} tone="accent" />
             <StatCard label="Monthly recurring" value={formatMoney(monthlyRecurring, summaryCurrency)} icon={TrendingUp} tone="amber" />
             <StatCard label="Outstanding (one-time)" value={formatMoney(outstanding, summaryCurrency)} icon={AlertCircle} tone="rose" />
