@@ -107,19 +107,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         <ProjectTypeTabs projects={activeProjects} progress={progress} paymentByProject={paymentByProject} />
       </section>
 
-      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
-        <div className="w-[42vw] shrink-0 snap-start md:w-auto md:shrink">
-          <StatCard label="Open tasks" value={openTasks.length} icon={ListTodo} tone="accent" />
-        </div>
-        <div className="w-[42vw] shrink-0 snap-start md:w-auto md:shrink">
-          <StatCard label="Scheduled today" value={todayTasks.length} icon={Star} tone="amber" />
-        </div>
-        <div className="w-[42vw] shrink-0 snap-start md:w-auto md:shrink">
-          <StatCard label="Active projects" value={activeProjects.length} icon={FolderKanban} tone="sky" />
-        </div>
-        <div className="w-[42vw] shrink-0 snap-start md:w-auto md:shrink">
-          <StatCard label="Completed" value={completedTasks.length} icon={CheckCircle2} tone="accent" />
-        </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard label="Open tasks" value={openTasks.length} icon={ListTodo} tone="accent" />
+        <StatCard label="Scheduled today" value={todayTasks.length} icon={Star} tone="amber" />
+        <StatCard label="Active projects" value={activeProjects.length} icon={FolderKanban} tone="sky" />
+        <StatCard label="Completed" value={completedTasks.length} icon={CheckCircle2} tone="accent" />
       </div>
 
       {isAdmin && plans.length > 0 && (
@@ -149,22 +141,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
               </Link>
             </div>
           </div>
-          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-5">
-            <div className="w-[65vw] shrink-0 snap-start sm:w-auto sm:shrink">
-              <StatCard label="Total received" value={formatMoney(totalReceived, summaryCurrency)} icon={PiggyBank} tone="accent" />
-            </div>
-            <div className="w-[65vw] shrink-0 snap-start sm:w-auto sm:shrink">
-              <StatCard label="Total pending" value={formatMoney(totalPending, summaryCurrency)} icon={Hourglass} tone="rose" />
-            </div>
-            <div className="w-[65vw] shrink-0 snap-start sm:w-auto sm:shrink">
-              <StatCard label="Collected this month" value={formatMoney(collectedThisMonth, summaryCurrency)} icon={Wallet} tone="accent" />
-            </div>
-            <div className="w-[65vw] shrink-0 snap-start sm:w-auto sm:shrink">
-              <StatCard label="Monthly recurring" value={formatMoney(monthlyRecurring, summaryCurrency)} icon={TrendingUp} tone="amber" />
-            </div>
-            <div className="w-[65vw] shrink-0 snap-start sm:w-auto sm:shrink">
-              <StatCard label="Outstanding (one-time)" value={formatMoney(outstanding, summaryCurrency)} icon={AlertCircle} tone="rose" />
-            </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <StatCard label="Total received" value={formatMoney(totalReceived, summaryCurrency)} icon={PiggyBank} tone="accent" />
+            <StatCard label="Total pending" value={formatMoney(totalPending, summaryCurrency)} icon={Hourglass} tone="rose" />
+            <StatCard label="Collected this month" value={formatMoney(collectedThisMonth, summaryCurrency)} icon={Wallet} tone="accent" />
+            <StatCard label="Monthly recurring" value={formatMoney(monthlyRecurring, summaryCurrency)} icon={TrendingUp} tone="amber" />
+            <StatCard label="Outstanding (one-time)" value={formatMoney(outstanding, summaryCurrency)} icon={AlertCircle} tone="rose" />
           </div>
         </section>
       )}
