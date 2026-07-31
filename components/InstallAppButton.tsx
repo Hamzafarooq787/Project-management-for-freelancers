@@ -17,7 +17,13 @@ function isStandalone(): boolean {
   );
 }
 
-export function InstallAppButton({ className, variant = "sidebar" }: { className?: string; variant?: "sidebar" | "mobile" }) {
+export function InstallAppButton({
+  className,
+  variant = "sidebar",
+}: {
+  className?: string;
+  variant?: "sidebar" | "mobile" | "sheet";
+}) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
@@ -69,6 +75,28 @@ export function InstallAppButton({ className, variant = "sidebar" }: { className
         </button>
         {showIosHelp && (
           <div className="absolute bottom-full right-0 mb-2 w-56 rounded-lg border border-base-700/60 bg-base-850 p-3 text-[11px] text-neutral-300 shadow-card">
+            {isIos
+              ? "Tap the Share icon, then \"Add to Home Screen\"."
+              : "Use your browser's menu and choose \"Install app\" or \"Add to Home Screen\"."}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (variant === "sheet") {
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={handleClick}
+          className="flex w-full flex-col items-center gap-2 rounded-xl border border-base-700/60 bg-base-850 px-2 py-4 text-xs text-neutral-300"
+        >
+          <Download size={22} />
+          Install app
+        </button>
+        {showIosHelp && (
+          <div className="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-base-700/60 bg-base-900 p-3 text-[11px] text-neutral-300 shadow-card">
             {isIos
               ? "Tap the Share icon, then \"Add to Home Screen\"."
               : "Use your browser's menu and choose \"Install app\" or \"Add to Home Screen\"."}

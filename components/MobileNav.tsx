@@ -1,37 +1,116 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Shield, Wallet } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Shield, Wallet, MoreHorizontal, X } from "lucide-react";
 import type { Profile } from "@/lib/types";
 import { InstallAppButton } from "./InstallAppButton";
+import { cn } from "@/lib/utils";
 
-const BASE_NAV = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+const PRIMARY_NAV = [
+  { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/today", label: "Today", icon: ListChecks },
   { href: "/projects", label: "Projects", icon: FolderKanban },
 ];
 
-const ADMIN_NAV = [
-  { href: "/projects/new", label: "New", icon: Plus },
+const MORE_NAV = [
+  { href: "/projects/new", label: "New Project", icon: Plus },
   { href: "/finance", label: "Finance", icon: Wallet },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/admin", label: "Admin", icon: Shield },
 ];
 
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname.startsWith(href);
+}
+
 export function MobileNav({ profile }: { profile: Profile | null }) {
-  const nav = profile?.role === "admin" ? [...BASE_NAV, ...ADMIN_NAV] : BASE_NAV;
+  const pathname = usePathname();
+  const isAdmin = profile?.role === "admin";
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const financeItem = isAdmin ? MORE_NAV.find((item) => item.href === "/finance") : undefined;
+  const sheetItems = isAdmin ? MORE_NAV.filter((item) => item.href !== "/finance") : [];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-20 flex items-center justify-around border-t border-base-700/60 bg-base-900/95 backdrop-blur px-2 py-2">
-      {nav.map(({ href, label, icon: Icon }) => (
-        <Link
-          key={href}
-          href={href}
-          className="flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[11px] text-neutral-400 hover:text-accent-300"
+    <>
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 z-30 bg-black/50" onClick={() => setMoreOpen(false)}>
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-2xl border-t border-base-700/60 bg-base-900 p-4 pb-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-semibold text-neutral-200">More</p>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-400 hover:bg-base-800 hover:text-neutral-200"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {sheetItems.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMoreOpen(false)}
+                  className={cn(
+                    "flex flex-col items-center gap-2 rounded-xl border border-base-700/60 bg-base-850 px-2 py-4 text-xs",
+                    isActive(pathname, href) ? "text-accent-300" : "text-neutral-300",
+                  )}
+                >
+                  <Icon size={22} />
+                  {label}
+                </Link>
+              ))}
+              <InstallAppButton variant="sheet" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-20 flex items-stretch justify-around border-t border-base-700/60 bg-base-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+        {PRIMARY_NAV.map(({ href, label, icon: Icon }) => {
+          const active = isActive(pathname, href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex min-w-[64px] flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
+                active ? "text-accent-400" : "text-neutral-400",
+              )}
+            >
+              <Icon size={22} />
+              {label}
+            </Link>
+          );
+        })}
+        {financeItem && (
+          <Link
+            href={financeItem.href}
+            className={cn(
+              "flex min-w-[64px] flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
+              isActive(pathname, financeItem.href) ? "text-accent-400" : "text-neutral-400",
+            )}
+          >
+            <financeItem.icon size={22} />
+            {financeItem.label}
+          </Link>
+        )}
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          className="flex min-w-[64px] flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-neutral-400"
         >
-          <Icon size={18} />
-          {label}
-        </Link>
-      ))}
-      <InstallAppButton variant="mobile" />
-    </nav>
+          <MoreHorizontal size={22} />
+          More
+        </button>
+      </nav>
+    </>
   );
 }

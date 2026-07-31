@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/Sidebar";
 import { MobileNav } from "@/components/MobileNav";
+import { MobileTopBar } from "@/components/MobileTopBar";
 import { getCurrentProfile } from "@/lib/auth";
 import { getProjectsForProfile } from "@/lib/store";
 
@@ -12,9 +13,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen">
       <Sidebar projects={projects} profile={profile} />
-      <main className="flex-1 pb-20 md:pb-0">
-        <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</div>
-      </main>
+      <div className="flex-1">
+        <MobileTopBar />
+        <main className="pb-24 md:pb-0">
+          <div className="mx-auto max-w-6xl px-4 py-5 md:px-8 md:py-8">{children}</div>
+        </main>
+      </div>
       <MobileNav profile={profile} />
     </div>
   );

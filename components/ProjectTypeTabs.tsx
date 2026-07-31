@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type TouchEvent } from "react";
 import type { Project, ProjectType } from "@/lib/types";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { cn } from "@/lib/utils";
@@ -37,9 +37,36 @@ export function ProjectTypeTabs({
   const filtered = projects.filter((p) => p.type === active);
   const theme = PROJECT_THEME[active];
 
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  function onTouchStart(e: TouchEvent<HTMLDivElement>) {
+    const touch = e.touches[0];
+    touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+
+  function onTouchEnd(e: TouchEvent<HTMLDivElement>) {
+    const start = touchStart.current;
+    const touch = e.changedTouches[0];
+    if (!start || !touch) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    touchStart.current = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+
+    const index = visibleTabs.findIndex((tab) => tab.type === active);
+    if (index === -1) return;
+    const nextIndex = dx < 0 ? index + 1 : index - 1;
+    const nextTab = visibleTabs[nextIndex];
+    if (nextTab) setActive(nextTab.type);
+  }
+
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap gap-2 border-b border-base-700/60 pb-3">
+      <div
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        className="flex flex-wrap gap-2 border-b border-base-700/60 pb-3"
+      >
         {visibleTabs.map((tab) => {
           const tabTheme = PROJECT_THEME[tab.type];
           const Icon = tabTheme.icon;
