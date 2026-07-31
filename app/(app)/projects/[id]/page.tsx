@@ -1,5 +1,14 @@
 import { notFound } from "next/navigation";
-import { getBusinessProfile, getProject, getProjectProgress, getTasksByProject } from "@/lib/store";
+import { getCurrentProfile } from "@/lib/auth";
+import {
+  getBusinessProfile,
+  getPaymentPlan,
+  getProject,
+  getProjectProgress,
+  isProjectAssignedToUser,
+  listPaymentsForProject,
+  getTasksByProject,
+} from "@/lib/store";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StageBoard } from "@/components/StageBoard";
 import { SeoStageTabs } from "@/components/SeoStageTabs";
@@ -11,6 +20,7 @@ import { WebsiteDetailsCard } from "@/components/WebsiteDetailsCard";
 import { DailyReportPanel } from "@/components/DailyReportPanel";
 import { ProjectDetailTabs } from "@/components/ProjectDetailTabs";
 import { ShareLinkPanel } from "@/components/ShareLinkPanel";
+import { PaymentsCard } from "@/components/PaymentsCard";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { CheckCircle2 } from "lucide-react";
 
@@ -20,10 +30,18 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const project = await getProject(params.id);
   if (!project) notFound();
 
-  const [tasks, progress, businessProfile] = await Promise.all([
+  const profile = await getCurrentProfile();
+  if (!profile) notFound();
+  if (profile.role !== "admin" && !(await isProjectAssignedToUser(project.id, profile.id))) notFound();
+
+  const isAdmin = profile.role === "admin";
+
+  const [tasks, progress, businessProfile, paymentPlan, payments] = await Promise.all([
     getTasksByProject(project.id),
     getProjectProgress(project.id),
     getBusinessProfile(),
+    isAdmin ? getPaymentPlan(project.id) : Promise.resolve(null),
+    isAdmin ? listPaymentsForProject(project.id) : Promise.resolve([]),
   ]);
 
   const completed = tasks
@@ -71,6 +89,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       )}
 
       <ShareLinkPanel projectId={project.id} shareToken={project.shareToken} />
+
+      {isAdmin && <PaymentsCard projectId={project.id} plan={paymentPlan} payments={payments} />}
     </div>
   );
 

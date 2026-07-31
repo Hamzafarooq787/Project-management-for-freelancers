@@ -1,4 +1,5 @@
-import { getProjects, getTasksScheduledOn, todayDateKey } from "@/lib/store";
+import { getCurrentProfile } from "@/lib/auth";
+import { getProjectsForProfile, getTasksScheduledOn, todayDateKey } from "@/lib/store";
 import { TaskRow } from "@/components/TaskRow";
 import { DateNav } from "@/components/DateNav";
 
@@ -10,8 +11,13 @@ export default async function TodayPage({
   searchParams: { date?: string };
 }) {
   const date = searchParams.date || todayDateKey();
-  const [tasks, projects] = await Promise.all([getTasksScheduledOn(date), getProjects()]);
+  const profile = await getCurrentProfile();
+  const [allTasks, projects] = await Promise.all([
+    getTasksScheduledOn(date),
+    profile ? getProjectsForProfile(profile) : Promise.resolve([]),
+  ]);
   const projectById = new Map(projects.map((p) => [p.id, p]));
+  const tasks = allTasks.filter((t) => projectById.has(t.projectId));
   const isToday = date === todayDateKey();
 
   const displayDate = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {

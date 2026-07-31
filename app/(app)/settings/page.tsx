@@ -1,10 +1,15 @@
+import { notFound } from "next/navigation";
+import { getCurrentProfile } from "@/lib/auth";
 import { getBusinessProfile } from "@/lib/store";
 import { BusinessProfileForm } from "@/components/BusinessProfileForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const profile = await getBusinessProfile();
+  const currentProfile = await getCurrentProfile();
+  if (currentProfile?.role !== "admin") notFound();
+
+  const businessProfile = await getBusinessProfile();
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
@@ -15,7 +20,7 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      <BusinessProfileForm profile={profile} />
+      <BusinessProfileForm profile={businessProfile} />
     </div>
   );
 }

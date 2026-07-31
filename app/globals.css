@@ -7,7 +7,7 @@ html {
 }
 
 body {
-  background-color: #05100c;
+  background-color: #030a07;
   background-image:
     radial-gradient(circle at 15% 0%, rgba(51, 212, 133, 0.07), transparent 40%),
     radial-gradient(circle at 85% 20%, rgba(79, 195, 224, 0.05), transparent 40%);
@@ -25,9 +25,9 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: #1a3a2e;
+  background-color: #10231c;
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #254d3d;
+  background-color: #162e25;
 }

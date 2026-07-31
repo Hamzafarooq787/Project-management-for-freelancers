@@ -1,18 +1,26 @@
 import Link from "next/link";
-import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus } from "lucide-react";
+import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Shield, Wallet } from "lucide-react";
+import type { Profile } from "@/lib/types";
 
-const NAV = [
+const BASE_NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/today", label: "Today", icon: ListChecks },
   { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/projects/new", label: "New", icon: Plus },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function MobileNav() {
+const ADMIN_NAV = [
+  { href: "/projects/new", label: "New", icon: Plus },
+  { href: "/finance", label: "Finance", icon: Wallet },
+  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/admin", label: "Admin", icon: Shield },
+];
+
+export function MobileNav({ profile }: { profile: Profile | null }) {
+  const nav = profile?.role === "admin" ? [...BASE_NAV, ...ADMIN_NAV] : BASE_NAV;
+
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-20 flex items-center justify-around border-t border-base-700/60 bg-base-900/95 backdrop-blur px-2 py-2">
-      {NAV.map(({ href, label, icon: Icon }) => (
+      {nav.map(({ href, label, icon: Icon }) => (
         <Link
           key={href}
           href={href}

@@ -1,6 +1,13 @@
+import { notFound } from "next/navigation";
 import { NewProjectForm } from "@/components/NewProjectForm";
+import { getCurrentProfile } from "@/lib/auth";
 
-export default function NewProjectPage() {
+export const dynamic = "force-dynamic";
+
+export default async function NewProjectPage() {
+  const profile = await getCurrentProfile();
+  if (profile?.role !== "admin") notFound();
+
   return (
     <div className="mx-auto max-w-xl">
       <h1 className="text-2xl font-semibold text-neutral-50">New Project</h1>

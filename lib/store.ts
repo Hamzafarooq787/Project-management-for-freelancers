@@ -5,8 +5,14 @@ import type {
   BusinessProfile,
   ChecklistItem,
   ClientDetails,
+  Payment,
+  PaymentKind,
+  PaymentPlan,
+  PaymentPlanType,
+  Profile,
   Project,
   ProjectType,
+  Role,
   Stage,
   Task,
   TaskFile,
@@ -615,6 +621,225 @@ export async function disableSharing(projectId: string): Promise<void> {
     .from("projects")
     .update({ share_token: null, updated_at: nowIso() })
     .eq("id", projectId);
+  if (error) throw error;
+}
+
+interface ProfileRow {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  created_at: string;
+}
+
+function toProfile(row: ProfileRow): Profile {
+  return { id: row.id, email: row.email, name: row.name, role: row.role, createdAt: row.created_at };
+}
+
+export async function getProfile(userId: string): Promise<Profile | null> {
+  const { data, error } = await getSupabase().from("profiles").select("*").eq("id", userId).maybeSingle();
+  if (error) throw error;
+  return data ? toProfile(data as ProfileRow) : null;
+}
+
+export async function getProfileCount(): Promise<number> {
+  const { count, error } = await getSupabase().from("profiles").select("*", { count: "exact", head: true });
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function createProfile(input: { id: string; email: string; name: string; role: Role }): Promise<Profile> {
+  const { data, error } = await getSupabase()
+    .from("profiles")
+    .insert({ id: input.id, email: input.email, name: input.name, role: input.role })
+    .select()
+    .single();
+  if (error) throw error;
+  return toProfile(data as ProfileRow);
+}
+
+export async function listTeamMembers(): Promise<Profile[]> {
+  const { data, error } = await getSupabase().from("profiles").select("*").order("created_at");
+  if (error) throw error;
+  return ((data ?? []) as ProfileRow[]).map(toProfile);
+}
+
+export async function updateMemberRole(userId: string, role: Role): Promise<void> {
+  const { error } = await getSupabase().from("profiles").update({ role, updated_at: nowIso() }).eq("id", userId);
+  if (error) throw error;
+}
+
+export async function inviteTeamMember(input: {
+  email: string;
+  password: string;
+  name: string;
+  role: Role;
+}): Promise<Profile> {
+  const { data, error } = await getSupabase().auth.admin.createUser({
+    email: input.email,
+    password: input.password,
+    email_confirm: true,
+  });
+  if (error) throw error;
+
+  return createProfile({ id: data.user.id, email: input.email, name: input.name, role: input.role });
+}
+
+export async function removeMember(userId: string): Promise<void> {
+  const { error } = await getSupabase().auth.admin.deleteUser(userId);
+  if (error) throw error;
+}
+
+export async function getAssignedProjectIds(userId: string): Promise<string[]> {
+  const { data, error } = await getSupabase().from("project_assignments").select("project_id").eq("user_id", userId);
+  if (error) throw error;
+  return ((data ?? []) as { project_id: string }[]).map((row) => row.project_id);
+}
+
+export async function isProjectAssignedToUser(projectId: string, userId: string): Promise<boolean> {
+  const { data, error } = await getSupabase()
+    .from("project_assignments")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
+export async function setMemberAssignments(userId: string, projectIds: string[]): Promise<void> {
+  const { error: deleteError } = await getSupabase().from("project_assignments").delete().eq("user_id", userId);
+  if (deleteError) throw deleteError;
+  if (projectIds.length === 0) return;
+
+  const { error: insertError } = await getSupabase()
+    .from("project_assignments")
+    .insert(projectIds.map((projectId) => ({ project_id: projectId, user_id: userId })));
+  if (insertError) throw insertError;
+}
+
+export async function getProjectsForProfile(profile: Profile): Promise<Project[]> {
+  const all = await getProjects();
+  if (profile.role === "admin") return all;
+
+  const assigned = new Set(await getAssignedProjectIds(profile.id));
+  return all.filter((p) => assigned.has(p.id));
+}
+
+interface PaymentPlanRow {
+  project_id: string;
+  plan_type: PaymentPlanType;
+  amount: number;
+  currency: string;
+  notes: string;
+}
+
+function toPaymentPlan(row: PaymentPlanRow): PaymentPlan {
+  return { projectId: row.project_id, planType: row.plan_type, amount: Number(row.amount), currency: row.currency, notes: row.notes };
+}
+
+export async function getPaymentPlan(projectId: string): Promise<PaymentPlan | null> {
+  const { data, error } = await getSupabase().from("payment_plans").select("*").eq("project_id", projectId).maybeSingle();
+  if (error) throw error;
+  return data ? toPaymentPlan(data as PaymentPlanRow) : null;
+}
+
+export async function listPaymentPlans(): Promise<PaymentPlan[]> {
+  const { data, error } = await getSupabase().from("payment_plans").select("*");
+  if (error) throw error;
+  return ((data ?? []) as PaymentPlanRow[]).map(toPaymentPlan);
+}
+
+export async function setPaymentPlan(
+  projectId: string,
+  input: { planType: PaymentPlanType; amount: number; currency: string; notes: string },
+): Promise<PaymentPlan> {
+  const { data, error } = await getSupabase()
+    .from("payment_plans")
+    .upsert({
+      project_id: projectId,
+      plan_type: input.planType,
+      amount: input.amount,
+      currency: input.currency,
+      notes: input.notes,
+      updated_at: nowIso(),
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toPaymentPlan(data as PaymentPlanRow);
+}
+
+interface PaymentRow {
+  id: string;
+  project_id: string;
+  amount: number;
+  currency: string;
+  kind: PaymentKind;
+  period: string | null;
+  note: string;
+  paid_on: string;
+  created_at: string;
+}
+
+function toPayment(row: PaymentRow): Payment {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    amount: Number(row.amount),
+    currency: row.currency,
+    kind: row.kind,
+    period: row.period,
+    note: row.note,
+    paidOn: row.paid_on,
+    createdAt: row.created_at,
+  };
+}
+
+export async function listPaymentsForProject(projectId: string): Promise<Payment[]> {
+  const { data, error } = await getSupabase()
+    .from("payments")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("paid_on", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as PaymentRow[]).map(toPayment);
+}
+
+export async function listAllPayments(): Promise<Payment[]> {
+  const { data, error } = await getSupabase().from("payments").select("*").order("paid_on", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as PaymentRow[]).map(toPayment);
+}
+
+export async function addPayment(input: {
+  projectId: string;
+  amount: number;
+  currency: string;
+  kind: PaymentKind;
+  period: string | null;
+  note: string;
+  paidOn: string;
+}): Promise<Payment> {
+  const { data, error } = await getSupabase()
+    .from("payments")
+    .insert({
+      project_id: input.projectId,
+      amount: input.amount,
+      currency: input.currency,
+      kind: input.kind,
+      period: input.period,
+      note: input.note,
+      paid_on: input.paidOn,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toPayment(data as PaymentRow);
+}
+
+export async function deletePayment(id: string): Promise<void> {
+  const { error } = await getSupabase().from("payments").delete().eq("id", id);
   if (error) throw error;
 }
 
