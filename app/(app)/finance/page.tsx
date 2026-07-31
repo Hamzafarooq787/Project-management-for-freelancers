@@ -5,7 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { listAllPayments, listPaymentPlans, getProjects } from "@/lib/store";
 import { StatCard } from "@/components/StatCard";
 import { PROJECT_THEME } from "@/lib/projectTheme";
-import { formatGroupedMoney, formatMoney, groupByCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
 import type { PaymentPlan, Project } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +17,8 @@ const RANGE_LABEL: Record<RangeKey, string> = {
   "6m": "Last 6 months",
   year: "This year",
 };
+
+const CURRENCY_ORDER = ["PKR", "USD", "GBP"];
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
@@ -33,7 +35,7 @@ function rangeStart(range: RangeKey): string {
   return dateKey(new Date(now.getFullYear(), 0, 1));
 }
 
-export default async function FinancePage({ searchParams }: { searchParams: { range?: string } }) {
+export default async function FinancePage({ searchParams }: { searchParams: { range?: string; currency?: string } }) {
   const profile = await getCurrentProfile();
   if (profile?.role !== "admin") notFound();
 
@@ -41,40 +43,42 @@ export default async function FinancePage({ searchParams }: { searchParams: { ra
   const start = rangeStart(range);
   const today = dateKey(new Date());
 
-  const [payments, plans, projects] = await Promise.all([listAllPayments(), listPaymentPlans(), getProjects()]);
+  const [allPayments, allPlans, projects] = await Promise.all([listAllPayments(), listPaymentPlans(), getProjects()]);
+
+  const currencies = Array.from(new Set(allPlans.map((p) => p.currency))).sort((a, b) => {
+    const ia = CURRENCY_ORDER.indexOf(a);
+    const ib = CURRENCY_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+  if (currencies.length === 0) currencies.push("PKR");
+  const currency = currencies.includes(searchParams.currency ?? "") ? (searchParams.currency as string) : (currencies[0] ?? "PKR");
 
   const projectById = new Map<string, Project>(projects.map((p) => [p.id, p]));
+  const plans = allPlans.filter((p) => p.currency === currency);
   const planByProject = new Map<string, PaymentPlan>(plans.map((p) => [p.projectId, p]));
+  const payments = allPayments.filter((p) => p.currency === currency);
   const paymentsInRange = payments.filter((p) => p.paidOn >= start && p.paidOn <= today);
 
-  const collected = groupByCurrency(paymentsInRange, (p) => p.amount, (p) => p.currency);
-  const additional = groupByCurrency(
-    paymentsInRange.filter((p) => p.kind === "additional"),
-    (p) => p.amount,
-    (p) => p.currency,
-  );
-  const monthlyRecurring = groupByCurrency(
-    plans.filter((p) => p.planType === "monthly_fixed"),
-    (p) => p.amount,
-    (p) => p.currency,
-  );
+  const collected = paymentsInRange.reduce((sum, p) => sum + p.amount, 0);
+  const additional = paymentsInRange.filter((p) => p.kind === "additional").reduce((sum, p) => sum + p.amount, 0);
+  const monthlyRecurring = plans.filter((p) => p.planType === "monthly_fixed").reduce((sum, p) => sum + p.amount, 0);
 
   const totalPaidByProject = new Map<string, number>();
   for (const payment of payments) {
     totalPaidByProject.set(payment.projectId, (totalPaidByProject.get(payment.projectId) ?? 0) + payment.amount);
   }
-  const outstandingEntries = plans
+  const outstanding = plans
     .filter((p) => p.planType === "one_time")
-    .map((p) => ({ currency: p.currency, remaining: Math.max(0, p.amount - (totalPaidByProject.get(p.projectId) ?? 0)) }));
-  const outstanding = groupByCurrency(outstandingEntries, (e) => e.remaining, (e) => e.currency);
+    .reduce((sum, p) => sum + Math.max(0, p.amount - (totalPaidByProject.get(p.projectId) ?? 0)), 0);
 
-  const collectedByType = new Map<string, Record<string, number>>();
+  const collectedByType = new Map<string, number>();
   for (const payment of paymentsInRange) {
     const project = projectById.get(payment.projectId);
     if (!project) continue;
-    const bucket = collectedByType.get(project.type) ?? {};
-    bucket[payment.currency] = (bucket[payment.currency] ?? 0) + payment.amount;
-    collectedByType.set(project.type, bucket);
+    collectedByType.set(project.type, (collectedByType.get(project.type) ?? 0) + payment.amount);
   }
 
   const projectRows = projects
@@ -99,40 +103,57 @@ export default async function FinancePage({ searchParams }: { searchParams: { ra
           <h1 className="text-2xl font-semibold text-neutral-50">Finance</h1>
           <p className="mt-1 text-sm text-neutral-500">Payments collected across every project, at a glance.</p>
         </div>
-        <div className="flex gap-1.5 rounded-lg border border-base-700/60 bg-base-850 p-1">
-          {(Object.keys(RANGE_LABEL) as RangeKey[]).map((key) => (
-            <Link
-              key={key}
-              href={`/finance?range=${key}`}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                range === key ? "bg-accent-500 text-base-950" : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              {RANGE_LABEL[key]}
-            </Link>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          {currencies.length > 1 && (
+            <div className="flex gap-1.5 rounded-lg border border-base-700/60 bg-base-850 p-1">
+              {currencies.map((c) => (
+                <Link
+                  key={c}
+                  href={`/finance?range=${range}&currency=${c}`}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                    currency === c ? "bg-accent-500 text-base-950" : "text-neutral-400 hover:text-neutral-200"
+                  }`}
+                >
+                  {c}
+                </Link>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-1.5 rounded-lg border border-base-700/60 bg-base-850 p-1">
+            {(Object.keys(RANGE_LABEL) as RangeKey[]).map((key) => (
+              <Link
+                key={key}
+                href={`/finance?range=${key}&currency=${currency}`}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  range === key ? "bg-accent-500 text-base-950" : "text-neutral-400 hover:text-neutral-200"
+                }`}
+              >
+                {RANGE_LABEL[key]}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label={`Collected · ${RANGE_LABEL[range]}`} value={formatGroupedMoney(collected)} icon={Wallet} tone="accent" />
-        <StatCard label="Additional charges" value={formatGroupedMoney(additional)} icon={Receipt} tone="sky" />
-        <StatCard label="Monthly recurring (current)" value={formatGroupedMoney(monthlyRecurring)} icon={TrendingUp} tone="amber" />
-        <StatCard label="Outstanding (one-time)" value={formatGroupedMoney(outstanding)} icon={AlertCircle} tone="rose" />
+        <StatCard label={`Collected · ${RANGE_LABEL[range]}`} value={formatMoney(collected, currency)} icon={Wallet} tone="accent" />
+        <StatCard label="Additional charges" value={formatMoney(additional, currency)} icon={Receipt} tone="sky" />
+        <StatCard label="Monthly recurring (current)" value={formatMoney(monthlyRecurring, currency)} icon={TrendingUp} tone="amber" />
+        <StatCard label="Outstanding (one-time)" value={formatMoney(outstanding, currency)} icon={AlertCircle} tone="rose" />
       </div>
 
       {collectedByType.size > 0 && (
         <section className="rounded-xl2 border border-base-700/60 bg-base-850 p-4">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-400">
-            Collected by project type · {RANGE_LABEL[range]}
+            Collected by project type · {RANGE_LABEL[range]} · {currency}
           </h2>
           <div className="flex flex-col gap-2">
-            {Array.from(collectedByType.entries()).map(([type, totals]) => {
+            {Array.from(collectedByType.entries()).map(([type, total]) => {
               const theme = PROJECT_THEME[type as Project["type"]];
               return (
                 <div key={type} className="flex items-center justify-between rounded-lg border border-base-700/50 bg-base-900 px-3 py-2">
                   <span className={`text-sm font-medium ${theme.iconText}`}>{theme.label}</span>
-                  <span className="text-sm text-neutral-200">{formatGroupedMoney(totals)}</span>
+                  <span className="text-sm text-neutral-200">{formatMoney(total, currency)}</span>
                 </div>
               );
             })}
@@ -141,11 +162,13 @@ export default async function FinancePage({ searchParams }: { searchParams: { ra
       )}
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-400">Per-project payments</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-400">
+          Per-project payments · {currency}
+        </h2>
         <div className="flex flex-col gap-2">
           {projectRows.length === 0 && (
             <p className="rounded-lg border border-dashed border-base-700 p-6 text-center text-sm text-neutral-500">
-              No payment plans set yet. Add one from a project&apos;s Client Details tab.
+              No {currency} payment plans set yet. Add one from a project&apos;s Client Details tab.
             </p>
           )}
           {projectRows.map(({ project, plan, collectedInRange, remaining, lastPayment }) => {

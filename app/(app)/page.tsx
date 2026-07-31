@@ -52,14 +52,20 @@ export default async function DashboardPage() {
   }
 
   const thisMonth = currentMonthKey();
-  const paymentByProject: Record<string, ProjectPaymentSummary> = {};
-  for (const plan of plans) {
-    const projectPayments = paymentsByProject.get(plan.projectId) ?? [];
+  const summaryForPlan = (plan: (typeof plans)[number]): ProjectPaymentSummary => {
+    const projectPayments = (paymentsByProject.get(plan.projectId) ?? []).filter((p) => p.currency === plan.currency);
     const received =
       plan.planType === "monthly_fixed"
         ? projectPayments.filter((p) => p.kind === "monthly" && p.period === thisMonth).reduce((sum, p) => sum + p.amount, 0)
         : projectPayments.reduce((sum, p) => sum + p.amount, 0);
-    paymentByProject[plan.projectId] = { currency: plan.currency, received, pending: Math.max(0, plan.amount - received) };
+    return { currency: plan.currency, received, pending: Math.max(0, plan.amount - received) };
+  };
+
+  const paymentByProject: Record<string, ProjectPaymentSummary[]> = {};
+  for (const plan of plans) {
+    const list = paymentByProject[plan.projectId] ?? [];
+    list.push(summaryForPlan(plan));
+    paymentByProject[plan.projectId] = list;
   }
 
   const collectedThisMonth = groupByCurrency(
@@ -72,12 +78,8 @@ export default async function DashboardPage() {
     (p) => p.amount,
     (p) => p.currency,
   );
-  const outstandingSummaries = plans
-    .filter((p) => p.planType === "one_time")
-    .map((p) => paymentByProject[p.projectId])
-    .filter((summary): summary is ProjectPaymentSummary => summary !== undefined);
   const outstanding = groupByCurrency(
-    outstandingSummaries,
+    plans.filter((p) => p.planType === "one_time").map(summaryForPlan),
     (summary) => summary.pending,
     (summary) => summary.currency,
   );
