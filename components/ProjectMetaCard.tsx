@@ -36,9 +36,9 @@ export function ProjectMetaCard({
             Edit
           </button>
         </div>
-        {description && <p className="mb-3 text-sm text-neutral-300">{description}</p>}
-        <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-400">
-          <span className="flex items-center gap-1.5">
+        {description && <p className="mb-3 break-words text-sm text-neutral-300">{description}</p>}
+        <div className="flex min-w-0 flex-wrap items-center gap-3 text-xs text-neutral-400">
+          <span className="flex shrink-0 items-center gap-1.5">
             <CalendarRange size={13} />
             {formatTimeframe(startDate, endDate)}
           </span>
@@ -47,10 +47,10 @@ export function ProjectMetaCard({
               href={websiteUrl}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1.5 text-accent-300 hover:underline"
+              className="flex min-w-0 items-center gap-1.5 text-accent-300 hover:underline"
             >
-              <Link2 size={13} />
-              {websiteUrl}
+              <Link2 size={13} className="shrink-0" />
+              <span className="truncate">{websiteUrl}</span>
             </a>
           )}
         </div>

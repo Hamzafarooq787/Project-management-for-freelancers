@@ -147,15 +147,15 @@ function Field({
 }) {
   if (!value) return null;
   const content = (
-    <span className="truncate text-sm text-neutral-200">{value}</span>
+    <span className="block truncate text-sm text-neutral-200">{value}</span>
   );
   return (
-    <div className="flex items-center gap-2 rounded-lg bg-base-900/50 px-2.5 py-2">
+    <div className="flex min-w-0 items-center gap-2 rounded-lg bg-base-900/50 px-2.5 py-2">
       <Icon size={14} className="shrink-0 text-neutral-500" />
       <div className="min-w-0">
         <p className="text-[10px] uppercase tracking-wide text-neutral-500">{label}</p>
         {href ? (
-          <a href={href} className="truncate text-sm text-accent-300 hover:underline">
+          <a href={href} className="block truncate text-sm text-accent-300 hover:underline">
             {value}
           </a>
         ) : (
