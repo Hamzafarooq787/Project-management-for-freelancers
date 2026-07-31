@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Shield, Wallet } from "lucide-react";
 import type { Profile } from "@/lib/types";
+import { InstallAppButton } from "./InstallAppButton";
 
 const BASE_NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -30,6 +31,7 @@ export function MobileNav({ profile }: { profile: Profile | null }) {
           {label}
         </Link>
       ))}
+      <InstallAppButton variant="mobile" />
     </nav>
   );
 }
