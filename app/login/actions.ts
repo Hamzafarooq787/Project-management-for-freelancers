@@ -3,6 +3,9 @@
 import { redirect } from "next/navigation";
 import { createAuthClient } from "@/lib/supabase/server";
 
+const AUTH_NOT_CONFIGURED_MESSAGE =
+  "Sign-in isn't configured yet. Check that NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set.";
+
 export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -11,7 +14,13 @@ export async function loginAction(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent("Email and password are required.")}`);
   }
 
-  const supabase = createAuthClient();
+  let supabase;
+  try {
+    supabase = createAuthClient();
+  } catch {
+    redirect(`/login?error=${encodeURIComponent(AUTH_NOT_CONFIGURED_MESSAGE)}`);
+  }
+
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
@@ -22,7 +31,11 @@ export async function loginAction(formData: FormData) {
 }
 
 export async function logoutAction() {
-  const supabase = createAuthClient();
-  await supabase.auth.signOut();
+  try {
+    const supabase = createAuthClient();
+    await supabase.auth.signOut();
+  } catch {
+    // Auth not configured — nothing to sign out of.
+  }
   redirect("/login");
 }
