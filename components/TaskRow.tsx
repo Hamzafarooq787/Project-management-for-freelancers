@@ -58,22 +58,26 @@ export function TaskRow({
       <button
         onClick={cycleStatus}
         title="Click to change status"
-        className={cn(
-          "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors",
-          task.status === "done"
-            ? "border-accent-500 bg-accent-500 text-base-950"
-            : task.status === "in_progress"
-              ? "border-sky-400 text-sky-400"
-              : "border-neutral-600 text-transparent hover:border-accent-400",
-        )}
+        className="-ml-1.5 -mt-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
       >
-        {task.status === "done" ? (
-          <Check size={12} strokeWidth={3} />
-        ) : task.status === "in_progress" ? (
-          <Timer size={11} />
-        ) : (
-          <Circle size={6} />
-        )}
+        <span
+          className={cn(
+            "flex h-5 w-5 items-center justify-center rounded-full border transition-colors",
+            task.status === "done"
+              ? "border-accent-500 bg-accent-500 text-base-950"
+              : task.status === "in_progress"
+                ? "border-sky-400 text-sky-400"
+                : "border-neutral-600 text-transparent hover:border-accent-400",
+          )}
+        >
+          {task.status === "done" ? (
+            <Check size={12} strokeWidth={3} />
+          ) : task.status === "in_progress" ? (
+            <Timer size={11} />
+          ) : (
+            <Circle size={6} />
+          )}
+        </span>
       </button>
 
       <div className="min-w-0 flex-1">
@@ -135,23 +139,23 @@ export function TaskRow({
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex shrink-0 items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         <button
           title={isScheduledToday ? "Remove from Today" : "Schedule for today"}
           onClick={() => startTransition(() => toggleTodayAction(task.id, task.projectId))}
           className={cn(
-            "rounded-md p-1.5 hover:bg-base-700/60",
+            "rounded-md p-2 hover:bg-base-700/60",
             isScheduledToday ? "text-amber-400" : "text-neutral-500",
           )}
         >
-          <Star size={14} fill={isScheduledToday ? "currentColor" : "none"} />
+          <Star size={15} fill={isScheduledToday ? "currentColor" : "none"} />
         </button>
         <button
           title="Delete task"
           onClick={() => startTransition(() => deleteTaskAction(task.id, task.projectId))}
-          className="rounded-md p-1.5 text-neutral-500 hover:bg-rose-500/10 hover:text-rose-400"
+          className="rounded-md p-2 text-neutral-500 hover:bg-rose-500/10 hover:text-rose-400"
         >
-          <Trash2 size={14} />
+          <Trash2 size={15} />
         </button>
       </div>
 
