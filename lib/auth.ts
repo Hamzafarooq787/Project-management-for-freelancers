@@ -1,11 +1,7 @@
 import { createAuthClient } from "./supabase/server";
 import * as store from "./store";
+import { isMissingTableError } from "./store";
 import type { Profile } from "./types";
-
-function isMissingTableError(error: unknown): boolean {
-  const err = error as { code?: string; message?: string } | null;
-  return err?.code === "42P01" || Boolean(err?.message?.includes("does not exist"));
-}
 
 /**
  * Resolves the signed-in user's team profile, auto-provisioning one on first
