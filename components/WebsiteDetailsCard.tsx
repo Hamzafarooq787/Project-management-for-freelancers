@@ -151,10 +151,10 @@ function Preview({ label, url, rounded, wide }: { label: string; url: string; ro
 function InfoRow({ label, value, href }: { label: string; value: string; href?: string }) {
   if (!value) return null;
   return (
-    <div className="rounded-lg bg-base-900/50 px-2.5 py-2">
+    <div className="min-w-0 rounded-lg bg-base-900/50 px-2.5 py-2">
       <p className="text-[10px] uppercase tracking-wide text-neutral-500">{label}</p>
       {href ? (
-        <a href={href} target="_blank" rel="noreferrer" className="truncate text-sm text-sky-300 hover:underline">
+        <a href={href} target="_blank" rel="noreferrer" className="block truncate text-sm text-sky-300 hover:underline">
           {value}
         </a>
       ) : (

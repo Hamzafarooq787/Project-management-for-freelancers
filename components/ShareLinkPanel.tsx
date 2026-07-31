@@ -57,8 +57,8 @@ export function ShareLinkPanel({
           </button>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 rounded-md border border-base-600 bg-base-900 px-3 py-2">
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex min-w-0 items-center gap-2 rounded-md border border-base-600 bg-base-900 px-3 py-2">
             <span className="min-w-0 flex-1 truncate text-xs text-neutral-300">{shareUrl}</span>
             <button
               onClick={copyLink}
