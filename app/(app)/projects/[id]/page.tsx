@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getBusinessProfile, getProject, getProjectProgress, getTasksByProject } from "@/lib/store";
+import { getCurrentProfile } from "@/lib/auth";
+import { getBusinessProfile, getProject, getProjectProgress, isProjectAssignedToUser, getTasksByProject } from "@/lib/store";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StageBoard } from "@/components/StageBoard";
 import { SeoStageTabs } from "@/components/SeoStageTabs";
@@ -19,6 +20,10 @@ export const dynamic = "force-dynamic";
 export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
   const project = await getProject(params.id);
   if (!project) notFound();
+
+  const profile = await getCurrentProfile();
+  if (!profile) notFound();
+  if (profile.role !== "admin" && !(await isProjectAssignedToUser(project.id, profile.id))) notFound();
 
   const [tasks, progress, businessProfile] = await Promise.all([
     getTasksByProject(project.id),

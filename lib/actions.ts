@@ -3,12 +3,14 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import * as store from "./store";
+import { requireAdmin, requireProjectAccess } from "./auth";
 import { uploadLogo, uploadTaskFile } from "./storage";
 import type {
   ChecklistItem,
   ClientDetails,
   DomainStatus,
   ProjectType,
+  Role,
   TaskPriority,
   TaskStatus,
   WebDevDetails,
@@ -50,6 +52,8 @@ function parseChecklistJson(formData: FormData): ChecklistItem[] {
 }
 
 export async function createProjectAction(formData: FormData) {
+  await requireAdmin();
+
   const name = str(formData, "name");
   const type = str(formData, "type") as ProjectType;
   const description = str(formData, "description");
@@ -103,6 +107,7 @@ export async function createProjectAction(formData: FormData) {
 export async function updateClientDetailsAction(formData: FormData) {
   const projectId = str(formData, "projectId");
   if (!projectId) return;
+  await requireProjectAccess(projectId);
 
   const logoFile = formData.get("logoFile");
   const uploadedLogoUrl = logoFile instanceof File ? await uploadLogo(logoFile, `clients/${projectId}`) : null;
@@ -123,6 +128,7 @@ export async function updateClientDetailsAction(formData: FormData) {
 export async function updateProjectMetaAction(formData: FormData) {
   const projectId = str(formData, "projectId");
   if (!projectId) return;
+  await requireProjectAccess(projectId);
 
   await store.updateProjectDetails(projectId, {
     description: str(formData, "description"),
@@ -136,6 +142,7 @@ export async function updateProjectMetaAction(formData: FormData) {
 export async function updateWebDetailsAction(formData: FormData) {
   const projectId = str(formData, "projectId");
   if (!projectId) return;
+  await requireProjectAccess(projectId);
 
   const webDetails: WebDevDetails = {
     websiteName: str(formData, "websiteName"),
@@ -163,6 +170,7 @@ export async function createTaskAction(formData: FormData) {
   const markDoneOn = str(formData, "markDoneOn") || null;
   const checklist = parseChecklistJson(formData);
   if (!projectId || !title) return;
+  await requireProjectAccess(projectId);
 
   const task = await store.createTask({ projectId, stageId, title, priority, scheduledFor, checklist, markDoneOn });
 
@@ -179,6 +187,7 @@ export async function updateTaskDetailsAction(formData: FormData) {
   const taskId = str(formData, "taskId");
   const projectId = str(formData, "projectId");
   if (!taskId || !projectId) return;
+  await requireProjectAccess(projectId);
 
   await store.updateTaskDetails(taskId, {
     title: str(formData, "title"),
@@ -195,21 +204,25 @@ export async function updateTaskDetailsAction(formData: FormData) {
 }
 
 export async function updateTaskStatusAction(taskId: string, projectId: string, status: TaskStatus) {
+  await requireProjectAccess(projectId);
   await store.updateTaskStatus(taskId, status);
   refresh(projectId);
 }
 
 export async function toggleTodayAction(taskId: string, projectId: string) {
+  await requireProjectAccess(projectId);
   await store.toggleToday(taskId);
   refresh(projectId);
 }
 
 export async function toggleChecklistItemAction(taskId: string, projectId: string, itemId: string) {
+  await requireProjectAccess(projectId);
   await store.toggleChecklistItem(taskId, itemId);
   refresh(projectId);
 }
 
 export async function deleteTaskAction(taskId: string, projectId: string) {
+  await requireProjectAccess(projectId);
   await store.deleteTask(taskId);
   refresh(projectId);
 }
@@ -218,16 +231,19 @@ export async function addStageAction(formData: FormData) {
   const projectId = String(formData.get("projectId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   if (!projectId || !name) return;
+  await requireProjectAccess(projectId);
   await store.addStage(projectId, name);
   refresh(projectId);
 }
 
 export async function archiveProjectAction(projectId: string, archived: boolean) {
+  await requireProjectAccess(projectId);
   await store.archiveProject(projectId, archived);
   refresh(projectId);
 }
 
 export async function updateBusinessProfileAction(formData: FormData) {
+  await requireAdmin();
   const logoFile = formData.get("logoFile");
   const uploadedLogoUrl = logoFile instanceof File ? await uploadLogo(logoFile, "company") : null;
 
@@ -243,6 +259,7 @@ export async function addTaskFileAction(formData: FormData) {
   const projectId = str(formData, "projectId");
   const file = formData.get("file");
   if (!taskId || !projectId || !(file instanceof File)) return;
+  await requireProjectAccess(projectId);
 
   const uploaded = await uploadTaskFile(file, taskId);
   if (!uploaded) return;
@@ -252,25 +269,70 @@ export async function addTaskFileAction(formData: FormData) {
 }
 
 export async function removeTaskFileAction(taskId: string, projectId: string, url: string) {
+  await requireProjectAccess(projectId);
   await store.removeTaskFile(taskId, url);
   refresh(projectId);
 }
 
 export async function enableSharingAction(projectId: string): Promise<string> {
+  await requireProjectAccess(projectId);
   const token = await store.getOrCreateShareToken(projectId);
   refresh(projectId);
   return token;
 }
 
 export async function regenerateShareTokenAction(projectId: string): Promise<string> {
+  await requireProjectAccess(projectId);
   const token = await store.regenerateShareToken(projectId);
   refresh(projectId);
   return token;
 }
 
 export async function disableSharingAction(projectId: string) {
+  await requireProjectAccess(projectId);
   await store.disableSharing(projectId);
   refresh(projectId);
+}
+
+/**
+ * Admin-only team management. Team members are real Supabase Auth accounts
+ * (created via the service-role admin API) with a role + optional per-project
+ * assignments — see lib/auth.ts for how access is enforced.
+ */
+export async function inviteTeamMemberAction(formData: FormData) {
+  await requireAdmin();
+
+  const email = str(formData, "email");
+  const password = str(formData, "password");
+  const name = str(formData, "name");
+  const role = (str(formData, "role") || "member") as Role;
+  if (!email || !password) return;
+
+  await store.inviteTeamMember({ email, password, name, role });
+  revalidatePath("/admin");
+}
+
+export async function updateMemberRoleAction(userId: string, role: Role) {
+  await requireAdmin();
+  await store.updateMemberRole(userId, role);
+  revalidatePath("/admin");
+}
+
+export async function assignProjectsAction(formData: FormData) {
+  await requireAdmin();
+
+  const userId = str(formData, "userId");
+  if (!userId) return;
+
+  const projectIds = formData.getAll("projectIds").map(String);
+  await store.setMemberAssignments(userId, projectIds);
+  revalidatePath("/admin");
+}
+
+export async function removeMemberAction(userId: string) {
+  await requireAdmin();
+  await store.removeMember(userId);
+  revalidatePath("/admin");
 }
 
 /**

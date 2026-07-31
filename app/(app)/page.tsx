@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { ListTodo, FolderKanban, Star, CheckCircle2, ArrowRight, Plus } from "lucide-react";
+import { getCurrentProfile } from "@/lib/auth";
 import {
   getCompletedTasks,
   getOpenTasks,
   getProjectProgressMap,
-  getProjects,
+  getProjectsForProfile,
   getTasksScheduledOn,
   todayDateKey,
 } from "@/lib/store";
@@ -15,13 +16,19 @@ import { ProjectTypeTabs } from "@/components/ProjectTypeTabs";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [openTasks, projects, todayTasks, completedTasks, progress] = await Promise.all([
+  const profile = await getCurrentProfile();
+  const [allOpenTasks, projects, allTodayTasks, allCompletedTasks, progress] = await Promise.all([
     getOpenTasks(),
-    getProjects(),
+    profile ? getProjectsForProfile(profile) : Promise.resolve([]),
     getTasksScheduledOn(todayDateKey()),
     getCompletedTasks(),
     getProjectProgressMap(),
   ]);
+
+  const visibleIds = new Set(projects.map((p) => p.id));
+  const openTasks = allOpenTasks.filter((t) => visibleIds.has(t.projectId));
+  const todayTasks = allTodayTasks.filter((t) => visibleIds.has(t.projectId));
+  const completedTasks = allCompletedTasks.filter((t) => visibleIds.has(t.projectId));
 
   const activeProjects = projects.filter((p) => !p.archived);
   const projectById = new Map(projects.map((p) => [p.id, p]));
@@ -38,13 +45,15 @@ export default async function DashboardPage() {
             <h1 className="text-2xl font-semibold text-neutral-50">Projects</h1>
             <p className="mt-1 text-sm text-neutral-500">SEO and web development, kept in their own lanes.</p>
           </div>
-          <Link
-            href="/projects/new"
-            className="flex items-center gap-2 rounded-lg bg-accent-500 px-3 py-2 text-sm font-medium text-base-950 hover:bg-accent-400 shadow-glow"
-          >
-            <Plus size={16} />
-            New Project
-          </Link>
+          {profile?.role === "admin" && (
+            <Link
+              href="/projects/new"
+              className="flex items-center gap-2 rounded-lg bg-accent-500 px-3 py-2 text-sm font-medium text-base-950 hover:bg-accent-400 shadow-glow"
+            >
+              <Plus size={16} />
+              New Project
+            </Link>
+          )}
         </div>
         <ProjectTypeTabs projects={activeProjects} progress={progress} />
       </section>

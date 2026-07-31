@@ -64,6 +64,30 @@ create table if not exists business_profile (
   constraint business_profile_singleton check (id)
 );
 
+-- Team accounts: every signed-in user gets a profile row with a role. The first
+-- person to ever sign in is auto-promoted to 'admin' (see lib/auth.ts); everyone
+-- else defaults to 'member' until an admin changes it. Admins see every project;
+-- members only see projects explicitly assigned to them via project_assignments.
+create table if not exists profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  email text not null default '',
+  name text not null default '',
+  role text not null default 'member' check (role in ('admin', 'member')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists project_assignments (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references projects (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (project_id, user_id)
+);
+
+create index if not exists project_assignments_project_id_idx on project_assignments (project_id);
+create index if not exists project_assignments_user_id_idx on project_assignments (user_id);
+
 -- Storage bucket for client and company logos uploaded from the app. Public so the
 -- generated PDF reports (and <img> tags in the browser) can load them directly by
 -- URL; only the service role key can write to it, since RLS/storage writes bypass
@@ -87,3 +111,5 @@ alter table projects enable row level security;
 alter table stages enable row level security;
 alter table tasks enable row level security;
 alter table business_profile enable row level security;
+alter table profiles enable row level security;
+alter table project_assignments enable row level security;

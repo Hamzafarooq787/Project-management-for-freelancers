@@ -89,6 +89,16 @@ export interface Project {
   stages: Stage[];
 }
 
+export type Role = "admin" | "member";
+
+export interface Profile {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  createdAt: string;
+}
+
 export interface ProjectTemplate {
   type: ProjectType;
   label: string;

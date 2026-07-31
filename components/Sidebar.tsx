@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Leaf, LogOut } from "lucide-react";
-import type { Project } from "@/lib/types";
+import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Leaf, LogOut, Shield } from "lucide-react";
+import type { Profile, Project } from "@/lib/types";
 import { SidebarProjectGroups } from "./SidebarProjectGroups";
 import { logoutAction } from "@/app/login/actions";
 
@@ -8,10 +8,10 @@ const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/today", label: "Today", icon: ListChecks },
   { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function Sidebar({ projects }: { projects: Project[] }) {
+export function Sidebar({ projects, profile }: { projects: Project[]; profile: Profile | null }) {
+  const isAdmin = profile?.role === "admin";
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:overflow-y-auto border-r border-base-700/60 bg-base-900/60 backdrop-blur-sm px-4 py-6 gap-6">
       <div className="flex items-center gap-2 px-2">
@@ -34,15 +34,35 @@ export function Sidebar({ projects }: { projects: Project[] }) {
             {label}
           </Link>
         ))}
+        {isAdmin && (
+          <>
+            <Link
+              href="/settings"
+              className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-300 hover:bg-base-800 hover:text-accent-300 transition-colors"
+            >
+              <Settings size={17} className="text-neutral-500 group-hover:text-accent-400" />
+              Settings
+            </Link>
+            <Link
+              href="/admin"
+              className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-300 hover:bg-base-800 hover:text-accent-300 transition-colors"
+            >
+              <Shield size={17} className="text-neutral-500 group-hover:text-accent-400" />
+              Admin
+            </Link>
+          </>
+        )}
       </nav>
 
-      <Link
-        href="/projects/new"
-        className="flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-3 py-2 text-sm font-medium text-base-950 hover:bg-accent-400 transition-colors shadow-glow"
-      >
-        <Plus size={16} />
-        New Project
-      </Link>
+      {isAdmin && (
+        <Link
+          href="/projects/new"
+          className="flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-3 py-2 text-sm font-medium text-base-950 hover:bg-accent-400 transition-colors shadow-glow"
+        >
+          <Plus size={16} />
+          New Project
+        </Link>
+      )}
 
       <div>
         <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">

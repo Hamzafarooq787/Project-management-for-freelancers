@@ -64,6 +64,20 @@ directly, since every table has Row Level Security enabled with no
 policies; all real data access still goes through the service-role client
 described above.
 
+## Team accounts & the Admin panel
+
+The very first account to ever sign in is automatically made an **admin** —
+admins see every project and can manage the team. Go to **Admin** in the
+sidebar to invite team members: give them a name, email, and a temporary
+password, and they can sign in at `/login` right away.
+
+New team members default to **member** role, which only sees the projects an
+admin explicitly assigns to them (checkboxes under "Projects" on their row in
+the Admin panel) — everything else (other projects, Settings, the Admin panel
+itself, creating new projects) stays hidden and is also blocked server-side if
+attempted directly. Promote a member to admin, remove them from the team, or
+change their project access at any time from the same panel.
+
 ## Setting up Supabase (step by step)
 
 ### 1. Create a Supabase project
@@ -104,6 +118,13 @@ described above.
 > [`supabase/migrations/005_task_files.sql`](./supabase/migrations/005_task_files.sql) —
 > it renames the `images` column to `files` and adds a `task-files` storage
 > bucket for the new uploads.
+>
+> Already ran it before team accounts / the Admin panel existed? Also run
+> [`supabase/migrations/006_teams_and_roles.sql`](./supabase/migrations/006_teams_and_roles.sql) —
+> it adds `profiles` (role per signed-in user) and `project_assignments`
+> (which member can see which project) tables. Nothing to configure by hand:
+> the next person who signs in becomes admin automatically if no profile
+> exists yet.
 
 ### 3. Get your API credentials
 
