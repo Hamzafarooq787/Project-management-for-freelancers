@@ -3,14 +3,22 @@ import { CalendarRange } from "lucide-react";
 import type { Project } from "@/lib/types";
 import { ProgressBar } from "./ProgressBar";
 import { PROJECT_THEME, formatTimeframe } from "@/lib/projectTheme";
-import { cn } from "@/lib/utils";
+import { cn, formatMoney } from "@/lib/utils";
+
+export interface ProjectPaymentSummary {
+  currency: string;
+  received: number;
+  pending: number;
+}
 
 export function ProjectCardClient({
   project,
   progress,
+  payment,
 }: {
   project: Project;
   progress: { done: number; total: number; openCount: number };
+  payment?: ProjectPaymentSummary | null;
 }) {
   const theme = PROJECT_THEME[project.type];
   const Icon = theme.icon;
@@ -47,6 +55,21 @@ export function ProjectCardClient({
       </div>
 
       <ProgressBar done={progress.done} total={progress.total} color={theme.accent} className="mt-4" />
+
+      {payment && (
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-base-700/50 pt-3 text-[11px]">
+          <div>
+            <p className="text-neutral-500">Received</p>
+            <p className="font-medium text-accent-300">{formatMoney(payment.received, payment.currency)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-neutral-500">Pending</p>
+            <p className={cn("font-medium", payment.pending > 0 ? "text-amber-400" : "text-accent-300")}>
+              {formatMoney(payment.pending, payment.currency)}
+            </p>
+          </div>
+        </div>
+      )}
     </Link>
   );
 }

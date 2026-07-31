@@ -53,6 +53,11 @@ export function formatGroupedMoney(totals: Record<string, number>): string {
   return entries.map(([currency, amount]) => formatMoney(amount, currency)).join(" · ");
 }
 
+export function currentMonthKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export function formatFileSize(bytes: number): string {
   if (!bytes || bytes <= 0) return "";
   if (bytes < 1024) return `${bytes} B`;
