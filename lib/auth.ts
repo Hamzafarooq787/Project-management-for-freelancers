@@ -12,10 +12,19 @@ import type { Profile } from "./types";
  * keeps behaving exactly as it did before team accounts existed.
  */
 export async function getCurrentProfile(): Promise<Profile | null> {
-  const supabase = createAuthClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: { id: string; email?: string } | null = null;
+  try {
+    const supabase = createAuthClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    user = authUser;
+  } catch {
+    // Auth client couldn't be created/reached (e.g. NEXT_PUBLIC_SUPABASE_URL or
+    // NEXT_PUBLIC_SUPABASE_ANON_KEY missing) — treat the same as signed out
+    // instead of crashing every page under the (app) layout.
+    return null;
+  }
   if (!user) return null;
 
   try {
