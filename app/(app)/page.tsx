@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ListTodo, FolderKanban, Star, CheckCircle2, ArrowRight, Plus } from "lucide-react";
+import { ListTodo, FolderKanban, Star, CheckCircle2, ArrowRight, Plus, Wallet, TrendingUp, AlertCircle } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth";
 import {
   getCompletedTasks,
@@ -7,22 +7,29 @@ import {
   getProjectProgressMap,
   getProjectsForProfile,
   getTasksScheduledOn,
+  listAllPayments,
+  listPaymentPlans,
   todayDateKey,
 } from "@/lib/store";
 import { StatCard } from "@/components/StatCard";
 import { TaskRow } from "@/components/TaskRow";
 import { ProjectTypeTabs } from "@/components/ProjectTypeTabs";
+import type { ProjectPaymentSummary } from "@/components/ProjectCardClient";
+import { currentMonthKey, formatGroupedMoney, groupByCurrency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const profile = await getCurrentProfile();
-  const [allOpenTasks, projects, allTodayTasks, allCompletedTasks, progress] = await Promise.all([
+  const isAdmin = profile?.role === "admin";
+  const [allOpenTasks, projects, allTodayTasks, allCompletedTasks, progress, plans, payments] = await Promise.all([
     getOpenTasks(),
     profile ? getProjectsForProfile(profile) : Promise.resolve([]),
     getTasksScheduledOn(todayDateKey()),
     getCompletedTasks(),
     getProjectProgressMap(),
+    isAdmin ? listPaymentPlans() : Promise.resolve([]),
+    isAdmin ? listAllPayments() : Promise.resolve([]),
   ]);
 
   const visibleIds = new Set(projects.map((p) => p.id));
@@ -36,6 +43,44 @@ export default async function DashboardPage() {
     if (!stageId) return null;
     return projectById.get(projectId)?.stages.find((s) => s.id === stageId)?.name ?? null;
   };
+
+  const paymentsByProject = new Map<string, typeof payments>();
+  for (const payment of payments) {
+    const list = paymentsByProject.get(payment.projectId) ?? [];
+    list.push(payment);
+    paymentsByProject.set(payment.projectId, list);
+  }
+
+  const thisMonth = currentMonthKey();
+  const paymentByProject: Record<string, ProjectPaymentSummary> = {};
+  for (const plan of plans) {
+    const projectPayments = paymentsByProject.get(plan.projectId) ?? [];
+    const received =
+      plan.planType === "monthly_fixed"
+        ? projectPayments.filter((p) => p.kind === "monthly" && p.period === thisMonth).reduce((sum, p) => sum + p.amount, 0)
+        : projectPayments.reduce((sum, p) => sum + p.amount, 0);
+    paymentByProject[plan.projectId] = { currency: plan.currency, received, pending: Math.max(0, plan.amount - received) };
+  }
+
+  const collectedThisMonth = groupByCurrency(
+    payments.filter((p) => p.kind === "monthly" && p.period === thisMonth),
+    (p) => p.amount,
+    (p) => p.currency,
+  );
+  const monthlyRecurring = groupByCurrency(
+    plans.filter((p) => p.planType === "monthly_fixed"),
+    (p) => p.amount,
+    (p) => p.currency,
+  );
+  const outstandingSummaries = plans
+    .filter((p) => p.planType === "one_time")
+    .map((p) => paymentByProject[p.projectId])
+    .filter((summary): summary is ProjectPaymentSummary => summary !== undefined);
+  const outstanding = groupByCurrency(
+    outstandingSummaries,
+    (summary) => summary.pending,
+    (summary) => summary.currency,
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -55,7 +100,7 @@ export default async function DashboardPage() {
             </Link>
           )}
         </div>
-        <ProjectTypeTabs projects={activeProjects} progress={progress} />
+        <ProjectTypeTabs projects={activeProjects} progress={progress} paymentByProject={paymentByProject} />
       </section>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -64,6 +109,22 @@ export default async function DashboardPage() {
         <StatCard label="Active projects" value={activeProjects.length} icon={FolderKanban} tone="sky" />
         <StatCard label="Completed" value={completedTasks.length} icon={CheckCircle2} tone="accent" />
       </div>
+
+      {isAdmin && plans.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">Account Summary</h2>
+            <Link href="/finance" className="flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300">
+              Full finance view <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <StatCard label="Collected this month" value={formatGroupedMoney(collectedThisMonth)} icon={Wallet} tone="accent" />
+            <StatCard label="Monthly recurring" value={formatGroupedMoney(monthlyRecurring)} icon={TrendingUp} tone="amber" />
+            <StatCard label="Outstanding (one-time)" value={formatGroupedMoney(outstanding)} icon={AlertCircle} tone="rose" />
+          </div>
+        </section>
+      )}
 
       <section>
         <div className="mb-3 flex items-center justify-between">

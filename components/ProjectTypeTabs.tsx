@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Project, ProjectType } from "@/lib/types";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { cn } from "@/lib/utils";
-import { ProjectCardClient } from "./ProjectCardClient";
+import { ProjectCardClient, type ProjectPaymentSummary } from "./ProjectCardClient";
 import { DragScrollRow } from "./DragScrollRow";
 
 const TABS: { type: ProjectType; label: string }[] = [
@@ -17,9 +17,11 @@ const TABS: { type: ProjectType; label: string }[] = [
 export function ProjectTypeTabs({
   projects,
   progress,
+  paymentByProject,
 }: {
   projects: Project[];
   progress: Record<string, { done: number; total: number; openCount: number }>;
+  paymentByProject?: Record<string, ProjectPaymentSummary>;
 }) {
   const counts = TABS.reduce<Record<ProjectType, number>>(
     (acc, tab) => {
@@ -85,6 +87,7 @@ export function ProjectTypeTabs({
               <ProjectCardClient
                 project={project}
                 progress={progress[project.id] ?? { done: 0, total: 0, openCount: 0 }}
+                payment={paymentByProject?.[project.id] ?? null}
               />
             </div>
           ))}
