@@ -753,6 +753,7 @@ export async function getProjectsForProfile(profile: Profile): Promise<Project[]
 }
 
 interface PaymentPlanRow {
+  id: string;
   project_id: string;
   plan_type: PaymentPlanType;
   amount: number;
@@ -761,16 +762,24 @@ interface PaymentPlanRow {
 }
 
 function toPaymentPlan(row: PaymentPlanRow): PaymentPlan {
-  return { projectId: row.project_id, planType: row.plan_type, amount: Number(row.amount), currency: row.currency, notes: row.notes };
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    planType: row.plan_type,
+    amount: Number(row.amount),
+    currency: row.currency,
+    notes: row.notes,
+  };
 }
 
-export async function getPaymentPlan(projectId: string): Promise<PaymentPlan | null> {
+/** A project can have one plan per currency (e.g. a PKR plan and a USD plan on the same project). */
+export async function listPaymentPlansForProject(projectId: string): Promise<PaymentPlan[]> {
   try {
-    const { data, error } = await getSupabase().from("payment_plans").select("*").eq("project_id", projectId).maybeSingle();
+    const { data, error } = await getSupabase().from("payment_plans").select("*").eq("project_id", projectId);
     if (error) throw error;
-    return data ? toPaymentPlan(data as PaymentPlanRow) : null;
+    return ((data ?? []) as PaymentPlanRow[]).map(toPaymentPlan);
   } catch (error) {
-    if (isMissingTableError(error)) return null;
+    if (isMissingTableError(error)) return [];
     throw error;
   }
 }
@@ -792,18 +801,30 @@ export async function setPaymentPlan(
 ): Promise<PaymentPlan> {
   const { data, error } = await getSupabase()
     .from("payment_plans")
-    .upsert({
-      project_id: projectId,
-      plan_type: input.planType,
-      amount: input.amount,
-      currency: input.currency,
-      notes: input.notes,
-      updated_at: nowIso(),
-    })
+    .upsert(
+      {
+        project_id: projectId,
+        plan_type: input.planType,
+        amount: input.amount,
+        currency: input.currency,
+        notes: input.notes,
+        updated_at: nowIso(),
+      },
+      { onConflict: "project_id,currency" },
+    )
     .select()
     .single();
   if (error) throw error;
   return toPaymentPlan(data as PaymentPlanRow);
+}
+
+export async function deletePaymentPlan(projectId: string, currency: string): Promise<void> {
+  const { error } = await getSupabase()
+    .from("payment_plans")
+    .delete()
+    .eq("project_id", projectId)
+    .eq("currency", currency);
+  if (error) throw error;
 }
 
 interface PaymentRow {

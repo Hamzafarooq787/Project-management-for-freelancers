@@ -14,11 +14,11 @@ export interface ProjectPaymentSummary {
 export function ProjectCardClient({
   project,
   progress,
-  payment,
+  payments,
 }: {
   project: Project;
   progress: { done: number; total: number; openCount: number };
-  payment?: ProjectPaymentSummary | null;
+  payments?: ProjectPaymentSummary[];
 }) {
   const theme = PROJECT_THEME[project.type];
   const Icon = theme.icon;
@@ -56,18 +56,22 @@ export function ProjectCardClient({
 
       <ProgressBar done={progress.done} total={progress.total} color={theme.accent} className="mt-4" />
 
-      {payment && (
-        <div className="mt-3 flex items-center justify-between gap-2 border-t border-base-700/50 pt-3 text-[11px]">
-          <div>
-            <p className="text-neutral-500">Received</p>
-            <p className="font-medium text-accent-300">{formatMoney(payment.received, payment.currency)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-neutral-500">Pending</p>
-            <p className={cn("font-medium", payment.pending > 0 ? "text-amber-400" : "text-accent-300")}>
-              {formatMoney(payment.pending, payment.currency)}
-            </p>
-          </div>
+      {payments && payments.length > 0 && (
+        <div className="mt-3 flex flex-col gap-1.5 border-t border-base-700/50 pt-3">
+          {payments.map((payment) => (
+            <div key={payment.currency} className="flex items-center justify-between gap-2 text-[11px]">
+              <div>
+                <p className="text-neutral-500">{payment.currency} Received</p>
+                <p className="font-medium text-accent-300">{formatMoney(payment.received, payment.currency)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-neutral-500">Pending</p>
+                <p className={cn("font-medium", payment.pending > 0 ? "text-amber-400" : "text-accent-300")}>
+                  {formatMoney(payment.pending, payment.currency)}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </Link>

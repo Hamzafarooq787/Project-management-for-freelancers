@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import {
   getBusinessProfile,
-  getPaymentPlan,
+  listPaymentPlansForProject,
   getProject,
   getProjectProgress,
   isProjectAssignedToUser,
@@ -36,11 +36,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
   const isAdmin = profile.role === "admin";
 
-  const [tasks, progress, businessProfile, paymentPlan, payments] = await Promise.all([
+  const [tasks, progress, businessProfile, paymentPlans, payments] = await Promise.all([
     getTasksByProject(project.id),
     getProjectProgress(project.id),
     getBusinessProfile(),
-    isAdmin ? getPaymentPlan(project.id) : Promise.resolve(null),
+    isAdmin ? listPaymentPlansForProject(project.id) : Promise.resolve([]),
     isAdmin ? listPaymentsForProject(project.id) : Promise.resolve([]),
   ]);
 
@@ -90,7 +90,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
       <ShareLinkPanel projectId={project.id} shareToken={project.shareToken} />
 
-      {isAdmin && <PaymentsCard projectId={project.id} plan={paymentPlan} payments={payments} />}
+      {isAdmin && <PaymentsCard projectId={project.id} plans={paymentPlans} payments={payments} />}
     </div>
   );
 

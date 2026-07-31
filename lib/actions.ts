@@ -383,6 +383,18 @@ export async function deletePaymentAction(id: string, projectId: string) {
   revalidatePath("/finance");
 }
 
+export async function deletePaymentPlanAction(formData: FormData) {
+  await requireAdmin();
+
+  const projectId = str(formData, "projectId");
+  const currency = str(formData, "currency");
+  if (!projectId || !currency) return;
+
+  await store.deletePaymentPlan(projectId, currency);
+  refresh(projectId);
+  revalidatePath("/finance");
+}
+
 /**
  * Public, unauthenticated actions reachable from /share/[token]. These never trust a
  * client-supplied projectId — the project is always resolved strictly from the share

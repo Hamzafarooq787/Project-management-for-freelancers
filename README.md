@@ -153,6 +153,11 @@ shown grouped by currency if you bill clients in more than one.
 > [`supabase/migrations/007_payments.sql`](./supabase/migrations/007_payments.sql) —
 > it adds `payment_plans` (how a project is priced) and `payments` (the
 > ledger of amounts actually received) tables.
+>
+> Already ran 007 before a project could have more than one currency? Also run
+> [`supabase/migrations/008_multi_currency_payment_plans.sql`](./supabase/migrations/008_multi_currency_payment_plans.sql) —
+> it lets a project have one payment plan per currency (e.g. a PKR plan and a
+> USD plan on the same project) instead of a single project-wide plan.
 
 ### 3. Get your API credentials
 

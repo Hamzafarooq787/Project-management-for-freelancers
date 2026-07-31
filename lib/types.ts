@@ -102,6 +102,7 @@ export interface Profile {
 export type PaymentPlanType = "monthly_fixed" | "one_time";
 
 export interface PaymentPlan {
+  id: string;
   projectId: string;
   planType: PaymentPlanType;
   amount: number;
