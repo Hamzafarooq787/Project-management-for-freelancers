@@ -147,7 +147,7 @@ function MemberRow({
           <p className="text-xs text-neutral-500">{member.email}</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {!isSelf && (
             <select
               value={member.role}
