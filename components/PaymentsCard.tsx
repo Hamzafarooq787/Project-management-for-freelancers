@@ -35,7 +35,7 @@ export function PaymentsCard({
   const [editingPlan, setEditingPlan] = useState(!plan);
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-  const currency = plan?.currency ?? "USD";
+  const currency = plan?.currency ?? "PKR";
   const collectedThisMonth = payments
     .filter((p) => p.kind === "monthly" && p.period === monthKey())
     .reduce((sum, p) => sum + p.amount, 0);
@@ -80,12 +80,12 @@ export function PaymentsCard({
             />
             <select
               name="currency"
-              defaultValue={plan?.currency ?? "USD"}
+              defaultValue={plan?.currency ?? "PKR"}
               className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 focus:border-accent-500 focus:outline-none"
             >
+              <option value="PKR">PKR (₨)</option>
               <option value="USD">USD ($)</option>
               <option value="GBP">GBP (£)</option>
-              <option value="PKR">PKR (₨)</option>
             </select>
           </div>
           <textarea
