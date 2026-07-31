@@ -143,6 +143,17 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+/**
+ * True when a query failed only because its table doesn't exist yet (i.e. the
+ * relevant migration hasn't been run). Callers use this to fail open — return
+ * an empty/default result — instead of crashing every page that touches a
+ * newer, optional feature (teams/roles, payments) before it's set up.
+ */
+export function isMissingTableError(error: unknown): boolean {
+  const err = error as { code?: string; message?: string } | null;
+  return err?.code === "42P01" || Boolean(err?.message?.includes("does not exist"));
+}
+
 export function todayDateKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -659,9 +670,14 @@ export async function createProfile(input: { id: string; email: string; name: st
 }
 
 export async function listTeamMembers(): Promise<Profile[]> {
-  const { data, error } = await getSupabase().from("profiles").select("*").order("created_at");
-  if (error) throw error;
-  return ((data ?? []) as ProfileRow[]).map(toProfile);
+  try {
+    const { data, error } = await getSupabase().from("profiles").select("*").order("created_at");
+    if (error) throw error;
+    return ((data ?? []) as ProfileRow[]).map(toProfile);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
 }
 
 export async function updateMemberRole(userId: string, role: Role): Promise<void> {
@@ -691,20 +707,30 @@ export async function removeMember(userId: string): Promise<void> {
 }
 
 export async function getAssignedProjectIds(userId: string): Promise<string[]> {
-  const { data, error } = await getSupabase().from("project_assignments").select("project_id").eq("user_id", userId);
-  if (error) throw error;
-  return ((data ?? []) as { project_id: string }[]).map((row) => row.project_id);
+  try {
+    const { data, error } = await getSupabase().from("project_assignments").select("project_id").eq("user_id", userId);
+    if (error) throw error;
+    return ((data ?? []) as { project_id: string }[]).map((row) => row.project_id);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
 }
 
 export async function isProjectAssignedToUser(projectId: string, userId: string): Promise<boolean> {
-  const { data, error } = await getSupabase()
-    .from("project_assignments")
-    .select("id")
-    .eq("project_id", projectId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return Boolean(data);
+  try {
+    const { data, error } = await getSupabase()
+      .from("project_assignments")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
+  } catch (error) {
+    if (isMissingTableError(error)) return false;
+    throw error;
+  }
 }
 
 export async function setMemberAssignments(userId: string, projectIds: string[]): Promise<void> {
@@ -739,15 +765,25 @@ function toPaymentPlan(row: PaymentPlanRow): PaymentPlan {
 }
 
 export async function getPaymentPlan(projectId: string): Promise<PaymentPlan | null> {
-  const { data, error } = await getSupabase().from("payment_plans").select("*").eq("project_id", projectId).maybeSingle();
-  if (error) throw error;
-  return data ? toPaymentPlan(data as PaymentPlanRow) : null;
+  try {
+    const { data, error } = await getSupabase().from("payment_plans").select("*").eq("project_id", projectId).maybeSingle();
+    if (error) throw error;
+    return data ? toPaymentPlan(data as PaymentPlanRow) : null;
+  } catch (error) {
+    if (isMissingTableError(error)) return null;
+    throw error;
+  }
 }
 
 export async function listPaymentPlans(): Promise<PaymentPlan[]> {
-  const { data, error } = await getSupabase().from("payment_plans").select("*");
-  if (error) throw error;
-  return ((data ?? []) as PaymentPlanRow[]).map(toPaymentPlan);
+  try {
+    const { data, error } = await getSupabase().from("payment_plans").select("*");
+    if (error) throw error;
+    return ((data ?? []) as PaymentPlanRow[]).map(toPaymentPlan);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
 }
 
 export async function setPaymentPlan(
@@ -797,19 +833,29 @@ function toPayment(row: PaymentRow): Payment {
 }
 
 export async function listPaymentsForProject(projectId: string): Promise<Payment[]> {
-  const { data, error } = await getSupabase()
-    .from("payments")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("paid_on", { ascending: false });
-  if (error) throw error;
-  return ((data ?? []) as PaymentRow[]).map(toPayment);
+  try {
+    const { data, error } = await getSupabase()
+      .from("payments")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("paid_on", { ascending: false });
+    if (error) throw error;
+    return ((data ?? []) as PaymentRow[]).map(toPayment);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
 }
 
 export async function listAllPayments(): Promise<Payment[]> {
-  const { data, error } = await getSupabase().from("payments").select("*").order("paid_on", { ascending: false });
-  if (error) throw error;
-  return ((data ?? []) as PaymentRow[]).map(toPayment);
+  try {
+    const { data, error } = await getSupabase().from("payments").select("*").order("paid_on", { ascending: false });
+    if (error) throw error;
+    return ((data ?? []) as PaymentRow[]).map(toPayment);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
 }
 
 export async function addPayment(input: {
