@@ -34,7 +34,7 @@ export function NewProjectForm() {
 
       <div>
         <label className="mb-1 block text-xs font-medium text-neutral-400">Project type</label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {PROJECT_TYPE_OPTIONS.map((opt) => (
             <label
               key={opt.value}
