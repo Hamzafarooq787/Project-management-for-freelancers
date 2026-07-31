@@ -20,13 +20,13 @@ export function StatCard({
   };
 
   return (
-    <div className="rounded-xl2 border border-base-700/60 bg-base-850 p-4 shadow-card">
+    <div className="overflow-hidden rounded-xl2 border border-base-700/60 bg-base-850 p-4 shadow-card">
       <div className="flex items-center gap-3">
-        <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", toneStyles[tone])}>
+        <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", toneStyles[tone])}>
           <Icon size={18} />
         </span>
-        <div>
-          <p className="text-xl font-semibold text-neutral-50 tabular-nums">{value}</p>
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-base font-semibold text-neutral-50 tabular-nums sm:text-xl">{value}</p>
           <p className="text-xs text-neutral-500">{label}</p>
         </div>
       </div>
