@@ -78,6 +78,29 @@ itself, creating new projects) stays hidden and is also blocked server-side if
 attempted directly. Promote a member to admin, remove them from the team, or
 change their project access at any time from the same panel.
 
+## Billing & the Finance page
+
+Every project can carry a payment plan, set from its **Client Details** tab
+(admin only — payments stay hidden from members entirely):
+
+- **Fixed monthly** — a recurring fee (e.g. most SEO retainers). Log each
+  month's fee as it's collected, plus any ad-hoc **additional charges**.
+- **One-time** — a single total agreed with the client (e.g. most web
+  development projects). Log each **installment** as it comes in; the app
+  tracks paid-so-far and remaining automatically.
+
+The **Finance** page (sidebar, admin only) rolls all of that up:
+
+- A summary row — money collected, additional charges, current monthly
+  recurring revenue, and outstanding balances on one-time projects — filterable
+  to this month, the last 6 months, or this year.
+- A collected-by-project-type breakdown.
+- A per-project row showing plan, amount collected in the selected period, and
+  either the remaining balance (one-time) or last payment date (monthly).
+
+Amounts are tracked per currency (no conversion is attempted), so totals are
+shown grouped by currency if you bill clients in more than one.
+
 ## Setting up Supabase (step by step)
 
 ### 1. Create a Supabase project
@@ -125,6 +148,11 @@ change their project access at any time from the same panel.
 > (which member can see which project) tables. Nothing to configure by hand:
 > the next person who signs in becomes admin automatically if no profile
 > exists yet.
+>
+> Already ran it before billing / the Finance page existed? Also run
+> [`supabase/migrations/007_payments.sql`](./supabase/migrations/007_payments.sql) —
+> it adds `payment_plans` (how a project is priced) and `payments` (the
+> ledger of amounts actually received) tables.
 
 ### 3. Get your API credentials
 

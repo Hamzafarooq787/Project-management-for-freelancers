@@ -88,6 +88,35 @@ create table if not exists project_assignments (
 create index if not exists project_assignments_project_id_idx on project_assignments (project_id);
 create index if not exists project_assignments_user_id_idx on project_assignments (user_id);
 
+-- Billing: how a project is priced (a fixed monthly fee, or a one-time total
+-- amount for the whole project) plus a ledger of every amount actually
+-- received against it. `kind` distinguishes the regular monthly charge from
+-- ad-hoc additional charges and one-time-project installments.
+create table if not exists payment_plans (
+  project_id uuid primary key references projects (id) on delete cascade,
+  plan_type text not null check (plan_type in ('monthly_fixed', 'one_time')),
+  amount numeric not null default 0,
+  currency text not null default 'USD',
+  notes text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists payments (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references projects (id) on delete cascade,
+  amount numeric not null,
+  currency text not null default 'USD',
+  kind text not null check (kind in ('monthly', 'additional', 'installment')),
+  period text,
+  note text not null default '',
+  paid_on date not null default current_date,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists payments_project_id_idx on payments (project_id);
+create index if not exists payments_paid_on_idx on payments (paid_on);
+
 -- Storage bucket for client and company logos uploaded from the app. Public so the
 -- generated PDF reports (and <img> tags in the browser) can load them directly by
 -- URL; only the service role key can write to it, since RLS/storage writes bypass
@@ -113,3 +142,5 @@ alter table tasks enable row level security;
 alter table business_profile enable row level security;
 alter table profiles enable row level security;
 alter table project_assignments enable row level security;
+alter table payment_plans enable row level security;
+alter table payments enable row level security;

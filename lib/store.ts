@@ -5,6 +5,10 @@ import type {
   BusinessProfile,
   ChecklistItem,
   ClientDetails,
+  Payment,
+  PaymentKind,
+  PaymentPlan,
+  PaymentPlanType,
   Profile,
   Project,
   ProjectType,
@@ -720,6 +724,123 @@ export async function getProjectsForProfile(profile: Profile): Promise<Project[]
 
   const assigned = new Set(await getAssignedProjectIds(profile.id));
   return all.filter((p) => assigned.has(p.id));
+}
+
+interface PaymentPlanRow {
+  project_id: string;
+  plan_type: PaymentPlanType;
+  amount: number;
+  currency: string;
+  notes: string;
+}
+
+function toPaymentPlan(row: PaymentPlanRow): PaymentPlan {
+  return { projectId: row.project_id, planType: row.plan_type, amount: Number(row.amount), currency: row.currency, notes: row.notes };
+}
+
+export async function getPaymentPlan(projectId: string): Promise<PaymentPlan | null> {
+  const { data, error } = await getSupabase().from("payment_plans").select("*").eq("project_id", projectId).maybeSingle();
+  if (error) throw error;
+  return data ? toPaymentPlan(data as PaymentPlanRow) : null;
+}
+
+export async function listPaymentPlans(): Promise<PaymentPlan[]> {
+  const { data, error } = await getSupabase().from("payment_plans").select("*");
+  if (error) throw error;
+  return ((data ?? []) as PaymentPlanRow[]).map(toPaymentPlan);
+}
+
+export async function setPaymentPlan(
+  projectId: string,
+  input: { planType: PaymentPlanType; amount: number; currency: string; notes: string },
+): Promise<PaymentPlan> {
+  const { data, error } = await getSupabase()
+    .from("payment_plans")
+    .upsert({
+      project_id: projectId,
+      plan_type: input.planType,
+      amount: input.amount,
+      currency: input.currency,
+      notes: input.notes,
+      updated_at: nowIso(),
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toPaymentPlan(data as PaymentPlanRow);
+}
+
+interface PaymentRow {
+  id: string;
+  project_id: string;
+  amount: number;
+  currency: string;
+  kind: PaymentKind;
+  period: string | null;
+  note: string;
+  paid_on: string;
+  created_at: string;
+}
+
+function toPayment(row: PaymentRow): Payment {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    amount: Number(row.amount),
+    currency: row.currency,
+    kind: row.kind,
+    period: row.period,
+    note: row.note,
+    paidOn: row.paid_on,
+    createdAt: row.created_at,
+  };
+}
+
+export async function listPaymentsForProject(projectId: string): Promise<Payment[]> {
+  const { data, error } = await getSupabase()
+    .from("payments")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("paid_on", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as PaymentRow[]).map(toPayment);
+}
+
+export async function listAllPayments(): Promise<Payment[]> {
+  const { data, error } = await getSupabase().from("payments").select("*").order("paid_on", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as PaymentRow[]).map(toPayment);
+}
+
+export async function addPayment(input: {
+  projectId: string;
+  amount: number;
+  currency: string;
+  kind: PaymentKind;
+  period: string | null;
+  note: string;
+  paidOn: string;
+}): Promise<Payment> {
+  const { data, error } = await getSupabase()
+    .from("payments")
+    .insert({
+      project_id: input.projectId,
+      amount: input.amount,
+      currency: input.currency,
+      kind: input.kind,
+      period: input.period,
+      note: input.note,
+      paid_on: input.paidOn,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toPayment(data as PaymentRow);
+}
+
+export async function deletePayment(id: string): Promise<void> {
+  const { error } = await getSupabase().from("payments").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function getProjectByShareToken(token: string): Promise<Project | null> {

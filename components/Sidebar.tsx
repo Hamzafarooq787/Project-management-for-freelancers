@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Leaf, LogOut, Shield } from "lucide-react";
+import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Leaf, LogOut, Shield, Wallet } from "lucide-react";
 import type { Profile, Project } from "@/lib/types";
 import { SidebarProjectGroups } from "./SidebarProjectGroups";
 import { logoutAction } from "@/app/login/actions";
@@ -36,6 +36,13 @@ export function Sidebar({ projects, profile }: { projects: Project[]; profile: P
         ))}
         {isAdmin && (
           <>
+            <Link
+              href="/finance"
+              className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-300 hover:bg-base-800 hover:text-accent-300 transition-colors"
+            >
+              <Wallet size={17} className="text-neutral-500 group-hover:text-accent-400" />
+              Finance
+            </Link>
             <Link
               href="/settings"
               className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-300 hover:bg-base-800 hover:text-accent-300 transition-colors"

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Shield } from "lucide-react";
+import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Shield, Wallet } from "lucide-react";
 import type { Profile } from "@/lib/types";
 
 const BASE_NAV = [
@@ -10,6 +10,7 @@ const BASE_NAV = [
 
 const ADMIN_NAV = [
   { href: "/projects/new", label: "New", icon: Plus },
+  { href: "/finance", label: "Finance", icon: Wallet },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/admin", label: "Admin", icon: Shield },
 ];

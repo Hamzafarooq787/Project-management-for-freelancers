@@ -9,6 +9,8 @@ import type {
   ChecklistItem,
   ClientDetails,
   DomainStatus,
+  PaymentKind,
+  PaymentPlanType,
   ProjectType,
   Role,
   TaskPriority,
@@ -333,6 +335,52 @@ export async function removeMemberAction(userId: string) {
   await requireAdmin();
   await store.removeMember(userId);
   revalidatePath("/admin");
+}
+
+/**
+ * Billing. Kept admin-only since payment plans and the payment ledger are
+ * financial data, unlike ordinary task/project management which members can
+ * be given access to.
+ */
+export async function setPaymentPlanAction(formData: FormData) {
+  await requireAdmin();
+
+  const projectId = str(formData, "projectId");
+  if (!projectId) return;
+
+  const planType = (str(formData, "planType") || "monthly_fixed") as PaymentPlanType;
+  const amount = Number(str(formData, "amount")) || 0;
+  const currency = str(formData, "currency") || "USD";
+  const notes = str(formData, "notes");
+
+  await store.setPaymentPlan(projectId, { planType, amount, currency, notes });
+  refresh(projectId);
+  revalidatePath("/finance");
+}
+
+export async function addPaymentAction(formData: FormData) {
+  await requireAdmin();
+
+  const projectId = str(formData, "projectId");
+  const amount = Number(str(formData, "amount"));
+  if (!projectId || !amount) return;
+
+  const currency = str(formData, "currency") || "USD";
+  const kind = (str(formData, "kind") || "installment") as PaymentKind;
+  const period = str(formData, "period") || null;
+  const note = str(formData, "note");
+  const paidOn = str(formData, "paidOn") || store.todayDateKey();
+
+  await store.addPayment({ projectId, amount, currency, kind, period, note, paidOn });
+  refresh(projectId);
+  revalidatePath("/finance");
+}
+
+export async function deletePaymentAction(id: string, projectId: string) {
+  await requireAdmin();
+  await store.deletePayment(id);
+  refresh(projectId);
+  revalidatePath("/finance");
 }
 
 /**

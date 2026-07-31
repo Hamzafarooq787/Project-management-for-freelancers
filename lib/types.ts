@@ -99,6 +99,30 @@ export interface Profile {
   createdAt: string;
 }
 
+export type PaymentPlanType = "monthly_fixed" | "one_time";
+
+export interface PaymentPlan {
+  projectId: string;
+  planType: PaymentPlanType;
+  amount: number;
+  currency: string;
+  notes: string;
+}
+
+export type PaymentKind = "monthly" | "additional" | "installment";
+
+export interface Payment {
+  id: string;
+  projectId: string;
+  amount: number;
+  currency: string;
+  kind: PaymentKind;
+  period: string | null;
+  note: string;
+  paidOn: string;
+  createdAt: string;
+}
+
 export interface ProjectTemplate {
   type: ProjectType;
   label: string;

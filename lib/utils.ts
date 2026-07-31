@@ -23,6 +23,26 @@ export const PRIORITY_LABEL: Record<string, string> = {
   high: "High",
 };
 
+export function formatMoney(amount: number, currency: string): string {
+  return `${currency} ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Sums amounts per currency instead of blending different currencies together. */
+export function groupByCurrency<T>(items: T[], amount: (item: T) => number, currency: (item: T) => string): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const item of items) {
+    const key = currency(item);
+    totals[key] = (totals[key] ?? 0) + amount(item);
+  }
+  return totals;
+}
+
+export function formatGroupedMoney(totals: Record<string, number>): string {
+  const entries = Object.entries(totals).filter(([, amount]) => amount !== 0);
+  if (entries.length === 0) return "—";
+  return entries.map(([currency, amount]) => formatMoney(amount, currency)).join(" · ");
+}
+
 export function formatFileSize(bytes: number): string {
   if (!bytes || bytes <= 0) return "";
   if (bytes < 1024) return `${bytes} B`;
