@@ -23,8 +23,18 @@ export const PRIORITY_LABEL: Record<string, string> = {
   high: "High",
 };
 
+export const CURRENCY_SYMBOL: Record<string, string> = {
+  PKR: "₨",
+  GBP: "£",
+  USD: "$",
+};
+
+export function currencySymbol(currency: string): string {
+  return CURRENCY_SYMBOL[currency] ?? `${currency} `;
+}
+
 export function formatMoney(amount: number, currency: string): string {
-  return `${currency} ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${currencySymbol(currency)}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** Sums amounts per currency instead of blending different currencies together. */

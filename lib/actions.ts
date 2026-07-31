@@ -350,7 +350,7 @@ export async function setPaymentPlanAction(formData: FormData) {
 
   const planType = (str(formData, "planType") || "monthly_fixed") as PaymentPlanType;
   const amount = Number(str(formData, "amount")) || 0;
-  const currency = str(formData, "currency") || "USD";
+  const currency = str(formData, "currency") || "PKR";
   const notes = str(formData, "notes");
 
   await store.setPaymentPlan(projectId, { planType, amount, currency, notes });
@@ -365,7 +365,7 @@ export async function addPaymentAction(formData: FormData) {
   const amount = Number(str(formData, "amount"));
   if (!projectId || !amount) return;
 
-  const currency = str(formData, "currency") || "USD";
+  const currency = str(formData, "currency") || "PKR";
   const kind = (str(formData, "kind") || "installment") as PaymentKind;
   const period = str(formData, "period") || null;
   const note = str(formData, "note");

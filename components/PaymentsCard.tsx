@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Wallet, Trash2, Pencil } from "lucide-react";
 import type { Payment, PaymentKind, PaymentPlan, PaymentPlanType } from "@/lib/types";
 import { addPaymentAction, deletePaymentAction, setPaymentPlanAction } from "@/lib/actions";
-import { cn, formatMoney } from "@/lib/utils";
+import { cn, currencySymbol, formatMoney } from "@/lib/utils";
 
 const KIND_LABEL: Record<PaymentKind, string> = {
   monthly: "Monthly fee",
@@ -35,7 +35,7 @@ export function PaymentsCard({
   const [editingPlan, setEditingPlan] = useState(!plan);
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-  const currency = plan?.currency ?? "USD";
+  const currency = plan?.currency ?? "PKR";
   const collectedThisMonth = payments
     .filter((p) => p.kind === "monthly" && p.period === monthKey())
     .reduce((sum, p) => sum + p.amount, 0);
@@ -78,20 +78,15 @@ export function PaymentsCard({
               defaultValue={plan?.amount || ""}
               className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
             />
-            <input
+            <select
               name="currency"
-              list="currency-options"
-              placeholder="Currency"
-              defaultValue={plan?.currency ?? "USD"}
-              className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
-            />
-            <datalist id="currency-options">
-              <option value="USD" />
-              <option value="GBP" />
-              <option value="EUR" />
-              <option value="PKR" />
-              <option value="INR" />
-            </datalist>
+              defaultValue={plan?.currency ?? "PKR"}
+              className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 focus:border-accent-500 focus:outline-none"
+            >
+              <option value="PKR">PKR (₨)</option>
+              <option value="USD">USD ($)</option>
+              <option value="GBP">GBP (£)</option>
+            </select>
           </div>
           <textarea
             name="notes"
@@ -249,7 +244,7 @@ function RecordPaymentForm({
         </div>
       )}
       <div>
-        <label className="mb-1 block text-[11px] text-neutral-500">Amount ({currency})</label>
+        <label className="mb-1 block text-[11px] text-neutral-500">Amount ({currencySymbol(currency)})</label>
         <input
           name="amount"
           type="number"
