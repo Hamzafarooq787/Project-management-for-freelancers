@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Leaf, LogOut, Shield, Wallet } from "lucide-react";
 import type { Profile, Project } from "@/lib/types";
 import { SidebarProjectGroups } from "./SidebarProjectGroups";
+import { InstallAppButton } from "./InstallAppButton";
 import { logoutAction } from "@/app/login/actions";
 
 const NAV = [
@@ -83,6 +84,7 @@ export function Sidebar({ projects, profile }: { projects: Project[]; profile: P
           Set your company name and logo in Settings so client reports are properly
           branded.
         </div>
+        <InstallAppButton />
         <form action={logoutAction}>
           <button
             type="submit"
