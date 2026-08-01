@@ -164,6 +164,15 @@ shown grouped by currency if you bill clients in more than one.
 > it adds a `clients` table and a `client_id` column on `projects`, so a
 > client is a reusable record you pick when creating a project instead of
 > free-text details typed into each project separately.
+>
+> Already ran 009? Also run
+> [`supabase/migrations/010_isolate_clients_table.sql`](./supabase/migrations/010_isolate_clients_table.sql) —
+> if your Supabase project is shared with another app that already has its
+> own `clients` table, 009's `create table if not exists` silently left that
+> unrelated table alone and pointed this app's `client_id` foreign key at it,
+> breaking client creation. This migration moves this app's data to its own
+> `freelance_hq_clients` table (migrating any rows 009 did manage to create)
+> so it never collides with another app's table again.
 
 ### 3. Get your API credentials
 
