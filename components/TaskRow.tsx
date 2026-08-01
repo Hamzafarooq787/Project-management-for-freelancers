@@ -42,7 +42,7 @@ export function TaskRow({
   const isOverdue = task.status !== "done" && !!effectiveDate && effectiveDate < todayKey();
 
   function cycleStatus() {
-    const next = task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "done" : "todo";
+    const next = task.status === "done" ? "todo" : "done";
     if (next === "done" && task.checklist.some((c) => !c.done)) {
       setDetailOpen(true);
       return;
@@ -59,7 +59,7 @@ export function TaskRow({
     >
       <button
         onClick={cycleStatus}
-        title="Click to change status"
+        title={task.status === "done" ? "Mark as not done" : "Mark as done"}
         className="-ml-1.5 -mt-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
       >
         <span
