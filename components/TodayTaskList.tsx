@@ -11,11 +11,16 @@ function todayKey(): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Filters to the browser's own local "today" rather than the server's, so it's never a day off near midnight. */
+/**
+ * Filters to the browser's own local "today" rather than the server's, so
+ * it's never a day off near midnight. Includes anything scheduled for today
+ * or earlier — an overdue task doesn't just vanish, it rolls forward until
+ * it's done.
+ */
 export function TodayTaskList({ tasks, projects }: { tasks: Task[]; projects: Project[] }) {
   const today = todayKey();
   const projectById = new Map(projects.map((p) => [p.id, p]));
-  const todayTasks = tasks.filter((t) => t.scheduledFor === today);
+  const todayTasks = tasks.filter((t) => t.scheduledFor && t.scheduledFor <= today);
 
   if (todayTasks.length === 0) {
     return (
@@ -25,8 +30,19 @@ export function TodayTaskList({ tasks, projects }: { tasks: Task[]; projects: Pr
     );
   }
 
+  const overdueCount = todayTasks.filter((t) => t.scheduledFor !== today).length;
+  const dueTodayCount = todayTasks.length - overdueCount;
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400">
+        <span className="rounded-full border border-base-600 px-2.5 py-1">{dueTodayCount} due today</span>
+        {overdueCount > 0 && (
+          <span className="rounded-full border border-rose-500/50 px-2.5 py-1 text-rose-400">
+            {overdueCount} overdue
+          </span>
+        )}
+      </div>
       {todayTasks.map((task) => {
         const project = projectById.get(task.projectId);
         const stageName = project?.stages.find((s) => s.id === task.stageId)?.name ?? null;
