@@ -1,7 +1,6 @@
 import { Sidebar } from "@/components/Sidebar";
 import { MobileNav } from "@/components/MobileNav";
 import { MobileTopBar } from "@/components/MobileTopBar";
-import { SyncTodayCookie } from "@/components/SyncTodayCookie";
 import { getCurrentProfile } from "@/lib/auth";
 import { getProjectsForProfile } from "@/lib/store";
 
@@ -13,7 +12,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen">
-      <SyncTodayCookie />
       <Sidebar projects={projects} profile={profile} />
       <div className="flex-1">
         <MobileTopBar />

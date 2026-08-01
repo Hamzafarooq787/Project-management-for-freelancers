@@ -469,11 +469,6 @@ export async function getOpenTasks(): Promise<Task[]> {
   });
 }
 
-export async function getTasksScheduledOn(date: string): Promise<Task[]> {
-  const open = await getOpenTasks();
-  return open.filter((t) => t.scheduledFor === date);
-}
-
 export async function getCompletedTasks(): Promise<Task[]> {
   const { data, error } = await getSupabase().from("freelance_hq_tasks").select("*").eq("status", "done");
   if (error) throw error;
