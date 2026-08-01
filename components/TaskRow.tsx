@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Circle, Star, Trash2, Timer, ListChecks, Paperclip } from "lucide-react";
+import { Check, Circle, Star, Trash2, Timer, ListChecks, Paperclip, CalendarDays } from "lucide-react";
 import type { Stage, Task } from "@/lib/types";
 import { PriorityBadge } from "./Badges";
-import { cn, formatRelativeDate } from "@/lib/utils";
+import { cn, formatDateKey, formatRelativeDate } from "@/lib/utils";
 import {
   deleteTaskAction,
   toggleChecklistItemAction,
@@ -38,6 +38,8 @@ export function TaskRow({
   const [detailOpen, setDetailOpen] = useState(false);
   const isScheduledToday = task.scheduledFor === todayKey();
   const checklistDone = task.checklist.filter((c) => c.done).length;
+  const effectiveDate = task.dueDate ?? task.scheduledFor;
+  const isOverdue = task.status !== "done" && !!effectiveDate && effectiveDate < todayKey();
 
   function cycleStatus() {
     const next = task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "done" : "todo";
@@ -92,6 +94,17 @@ export function TaskRow({
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <PriorityBadge priority={task.priority} />
+            {effectiveDate && (
+              <span
+                className={cn(
+                  "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]",
+                  isOverdue ? "border-rose-500/50 text-rose-400" : "border-base-600 text-neutral-400",
+                )}
+              >
+                <CalendarDays size={11} />
+                {task.dueDate ? "Due" : "Plan"} {formatDateKey(effectiveDate)}
+              </span>
+            )}
             {stageName && (
               <span className="rounded-full border border-base-600 px-2 py-0.5 text-[11px] text-neutral-400">
                 {stageName}
