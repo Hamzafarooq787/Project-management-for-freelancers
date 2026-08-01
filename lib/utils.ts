@@ -63,6 +63,13 @@ export function currentMonthKey(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Formats a "YYYY-MM-DD" date key as e.g. "Aug 1", without the year-shifting a raw `new Date(iso)` local-timezone parse would risk. */
+export function formatDateKey(dateKey: string): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  if (!year || !month || !day) return dateKey;
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export function formatFileSize(bytes: number): string {
   if (!bytes || bytes <= 0) return "";
   if (bytes < 1024) return `${bytes} B`;

@@ -455,6 +455,12 @@ export async function getOpenTasks(): Promise<Task[]> {
 
   const tasks = ((data ?? []) as TaskRow[]).map(toTask);
   return tasks.sort((a, b) => {
+    const aDate = a.dueDate ?? a.scheduledFor;
+    const bDate = b.dueDate ?? b.scheduledFor;
+    if (aDate && bDate && aDate !== bDate) return aDate < bDate ? -1 : 1;
+    if (aDate && !bDate) return -1;
+    if (!aDate && bDate) return 1;
+
     const rank = (s: TaskStatus) => (s === "in_progress" ? 0 : 1);
     if (rank(a.status) !== rank(b.status)) return rank(a.status) - rank(b.status);
     const pr = { high: 0, medium: 1, low: 2 } as const;
