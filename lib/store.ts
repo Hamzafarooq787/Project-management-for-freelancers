@@ -321,7 +321,7 @@ function toClient(row: ClientRow): Client {
 
 export async function listClients(): Promise<Client[]> {
   try {
-    const { data, error } = await getSupabase().from("clients").select("*").order("name", { ascending: true });
+    const { data, error } = await getSupabase().from("freelance_hq_clients").select("*").order("name", { ascending: true });
     if (error) throw error;
     return ((data ?? []) as ClientRow[]).map(toClient);
   } catch (error) {
@@ -332,7 +332,7 @@ export async function listClients(): Promise<Client[]> {
 
 export async function getClient(id: string): Promise<Client | null> {
   try {
-    const { data, error } = await getSupabase().from("clients").select("*").eq("id", id).maybeSingle();
+    const { data, error } = await getSupabase().from("freelance_hq_clients").select("*").eq("id", id).maybeSingle();
     if (error) throw error;
     return data ? toClient(data as ClientRow) : null;
   } catch (error) {
@@ -349,7 +349,7 @@ export async function createClient(input: {
   notes: string;
 }): Promise<Client> {
   const { data, error } = await getSupabase()
-    .from("clients")
+    .from("freelance_hq_clients")
     .insert({
       name: input.name,
       company: input.company,
@@ -376,7 +376,7 @@ export async function updateClient(
   if (patch.notes !== undefined) update.notes = patch.notes;
   if (patch.logoUrl !== undefined) update.logo_url = patch.logoUrl;
 
-  const { error } = await getSupabase().from("clients").update(update).eq("id", id);
+  const { error } = await getSupabase().from("freelance_hq_clients").update(update).eq("id", id);
   if (error) throw error;
 }
 
