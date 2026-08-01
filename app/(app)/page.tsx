@@ -1,18 +1,16 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { ListTodo, FolderKanban, Star, CheckCircle2, ArrowRight, Plus, Wallet, TrendingUp, AlertCircle, PiggyBank, Hourglass } from "lucide-react";
+import { ListTodo, FolderKanban, CheckCircle2, ArrowRight, Plus, Wallet, TrendingUp, AlertCircle, PiggyBank, Hourglass } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth";
 import {
   getCompletedTasks,
   getOpenTasks,
   getProjectProgressMap,
   getProjectsForProfile,
-  getTasksScheduledOn,
   listAllPayments,
   listPaymentPlans,
-  todayDateKey,
 } from "@/lib/store";
 import { StatCard } from "@/components/StatCard";
+import { ScheduledTodayStat } from "@/components/ScheduledTodayStat";
 import { TaskRow } from "@/components/TaskRow";
 import { ProjectTypeTabs } from "@/components/ProjectTypeTabs";
 import type { ProjectPaymentSummary } from "@/components/ProjectCardClient";
@@ -21,13 +19,11 @@ import { currentMonthKey, formatMoney, resolveSelectedCurrency, sortCurrencies }
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage({ searchParams }: { searchParams: { currency?: string } }) {
-  const today = cookies().get("today-date")?.value || todayDateKey();
   const profile = await getCurrentProfile();
   const isAdmin = profile?.role === "admin";
-  const [allOpenTasks, projects, allTodayTasks, allCompletedTasks, progress, plans, payments] = await Promise.all([
+  const [allOpenTasks, projects, allCompletedTasks, progress, plans, payments] = await Promise.all([
     getOpenTasks(),
     profile ? getProjectsForProfile(profile) : Promise.resolve([]),
-    getTasksScheduledOn(today),
     getCompletedTasks(),
     getProjectProgressMap(),
     isAdmin ? listPaymentPlans() : Promise.resolve([]),
@@ -36,7 +32,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
 
   const visibleIds = new Set(projects.map((p) => p.id));
   const openTasks = allOpenTasks.filter((t) => visibleIds.has(t.projectId));
-  const todayTasks = allTodayTasks.filter((t) => visibleIds.has(t.projectId));
   const completedTasks = allCompletedTasks.filter((t) => visibleIds.has(t.projectId));
 
   const activeProjects = projects.filter((p) => !p.archived);
@@ -112,7 +107,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Open tasks" value={openTasks.length} icon={ListTodo} tone="accent" />
-        <StatCard label="Scheduled today" value={todayTasks.length} icon={Star} tone="amber" />
+        <ScheduledTodayStat tasks={openTasks} />
         <StatCard label="Active projects" value={activeProjects.length} icon={FolderKanban} tone="sky" />
         <StatCard label="Completed" value={completedTasks.length} icon={CheckCircle2} tone="accent" />
       </div>
