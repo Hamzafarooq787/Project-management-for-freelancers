@@ -52,6 +52,18 @@ export interface ClientDetails {
   logoUrl: string;
 }
 
+/** A reusable client record, picked when creating a project instead of retyping contact details each time. */
+export interface Client {
+  id: string;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  notes: string;
+  logoUrl: string;
+  createdAt: string;
+}
+
 export interface BusinessProfile {
   companyName: string;
   logoUrl: string;
@@ -74,6 +86,7 @@ export interface Project {
   id: string;
   name: string;
   client: string;
+  clientId: string | null;
   clientDetails: ClientDetails;
   type: ProjectType;
   description: string;

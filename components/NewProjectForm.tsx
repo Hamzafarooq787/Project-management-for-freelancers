@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { ProjectType } from "@/lib/types";
+import Link from "next/link";
+import type { Client, ProjectType } from "@/lib/types";
 import { PROJECT_COLORS, PROJECT_TEMPLATES, PROJECT_TYPE_OPTIONS } from "@/lib/templates";
 import { createProjectAction } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
-export function NewProjectForm() {
+export function NewProjectForm({ clients }: { clients: Client[] }) {
   const router = useRouter();
   const [type, setType] = useState<ProjectType>("seo");
   const [isPending, startTransition] = useTransition();
@@ -22,14 +23,44 @@ export function NewProjectForm() {
       }}
       className="mt-6 flex flex-col gap-4"
     >
-      <div>
-        <label className="mb-1 block text-xs font-medium text-neutral-400">Project name</label>
-        <input
-          name="name"
-          required
-          placeholder="e.g. One Stop Tyres"
-          className="w-full rounded-lg border border-base-600 bg-base-850 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
-        />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-400">Project name</label>
+          <input
+            name="name"
+            required
+            placeholder="e.g. One Stop Tyres"
+            className="w-full rounded-lg border border-base-600 bg-base-850 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-400">Client name</label>
+          {clients.length > 0 ? (
+            <select
+              name="clientId"
+              required
+              defaultValue=""
+              className="w-full rounded-lg border border-base-600 bg-base-850 px-3 py-2 text-sm text-neutral-100 focus:border-accent-500 focus:outline-none"
+            >
+              <option value="" disabled>
+                Select a client…
+              </option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.company || client.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="rounded-lg border border-base-600 bg-base-850 px-3 py-2 text-xs text-neutral-500">
+              No clients yet —{" "}
+              <Link href="/clients" className="text-accent-400 hover:underline">
+                add one first
+              </Link>
+              .
+            </p>
+          )}
+        </div>
       </div>
 
       <div>
@@ -86,16 +117,6 @@ export function NewProjectForm() {
         </div>
       </div>
 
-      <fieldset className="rounded-lg border border-base-700/60 p-3">
-        <legend className="px-1 text-xs font-medium text-neutral-400">Client details</legend>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field name="clientName" label="Contact name" placeholder="e.g. James Carter" />
-          <Field name="clientCompany" label="Company" placeholder="e.g. One Stop Tyres Ltd" />
-          <Field name="clientEmail" label="Email" type="email" placeholder="client@example.com" />
-          <Field name="clientPhone" label="Phone" placeholder="+1 555 000 0000" />
-        </div>
-      </fieldset>
-
       {type === "seo" && (
         <div>
           <label className="mb-1 block text-xs font-medium text-neutral-400">Website URL (the site you&apos;re optimizing)</label>
@@ -111,7 +132,6 @@ export function NewProjectForm() {
         <fieldset className="rounded-lg border border-sky-700/40 p-3">
           <legend className="px-1 text-xs font-medium text-neutral-400">Website details</legend>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field name="websiteName" label="Website / brand name" />
             <Field name="websiteUrl" label="Website URL" placeholder="https://example.com" />
             <Field name="logoUrl" label="Logo URL" placeholder="https://.../logo.svg" />
             <Field name="siteIconUrl" label="Site icon / favicon URL" placeholder="https://.../favicon.ico" />

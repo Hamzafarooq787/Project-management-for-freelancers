@@ -158,6 +158,12 @@ shown grouped by currency if you bill clients in more than one.
 > [`supabase/migrations/008_multi_currency_payment_plans.sql`](./supabase/migrations/008_multi_currency_payment_plans.sql) —
 > it lets a project have one payment plan per currency (e.g. a PKR plan and a
 > USD plan on the same project) instead of a single project-wide plan.
+>
+> Already ran 008 before clients existed as their own thing? Also run
+> [`supabase/migrations/009_clients.sql`](./supabase/migrations/009_clients.sql) —
+> it adds a `clients` table and a `client_id` column on `projects`, so a
+> client is a reusable record you pick when creating a project instead of
+> free-text details typed into each project separately.
 
 ### 3. Get your API credentials
 
