@@ -52,6 +52,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const stageName = (stageId: string | null) =>
     project.stages.find((s) => s.id === stageId)?.name ?? null;
 
+  const clientName = project.client || project.clientDetails.company || project.clientDetails.name;
+
   const theme = PROJECT_THEME[project.type];
   const Icon = theme.icon;
 
@@ -143,7 +145,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
             </span>
             <h1 className="text-2xl font-semibold text-neutral-50">{project.name}</h1>
           </div>
-          {project.client && <p className="mt-1 text-sm text-neutral-400">{project.client}</p>}
+          {clientName && <p className="mt-1 text-sm text-neutral-400">{clientName}</p>}
           <div className="mt-2 flex items-center gap-2">
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${theme.iconBg} ${theme.iconText}`}>
               {theme.label}
