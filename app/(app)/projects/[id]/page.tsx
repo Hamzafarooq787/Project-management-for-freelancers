@@ -52,7 +52,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const stageName = (stageId: string | null) =>
     project.stages.find((s) => s.id === stageId)?.name ?? null;
 
-  const clientName = project.client || project.clientDetails.company || project.clientDetails.name;
+  const clientName = project.clientDetails.name || project.clientDetails.company || project.client;
 
   const theme = PROJECT_THEME[project.type];
   const Icon = theme.icon;

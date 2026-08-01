@@ -22,7 +22,7 @@ export function ProjectCardClient({
 }) {
   const theme = PROJECT_THEME[project.type];
   const Icon = theme.icon;
-  const clientName = project.client || project.clientDetails.company || project.clientDetails.name;
+  const clientName = project.clientDetails.name || project.clientDetails.company || project.client;
 
   return (
     <Link

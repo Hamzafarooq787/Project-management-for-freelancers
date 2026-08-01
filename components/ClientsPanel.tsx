@@ -71,10 +71,10 @@ export function ClientsPanel({ clients }: { clients: Client[] }) {
                 </span>
                 <div className="min-w-0">
                   <h3 className="truncate text-sm font-semibold text-neutral-100">
-                    {client.company || client.name}
+                    {client.name || client.company}
                   </h3>
-                  {client.company && client.name && (
-                    <p className="truncate text-xs text-neutral-500">{client.name}</p>
+                  {client.name && client.company && (
+                    <p className="truncate text-xs text-neutral-500">{client.company}</p>
                   )}
                 </div>
               </div>

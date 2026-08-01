@@ -30,7 +30,7 @@ export function ClientDetailPanel({
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-500/15 text-accent-400">
             <Building2 size={19} />
           </span>
-          <h1 className="text-2xl font-semibold text-neutral-50">{client.company || client.name}</h1>
+          <h1 className="text-2xl font-semibold text-neutral-50">{client.name || client.company}</h1>
         </div>
       </div>
 
