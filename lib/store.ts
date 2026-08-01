@@ -4,6 +4,7 @@ import { PROJECT_TEMPLATES } from "./templates";
 import type {
   BusinessProfile,
   ChecklistItem,
+  Client,
   ClientDetails,
   Payment,
   PaymentKind,
@@ -32,6 +33,7 @@ interface ProjectRow {
   id: string;
   name: string;
   client: string;
+  client_id: string | null;
   client_details: ClientDetails;
   type: ProjectType;
   description: string;
@@ -108,6 +110,7 @@ function toProject(row: ProjectRow, stages: Stage[]): Project {
     id: row.id,
     name: row.name,
     client: row.client,
+    clientId: row.client_id,
     clientDetails: row.client_details,
     type: row.type,
     description: row.description,
@@ -224,9 +227,20 @@ export async function createProject(input: {
   startDate?: string | null;
   endDate?: string | null;
   websiteUrl?: string;
-  clientDetails: ClientDetails;
+  clientId: string;
   webDetails?: Partial<WebDevDetails> | null;
 }): Promise<Project> {
+  const client = await getClient(input.clientId);
+  if (!client) throw new Error("Client not found.");
+  const clientDetails: ClientDetails = {
+    name: client.name,
+    company: client.company,
+    email: client.email,
+    phone: client.phone,
+    notes: client.notes,
+    logoUrl: client.logoUrl,
+  };
+
   const webDetails =
     input.type === "web_dev" ? { ...emptyWebDetails(), ...(input.webDetails ?? {}) } : null;
 
@@ -234,8 +248,9 @@ export async function createProject(input: {
     .from("projects")
     .insert({
       name: input.name,
-      client: input.clientDetails.company || input.clientDetails.name,
-      client_details: input.clientDetails,
+      client: clientDetails.company || clientDetails.name,
+      client_id: input.clientId,
+      client_details: clientDetails,
       type: input.type,
       description: input.description,
       color: input.color,
@@ -278,6 +293,104 @@ export async function updateProjectDetails(
 
   const { error } = await getSupabase().from("projects").update(update).eq("id", id);
   if (error) throw error;
+}
+
+interface ClientRow {
+  id: string;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  notes: string;
+  logo_url: string;
+  created_at: string;
+}
+
+function toClient(row: ClientRow): Client {
+  return {
+    id: row.id,
+    name: row.name,
+    company: row.company,
+    email: row.email,
+    phone: row.phone,
+    notes: row.notes,
+    logoUrl: row.logo_url,
+    createdAt: row.created_at,
+  };
+}
+
+export async function listClients(): Promise<Client[]> {
+  try {
+    const { data, error } = await getSupabase().from("clients").select("*").order("name", { ascending: true });
+    if (error) throw error;
+    return ((data ?? []) as ClientRow[]).map(toClient);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export async function getClient(id: string): Promise<Client | null> {
+  try {
+    const { data, error } = await getSupabase().from("clients").select("*").eq("id", id).maybeSingle();
+    if (error) throw error;
+    return data ? toClient(data as ClientRow) : null;
+  } catch (error) {
+    if (isMissingTableError(error)) return null;
+    throw error;
+  }
+}
+
+export async function createClient(input: {
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  notes: string;
+}): Promise<Client> {
+  const { data, error } = await getSupabase()
+    .from("clients")
+    .insert({
+      name: input.name,
+      company: input.company,
+      email: input.email,
+      phone: input.phone,
+      notes: input.notes,
+      logo_url: "",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toClient(data as ClientRow);
+}
+
+export async function updateClient(
+  id: string,
+  patch: Partial<Pick<Client, "name" | "company" | "email" | "phone" | "notes" | "logoUrl">>,
+): Promise<void> {
+  const update: Record<string, unknown> = { updated_at: nowIso() };
+  if (patch.name !== undefined) update.name = patch.name;
+  if (patch.company !== undefined) update.company = patch.company;
+  if (patch.email !== undefined) update.email = patch.email;
+  if (patch.phone !== undefined) update.phone = patch.phone;
+  if (patch.notes !== undefined) update.notes = patch.notes;
+  if (patch.logoUrl !== undefined) update.logo_url = patch.logoUrl;
+
+  const { error } = await getSupabase().from("clients").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function getProjectsForClient(clientId: string): Promise<Project[]> {
+  const { data, error } = await getSupabase()
+    .from("projects")
+    .select("*")
+    .eq("client_id", clientId)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+
+  const rows = (data ?? []) as ProjectRow[];
+  const stagesByProject = await fetchStagesForProjects(rows.map((r) => r.id));
+  return rows.map((row) => toProject(row, stagesByProject.get(row.id) ?? []));
 }
 
 export async function archiveProject(id: string, archived: boolean): Promise<void> {

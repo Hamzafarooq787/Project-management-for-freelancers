@@ -63,22 +63,14 @@ export async function createProjectAction(formData: FormData) {
   const startDate = str(formData, "startDate") || null;
   const endDate = str(formData, "endDate") || null;
   const websiteUrl = str(formData, "websiteUrl");
+  const clientId = str(formData, "clientId");
 
-  if (!name) return;
-
-  const clientDetails: ClientDetails = {
-    name: str(formData, "clientName"),
-    company: str(formData, "clientCompany"),
-    email: str(formData, "clientEmail"),
-    phone: str(formData, "clientPhone"),
-    notes: str(formData, "clientNotes"),
-    logoUrl: "",
-  };
+  if (!name || !clientId) return;
 
   const webDetails: Partial<WebDevDetails> | null =
     type === "web_dev"
       ? {
-          websiteName: str(formData, "websiteName"),
+          websiteName: name,
           websiteUrl,
           domainStatus: (str(formData, "domainStatus") || "pending") as DomainStatus,
           logoUrl: str(formData, "logoUrl"),
@@ -99,11 +91,51 @@ export async function createProjectAction(formData: FormData) {
     startDate,
     endDate,
     websiteUrl,
-    clientDetails,
+    clientId,
     webDetails,
   });
   refresh(project.id);
   return project.id;
+}
+
+export async function createClientAction(formData: FormData) {
+  await requireAdmin();
+
+  const name = str(formData, "name");
+  const company = str(formData, "company");
+  if (!name && !company) return;
+
+  const client = await store.createClient({
+    name,
+    company,
+    email: str(formData, "email"),
+    phone: str(formData, "phone"),
+    notes: str(formData, "notes"),
+  });
+  revalidatePath("/clients");
+  revalidatePath("/projects/new");
+  return client.id;
+}
+
+export async function updateClientAction(formData: FormData) {
+  await requireAdmin();
+
+  const id = str(formData, "id");
+  if (!id) return;
+
+  const logoFile = formData.get("logoFile");
+  const uploadedLogoUrl = logoFile instanceof File ? await uploadLogo(logoFile, `clients/${id}`) : null;
+
+  await store.updateClient(id, {
+    name: str(formData, "name"),
+    company: str(formData, "company"),
+    email: str(formData, "email"),
+    phone: str(formData, "phone"),
+    notes: str(formData, "notes"),
+    logoUrl: uploadedLogoUrl ?? str(formData, "existingLogoUrl"),
+  });
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${id}`);
 }
 
 export async function updateClientDetailsAction(formData: FormData) {

@@ -1,12 +1,15 @@
 import { notFound } from "next/navigation";
 import { NewProjectForm } from "@/components/NewProjectForm";
 import { getCurrentProfile } from "@/lib/auth";
+import { listClients } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewProjectPage() {
   const profile = await getCurrentProfile();
   if (profile?.role !== "admin") notFound();
+
+  const clients = await listClients();
 
   return (
     <div className="mx-auto max-w-xl">
@@ -15,7 +18,7 @@ export default async function NewProjectPage() {
         Pick a project type and we&apos;ll pre-fill the stages for you. You can add or rename
         stages any time from the project page.
       </p>
-      <NewProjectForm />
+      <NewProjectForm clients={clients} />
     </div>
   );
 }
