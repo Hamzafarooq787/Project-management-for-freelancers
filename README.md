@@ -191,6 +191,16 @@ Finance page's totals, since that money was genuinely received.
 > it lets a project's `payments.project_id` be null, which powers the new
 > "Delete Project" option: pricing plans always go with a deleted project,
 > but you can choose to keep its payment history counted in Finance totals.
+>
+> Already ran 011? Also run
+> [`supabase/migrations/012_namespace_all_tables.sql`](./supabase/migrations/012_namespace_all_tables.sql) —
+> if this Supabase project is shared with another app, every table this app
+> owns (`projects`, `stages`, `tasks`, `business_profile`, `profiles`,
+> `project_assignments`, `payment_plans`, `payments`) gets renamed with a
+> `freelance_hq_` prefix, the same way `clients` already was in 010, so none
+> of them can ever collide with a same-named table from anything else in the
+> same database. All rows, columns, and foreign keys carry over unchanged —
+> only the table names change.
 
 ### 3. Get your API credentials
 

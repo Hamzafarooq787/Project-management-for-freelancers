@@ -171,7 +171,7 @@ function isChecklistComplete(checklist: ChecklistItem[]): boolean {
 
 async function touchProject(projectId: string): Promise<void> {
   const { error } = await getSupabase()
-    .from("projects")
+    .from("freelance_hq_projects")
     .update({ updated_at: nowIso() })
     .eq("id", projectId);
   if (error) throw error;
@@ -181,7 +181,7 @@ async function fetchStagesForProjects(projectIds: string[]): Promise<Map<string,
   const map = new Map<string, Stage[]>();
   if (projectIds.length === 0) return map;
 
-  const { data, error } = await getSupabase().from("stages").select("*").in("project_id", projectIds);
+  const { data, error } = await getSupabase().from("freelance_hq_stages").select("*").in("project_id", projectIds);
   if (error) throw error;
 
   for (const row of (data ?? []) as StageRow[]) {
@@ -194,7 +194,7 @@ async function fetchStagesForProjects(projectIds: string[]): Promise<Map<string,
 
 export async function getProjects(): Promise<Project[]> {
   const { data, error } = await getSupabase()
-    .from("projects")
+    .from("freelance_hq_projects")
     .select("*")
     .order("updated_at", { ascending: false });
   if (error) throw error;
@@ -205,13 +205,13 @@ export async function getProjects(): Promise<Project[]> {
 }
 
 export async function getProject(id: string): Promise<Project | null> {
-  const { data, error } = await getSupabase().from("projects").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await getSupabase().from("freelance_hq_projects").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   if (!data) return null;
 
   const row = data as ProjectRow;
   const { data: stageRows, error: stageError } = await getSupabase()
-    .from("stages")
+    .from("freelance_hq_stages")
     .select("*")
     .eq("project_id", id);
   if (stageError) throw stageError;
@@ -245,7 +245,7 @@ export async function createProject(input: {
     input.type === "web_dev" ? { ...emptyWebDetails(), ...(input.webDetails ?? {}) } : null;
 
   const { data, error } = await getSupabase()
-    .from("projects")
+    .from("freelance_hq_projects")
     .insert({
       name: input.name,
       client: clientDetails.company || clientDetails.name,
@@ -266,7 +266,7 @@ export async function createProject(input: {
   const row = data as ProjectRow;
   const stageNames = PROJECT_TEMPLATES[input.type].stages;
   const { data: stageRows, error: stageError } = await getSupabase()
-    .from("stages")
+    .from("freelance_hq_stages")
     .insert(stageNames.map((name, i) => ({ project_id: row.id, name, order_index: i })))
     .select();
   if (stageError) throw stageError;
@@ -291,7 +291,7 @@ export async function updateProjectDetails(
     update.client = patch.clientDetails.company || patch.clientDetails.name;
   }
 
-  const { error } = await getSupabase().from("projects").update(update).eq("id", id);
+  const { error } = await getSupabase().from("freelance_hq_projects").update(update).eq("id", id);
   if (error) throw error;
 }
 
@@ -382,7 +382,7 @@ export async function updateClient(
 
 export async function getProjectsForClient(clientId: string): Promise<Project[]> {
   const { data, error } = await getSupabase()
-    .from("projects")
+    .from("freelance_hq_projects")
     .select("*")
     .eq("client_id", clientId)
     .order("updated_at", { ascending: false });
@@ -395,7 +395,7 @@ export async function getProjectsForClient(clientId: string): Promise<Project[]>
 
 export async function archiveProject(id: string, archived: boolean): Promise<void> {
   const { error } = await getSupabase()
-    .from("projects")
+    .from("freelance_hq_projects")
     .update({ archived, updated_at: nowIso() })
     .eq("id", id);
   if (error) throw error;
@@ -411,25 +411,25 @@ export async function archiveProject(id: string, archived: boolean): Promise<voi
 export async function deleteProject(id: string, keepFinancialData: boolean): Promise<void> {
   if (keepFinancialData) {
     const { error: detachError } = await getSupabase()
-      .from("payments")
+      .from("freelance_hq_payments")
       .update({ project_id: null })
       .eq("project_id", id);
     if (detachError) throw detachError;
   }
 
-  const { error } = await getSupabase().from("projects").delete().eq("id", id);
+  const { error } = await getSupabase().from("freelance_hq_projects").delete().eq("id", id);
   if (error) throw error;
 }
 
 export async function addStage(projectId: string, name: string): Promise<Stage | null> {
   const { count, error: countError } = await getSupabase()
-    .from("stages")
+    .from("freelance_hq_stages")
     .select("*", { count: "exact", head: true })
     .eq("project_id", projectId);
   if (countError) throw countError;
 
   const { data, error } = await getSupabase()
-    .from("stages")
+    .from("freelance_hq_stages")
     .insert({ project_id: projectId, name, order_index: count ?? 0 })
     .select()
     .single();
@@ -441,7 +441,7 @@ export async function addStage(projectId: string, name: string): Promise<Stage |
 
 export async function getTasksByProject(projectId: string): Promise<Task[]> {
   const { data, error } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .select("*")
     .eq("project_id", projectId)
     .order("order_index");
@@ -450,7 +450,7 @@ export async function getTasksByProject(projectId: string): Promise<Task[]> {
 }
 
 export async function getOpenTasks(): Promise<Task[]> {
-  const { data, error } = await getSupabase().from("tasks").select("*").neq("status", "done");
+  const { data, error } = await getSupabase().from("freelance_hq_tasks").select("*").neq("status", "done");
   if (error) throw error;
 
   const tasks = ((data ?? []) as TaskRow[]).map(toTask);
@@ -469,7 +469,7 @@ export async function getTasksScheduledOn(date: string): Promise<Task[]> {
 }
 
 export async function getCompletedTasks(): Promise<Task[]> {
-  const { data, error } = await getSupabase().from("tasks").select("*").eq("status", "done");
+  const { data, error } = await getSupabase().from("freelance_hq_tasks").select("*").eq("status", "done");
   if (error) throw error;
 
   return ((data ?? []) as TaskRow[])
@@ -489,7 +489,7 @@ export async function createTask(input: {
   markDoneOn?: string | null;
 }): Promise<Task> {
   const { count, error: countError } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .select("*", { count: "exact", head: true })
     .eq("project_id", input.projectId);
   if (countError) throw countError;
@@ -498,7 +498,7 @@ export async function createTask(input: {
   const isBackdated = Boolean(input.markDoneOn) && isChecklistComplete(checklist);
 
   const { data, error } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .insert({
       project_id: input.projectId,
       stage_id: input.stageId,
@@ -525,7 +525,7 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
 
   if (status === "done") {
     const { data: existing, error: fetchError } = await getSupabase()
-      .from("tasks")
+      .from("freelance_hq_tasks")
       .select("checklist")
       .eq("id", taskId)
       .maybeSingle();
@@ -542,7 +542,7 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
   if (resolvedStatus === "done") update.scheduled_for = null;
 
   const { data, error } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .update(update)
     .eq("id", taskId)
     .select("project_id")
@@ -582,7 +582,7 @@ export async function updateTaskDetails(
   };
 
   const { data, error } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .update(update)
     .eq("id", taskId)
     .select("project_id")
@@ -594,7 +594,7 @@ export async function updateTaskDetails(
 
 export async function toggleToday(taskId: string): Promise<void> {
   const { data, error } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .select("scheduled_for")
     .eq("id", taskId)
     .maybeSingle();
@@ -605,7 +605,7 @@ export async function toggleToday(taskId: string): Promise<void> {
   const current = (data as { scheduled_for: string | null }).scheduled_for;
   const next = current === today ? null : today;
   const { error: updateError } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .update({ scheduled_for: next, updated_at: nowIso() })
     .eq("id", taskId);
   if (updateError) throw updateError;
@@ -613,7 +613,7 @@ export async function toggleToday(taskId: string): Promise<void> {
 
 export async function toggleChecklistItem(taskId: string, itemId: string): Promise<void> {
   const { data, error } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .select("checklist, project_id, status")
     .eq("id", taskId)
     .maybeSingle();
@@ -631,7 +631,7 @@ export async function toggleChecklistItem(taskId: string, itemId: string): Promi
     update.completed_at = null;
   }
 
-  const { error: updateError } = await getSupabase().from("tasks").update(update).eq("id", taskId);
+  const { error: updateError } = await getSupabase().from("freelance_hq_tasks").update(update).eq("id", taskId);
   if (updateError) throw updateError;
 
   await touchProject(row.project_id);
@@ -639,7 +639,7 @@ export async function toggleChecklistItem(taskId: string, itemId: string): Promi
 
 export async function addTaskFile(taskId: string, file: TaskFile): Promise<void> {
   const { data, error } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .select("files, project_id")
     .eq("id", taskId)
     .maybeSingle();
@@ -648,7 +648,7 @@ export async function addTaskFile(taskId: string, file: TaskFile): Promise<void>
 
   const row = data as { files: (TaskFile | string)[]; project_id: string };
   const { error: updateError } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .update({ files: [...normalizeFiles(row.files), file], updated_at: nowIso() })
     .eq("id", taskId);
   if (updateError) throw updateError;
@@ -658,7 +658,7 @@ export async function addTaskFile(taskId: string, file: TaskFile): Promise<void>
 
 export async function removeTaskFile(taskId: string, url: string): Promise<void> {
   const { data, error } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .select("files, project_id")
     .eq("id", taskId)
     .maybeSingle();
@@ -667,7 +667,7 @@ export async function removeTaskFile(taskId: string, url: string): Promise<void>
 
   const row = data as { files: (TaskFile | string)[]; project_id: string };
   const { error: updateError } = await getSupabase()
-    .from("tasks")
+    .from("freelance_hq_tasks")
     .update({ files: normalizeFiles(row.files).filter((f) => f.url !== url), updated_at: nowIso() })
     .eq("id", taskId);
   if (updateError) throw updateError;
@@ -676,7 +676,7 @@ export async function removeTaskFile(taskId: string, url: string): Promise<void>
 }
 
 export async function deleteTask(taskId: string): Promise<void> {
-  const { error } = await getSupabase().from("tasks").delete().eq("id", taskId);
+  const { error } = await getSupabase().from("freelance_hq_tasks").delete().eq("id", taskId);
   if (error) throw error;
 }
 
@@ -689,7 +689,7 @@ export async function getProjectProgress(projectId: string): Promise<{ done: num
 export async function getProjectProgressMap(): Promise<
   Record<string, { done: number; total: number; openCount: number }>
 > {
-  const { data, error } = await getSupabase().from("tasks").select("project_id, status");
+  const { data, error } = await getSupabase().from("freelance_hq_tasks").select("project_id, status");
   if (error) throw error;
 
   const map: Record<string, { done: number; total: number; openCount: number }> = {};
@@ -705,7 +705,7 @@ export async function getProjectProgressMap(): Promise<
 
 export async function getBusinessProfile(): Promise<BusinessProfile> {
   const { data, error } = await getSupabase()
-    .from("business_profile")
+    .from("freelance_hq_business_profile")
     .select("company_name, logo_url")
     .eq("id", true)
     .maybeSingle();
@@ -719,7 +719,7 @@ export async function getBusinessProfile(): Promise<BusinessProfile> {
 
 export async function updateBusinessProfile(patch: BusinessProfile): Promise<void> {
   const { error } = await getSupabase()
-    .from("business_profile")
+    .from("freelance_hq_business_profile")
     .upsert({ id: true, company_name: patch.companyName, logo_url: patch.logoUrl, updated_at: nowIso() });
   if (error) throw error;
 }
@@ -731,7 +731,7 @@ export async function updateBusinessProfile(patch: BusinessProfile): Promise<voi
  */
 export async function getOrCreateShareToken(projectId: string): Promise<string> {
   const { data, error } = await getSupabase()
-    .from("projects")
+    .from("freelance_hq_projects")
     .select("share_token")
     .eq("id", projectId)
     .maybeSingle();
@@ -742,7 +742,7 @@ export async function getOrCreateShareToken(projectId: string): Promise<string> 
 
   const token = randomUUID().replace(/-/g, "");
   const { error: updateError } = await getSupabase()
-    .from("projects")
+    .from("freelance_hq_projects")
     .update({ share_token: token, updated_at: nowIso() })
     .eq("id", projectId);
   if (updateError) throw updateError;
@@ -753,7 +753,7 @@ export async function getOrCreateShareToken(projectId: string): Promise<string> 
 export async function regenerateShareToken(projectId: string): Promise<string> {
   const token = randomUUID().replace(/-/g, "");
   const { error } = await getSupabase()
-    .from("projects")
+    .from("freelance_hq_projects")
     .update({ share_token: token, updated_at: nowIso() })
     .eq("id", projectId);
   if (error) throw error;
@@ -762,7 +762,7 @@ export async function regenerateShareToken(projectId: string): Promise<string> {
 
 export async function disableSharing(projectId: string): Promise<void> {
   const { error } = await getSupabase()
-    .from("projects")
+    .from("freelance_hq_projects")
     .update({ share_token: null, updated_at: nowIso() })
     .eq("id", projectId);
   if (error) throw error;
@@ -781,20 +781,20 @@ function toProfile(row: ProfileRow): Profile {
 }
 
 export async function getProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await getSupabase().from("profiles").select("*").eq("id", userId).maybeSingle();
+  const { data, error } = await getSupabase().from("freelance_hq_profiles").select("*").eq("id", userId).maybeSingle();
   if (error) throw error;
   return data ? toProfile(data as ProfileRow) : null;
 }
 
 export async function getProfileCount(): Promise<number> {
-  const { count, error } = await getSupabase().from("profiles").select("*", { count: "exact", head: true });
+  const { count, error } = await getSupabase().from("freelance_hq_profiles").select("*", { count: "exact", head: true });
   if (error) throw error;
   return count ?? 0;
 }
 
 export async function createProfile(input: { id: string; email: string; name: string; role: Role }): Promise<Profile> {
   const { data, error } = await getSupabase()
-    .from("profiles")
+    .from("freelance_hq_profiles")
     .insert({ id: input.id, email: input.email, name: input.name, role: input.role })
     .select()
     .single();
@@ -804,7 +804,7 @@ export async function createProfile(input: { id: string; email: string; name: st
 
 export async function listTeamMembers(): Promise<Profile[]> {
   try {
-    const { data, error } = await getSupabase().from("profiles").select("*").order("created_at");
+    const { data, error } = await getSupabase().from("freelance_hq_profiles").select("*").order("created_at");
     if (error) throw error;
     return ((data ?? []) as ProfileRow[]).map(toProfile);
   } catch (error) {
@@ -814,7 +814,7 @@ export async function listTeamMembers(): Promise<Profile[]> {
 }
 
 export async function updateMemberRole(userId: string, role: Role): Promise<void> {
-  const { error } = await getSupabase().from("profiles").update({ role, updated_at: nowIso() }).eq("id", userId);
+  const { error } = await getSupabase().from("freelance_hq_profiles").update({ role, updated_at: nowIso() }).eq("id", userId);
   if (error) throw error;
 }
 
@@ -841,7 +841,7 @@ export async function removeMember(userId: string): Promise<void> {
 
 export async function getAssignedProjectIds(userId: string): Promise<string[]> {
   try {
-    const { data, error } = await getSupabase().from("project_assignments").select("project_id").eq("user_id", userId);
+    const { data, error } = await getSupabase().from("freelance_hq_project_assignments").select("project_id").eq("user_id", userId);
     if (error) throw error;
     return ((data ?? []) as { project_id: string }[]).map((row) => row.project_id);
   } catch (error) {
@@ -853,7 +853,7 @@ export async function getAssignedProjectIds(userId: string): Promise<string[]> {
 export async function isProjectAssignedToUser(projectId: string, userId: string): Promise<boolean> {
   try {
     const { data, error } = await getSupabase()
-      .from("project_assignments")
+      .from("freelance_hq_project_assignments")
       .select("id")
       .eq("project_id", projectId)
       .eq("user_id", userId)
@@ -867,12 +867,12 @@ export async function isProjectAssignedToUser(projectId: string, userId: string)
 }
 
 export async function setMemberAssignments(userId: string, projectIds: string[]): Promise<void> {
-  const { error: deleteError } = await getSupabase().from("project_assignments").delete().eq("user_id", userId);
+  const { error: deleteError } = await getSupabase().from("freelance_hq_project_assignments").delete().eq("user_id", userId);
   if (deleteError) throw deleteError;
   if (projectIds.length === 0) return;
 
   const { error: insertError } = await getSupabase()
-    .from("project_assignments")
+    .from("freelance_hq_project_assignments")
     .insert(projectIds.map((projectId) => ({ project_id: projectId, user_id: userId })));
   if (insertError) throw insertError;
 }
@@ -908,7 +908,7 @@ function toPaymentPlan(row: PaymentPlanRow): PaymentPlan {
 /** A project can have one plan per currency (e.g. a PKR plan and a USD plan on the same project). */
 export async function listPaymentPlansForProject(projectId: string): Promise<PaymentPlan[]> {
   try {
-    const { data, error } = await getSupabase().from("payment_plans").select("*").eq("project_id", projectId);
+    const { data, error } = await getSupabase().from("freelance_hq_payment_plans").select("*").eq("project_id", projectId);
     if (error) throw error;
     return ((data ?? []) as PaymentPlanRow[]).map(toPaymentPlan);
   } catch (error) {
@@ -919,7 +919,7 @@ export async function listPaymentPlansForProject(projectId: string): Promise<Pay
 
 export async function listPaymentPlans(): Promise<PaymentPlan[]> {
   try {
-    const { data, error } = await getSupabase().from("payment_plans").select("*");
+    const { data, error } = await getSupabase().from("freelance_hq_payment_plans").select("*");
     if (error) throw error;
     return ((data ?? []) as PaymentPlanRow[]).map(toPaymentPlan);
   } catch (error) {
@@ -933,7 +933,7 @@ export async function setPaymentPlan(
   input: { planType: PaymentPlanType; amount: number; currency: string; notes: string },
 ): Promise<PaymentPlan> {
   const { data, error } = await getSupabase()
-    .from("payment_plans")
+    .from("freelance_hq_payment_plans")
     .upsert(
       {
         project_id: projectId,
@@ -953,7 +953,7 @@ export async function setPaymentPlan(
 
 export async function deletePaymentPlan(projectId: string, currency: string): Promise<void> {
   const { error } = await getSupabase()
-    .from("payment_plans")
+    .from("freelance_hq_payment_plans")
     .delete()
     .eq("project_id", projectId)
     .eq("currency", currency);
@@ -989,7 +989,7 @@ function toPayment(row: PaymentRow): Payment {
 export async function listPaymentsForProject(projectId: string): Promise<Payment[]> {
   try {
     const { data, error } = await getSupabase()
-      .from("payments")
+      .from("freelance_hq_payments")
       .select("*")
       .eq("project_id", projectId)
       .order("paid_on", { ascending: false });
@@ -1003,7 +1003,7 @@ export async function listPaymentsForProject(projectId: string): Promise<Payment
 
 export async function listAllPayments(): Promise<Payment[]> {
   try {
-    const { data, error } = await getSupabase().from("payments").select("*").order("paid_on", { ascending: false });
+    const { data, error } = await getSupabase().from("freelance_hq_payments").select("*").order("paid_on", { ascending: false });
     if (error) throw error;
     return ((data ?? []) as PaymentRow[]).map(toPayment);
   } catch (error) {
@@ -1022,7 +1022,7 @@ export async function addPayment(input: {
   paidOn: string;
 }): Promise<Payment> {
   const { data, error } = await getSupabase()
-    .from("payments")
+    .from("freelance_hq_payments")
     .insert({
       project_id: input.projectId,
       amount: input.amount,
@@ -1039,13 +1039,13 @@ export async function addPayment(input: {
 }
 
 export async function deletePayment(id: string): Promise<void> {
-  const { error } = await getSupabase().from("payments").delete().eq("id", id);
+  const { error } = await getSupabase().from("freelance_hq_payments").delete().eq("id", id);
   if (error) throw error;
 }
 
 export async function getProjectByShareToken(token: string): Promise<Project | null> {
   const { data, error } = await getSupabase()
-    .from("projects")
+    .from("freelance_hq_projects")
     .select("*")
     .eq("share_token", token)
     .maybeSingle();
@@ -1054,7 +1054,7 @@ export async function getProjectByShareToken(token: string): Promise<Project | n
 
   const row = data as ProjectRow;
   const { data: stageRows, error: stageError } = await getSupabase()
-    .from("stages")
+    .from("freelance_hq_stages")
     .select("*")
     .eq("project_id", row.id);
   if (stageError) throw stageError;

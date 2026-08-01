@@ -22,6 +22,7 @@ export function ProjectCardClient({
 }) {
   const theme = PROJECT_THEME[project.type];
   const Icon = theme.icon;
+  const clientName = project.client || project.clientDetails.company || project.clientDetails.name;
 
   return (
     <Link
@@ -38,7 +39,7 @@ export function ProjectCardClient({
         </span>
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold text-neutral-100">{project.name}</h3>
-          <p className="truncate text-xs text-neutral-500">{project.client}</p>
+          {clientName && <p className="truncate text-xs text-neutral-500">{clientName}</p>}
         </div>
       </div>
 
