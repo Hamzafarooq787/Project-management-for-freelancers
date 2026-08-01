@@ -47,7 +47,7 @@ export function NewProjectForm({ clients }: { clients: Client[] }) {
               </option>
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>
-                  {client.company || client.name}
+                  {client.name || client.company}
                 </option>
               ))}
             </select>
