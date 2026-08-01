@@ -101,6 +101,18 @@ The **Finance** page (sidebar, admin only) rolls all of that up:
 Amounts are tracked per currency (no conversion is attempted), so totals are
 shown grouped by currency if you bill clients in more than one.
 
+## Archiving vs. deleting a project
+
+**Archive** (any project page) hides a project from the active project lists
+without touching any of its data — reversible any time from the same button.
+
+**Delete** (admin only, same page) is permanent: the project, its tasks, and
+its pricing plan are gone for good, and it can't be undone. You get one
+choice at delete time — keep the project's payment history or not. Keeping
+it detaches those payment records from the (now-deleted) project so they no
+longer show up on a project page, but the amounts still count toward the
+Finance page's totals, since that money was genuinely received.
+
 ## Setting up Supabase (step by step)
 
 ### 1. Create a Supabase project
@@ -173,6 +185,12 @@ shown grouped by currency if you bill clients in more than one.
 > breaking client creation. This migration moves this app's data to its own
 > `freelance_hq_clients` table (migrating any rows 009 did manage to create)
 > so it never collides with another app's table again.
+>
+> Already ran 010? Also run
+> [`supabase/migrations/011_project_deletion.sql`](./supabase/migrations/011_project_deletion.sql) —
+> it lets a project's `payments.project_id` be null, which powers the new
+> "Delete Project" option: pricing plans always go with a deleted project,
+> but you can choose to keep its payment history counted in Finance totals.
 
 ### 3. Get your API credentials
 

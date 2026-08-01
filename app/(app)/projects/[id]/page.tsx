@@ -14,6 +14,7 @@ import { StageBoard } from "@/components/StageBoard";
 import { SeoStageTabs } from "@/components/SeoStageTabs";
 import { TaskRow } from "@/components/TaskRow";
 import { ArchiveToggle } from "@/components/ArchiveToggle";
+import { DeleteProjectPanel } from "@/components/DeleteProjectPanel";
 import { ClientDetailsCard } from "@/components/ClientDetailsCard";
 import { ProjectMetaCard } from "@/components/ProjectMetaCard";
 import { WebsiteDetailsCard } from "@/components/WebsiteDetailsCard";
@@ -151,7 +152,10 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         </div>
 
         <div className="flex flex-col items-end gap-3">
-          <ArchiveToggle projectId={project.id} archived={project.archived} />
+          <div className="flex items-center gap-2">
+            <ArchiveToggle projectId={project.id} archived={project.archived} />
+            {isAdmin && <DeleteProjectPanel projectId={project.id} />}
+          </div>
           <div className="w-48">
             <ProgressBar done={progress.done} total={progress.total} color={theme.accent} />
           </div>

@@ -401,6 +401,26 @@ export async function archiveProject(id: string, archived: boolean): Promise<voi
   if (error) throw error;
 }
 
+/**
+ * Permanently deletes a project (tasks, stages, payment plans, and team
+ * assignments always go with it via foreign-key cascade). Payment history is
+ * the one exception: when keepFinancialData is true, its payments are
+ * detached (project_id set to null) first so they survive the cascade and
+ * keep counting toward Finance totals.
+ */
+export async function deleteProject(id: string, keepFinancialData: boolean): Promise<void> {
+  if (keepFinancialData) {
+    const { error: detachError } = await getSupabase()
+      .from("payments")
+      .update({ project_id: null })
+      .eq("project_id", id);
+    if (detachError) throw detachError;
+  }
+
+  const { error } = await getSupabase().from("projects").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function addStage(projectId: string, name: string): Promise<Stage | null> {
   const { count, error: countError } = await getSupabase()
     .from("stages")
@@ -942,7 +962,7 @@ export async function deletePaymentPlan(projectId: string, currency: string): Pr
 
 interface PaymentRow {
   id: string;
-  project_id: string;
+  project_id: string | null;
   amount: number;
   currency: string;
   kind: PaymentKind;

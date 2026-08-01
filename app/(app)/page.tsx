@@ -46,6 +46,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
 
   const paymentsByProject = new Map<string, typeof payments>();
   for (const payment of payments) {
+    if (!payment.projectId) continue;
     const list = paymentsByProject.get(payment.projectId) ?? [];
     list.push(payment);
     paymentsByProject.set(payment.projectId, list);
