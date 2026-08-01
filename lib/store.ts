@@ -598,7 +598,7 @@ export async function updateTaskDetails(
   if (data) await touchProject((data as { project_id: string }).project_id);
 }
 
-export async function toggleToday(taskId: string): Promise<void> {
+export async function toggleToday(taskId: string, today: string): Promise<void> {
   const { data, error } = await getSupabase()
     .from("freelance_hq_tasks")
     .select("scheduled_for")
@@ -607,7 +607,6 @@ export async function toggleToday(taskId: string): Promise<void> {
   if (error) throw error;
   if (!data) return;
 
-  const today = todayDateKey();
   const current = (data as { scheduled_for: string | null }).scheduled_for;
   const next = current === today ? null : today;
   const { error: updateError } = await getSupabase()
