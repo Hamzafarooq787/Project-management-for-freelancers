@@ -155,7 +155,7 @@ export function TaskRow({
       <div className="flex shrink-0 items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         <button
           title={isScheduledToday ? "Remove from Today" : "Schedule for today"}
-          onClick={() => startTransition(() => toggleTodayAction(task.id, task.projectId))}
+          onClick={() => startTransition(() => toggleTodayAction(task.id, task.projectId, todayKey()))}
           className={cn(
             "rounded-md p-2 hover:bg-base-700/60",
             isScheduledToday ? "text-amber-400" : "text-neutral-500",

@@ -244,9 +244,9 @@ export async function updateTaskStatusAction(taskId: string, projectId: string, 
   refresh(projectId);
 }
 
-export async function toggleTodayAction(taskId: string, projectId: string) {
+export async function toggleTodayAction(taskId: string, projectId: string, today: string) {
   await requireProjectAccess(projectId);
-  await store.toggleToday(taskId);
+  await store.toggleToday(taskId, today);
   refresh(projectId);
 }
 
