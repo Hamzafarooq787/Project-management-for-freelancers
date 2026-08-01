@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { ListTodo, FolderKanban, Star, CheckCircle2, ArrowRight, Plus, Wallet, TrendingUp, AlertCircle, PiggyBank, Hourglass } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth";
 import {
@@ -20,12 +21,13 @@ import { currentMonthKey, formatMoney, resolveSelectedCurrency, sortCurrencies }
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage({ searchParams }: { searchParams: { currency?: string } }) {
+  const today = cookies().get("today-date")?.value || todayDateKey();
   const profile = await getCurrentProfile();
   const isAdmin = profile?.role === "admin";
   const [allOpenTasks, projects, allTodayTasks, allCompletedTasks, progress, plans, payments] = await Promise.all([
     getOpenTasks(),
     profile ? getProjectsForProfile(profile) : Promise.resolve([]),
-    getTasksScheduledOn(todayDateKey()),
+    getTasksScheduledOn(today),
     getCompletedTasks(),
     getProjectProgressMap(),
     isAdmin ? listPaymentPlans() : Promise.resolve([]),
