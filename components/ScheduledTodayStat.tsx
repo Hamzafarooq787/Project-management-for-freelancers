@@ -12,8 +12,14 @@ function todayKey(): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Counts from the browser's own local date, not the server's, so it's never a day off near midnight. */
+/**
+ * Counts from the browser's own local date, not the server's, so it's never
+ * a day off near midnight. Includes anything scheduled for today or earlier,
+ * matching what /today shows — an overdue task still counts as something to
+ * do today.
+ */
 export function ScheduledTodayStat({ tasks }: { tasks: Task[] }) {
-  const count = tasks.filter((t) => t.scheduledFor === todayKey()).length;
+  const today = todayKey();
+  const count = tasks.filter((t) => t.scheduledFor && t.scheduledFor <= today).length;
   return <StatCard label="Scheduled today" value={count} icon={Star} tone="amber" />;
 }
