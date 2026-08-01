@@ -127,7 +127,8 @@ export type PaymentKind = "monthly" | "additional" | "installment";
 
 export interface Payment {
   id: string;
-  projectId: string;
+  /** Null once the project it was recorded against has been deleted with its payment history kept. */
+  projectId: string | null;
   amount: number;
   currency: string;
   kind: PaymentKind;

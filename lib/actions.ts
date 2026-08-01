@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import * as store from "./store";
 import { requireAdmin, requireProjectAccess } from "./auth";
 import { uploadLogo, uploadTaskFile } from "./storage";
@@ -274,6 +275,14 @@ export async function archiveProjectAction(projectId: string, archived: boolean)
   await requireProjectAccess(projectId);
   await store.archiveProject(projectId, archived);
   refresh(projectId);
+}
+
+export async function deleteProjectAction(projectId: string, keepFinancialData: boolean) {
+  await requireAdmin();
+  await store.deleteProject(projectId, keepFinancialData);
+  refresh(projectId);
+  revalidatePath("/finance");
+  redirect("/projects");
 }
 
 export async function updateBusinessProfileAction(formData: FormData) {

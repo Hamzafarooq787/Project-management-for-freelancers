@@ -59,6 +59,7 @@ export default async function FinancePage({ searchParams }: { searchParams: { ra
 
   const totalPaidByProject = new Map<string, number>();
   for (const payment of payments) {
+    if (!payment.projectId) continue;
     totalPaidByProject.set(payment.projectId, (totalPaidByProject.get(payment.projectId) ?? 0) + payment.amount);
   }
   const outstanding = plans
@@ -67,7 +68,7 @@ export default async function FinancePage({ searchParams }: { searchParams: { ra
 
   const collectedByType = new Map<string, number>();
   for (const payment of paymentsInRange) {
-    const project = projectById.get(payment.projectId);
+    const project = payment.projectId ? projectById.get(payment.projectId) : undefined;
     if (!project) continue;
     collectedByType.set(project.type, (collectedByType.get(project.type) ?? 0) + payment.amount);
   }
