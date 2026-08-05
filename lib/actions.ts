@@ -10,6 +10,7 @@ import type {
   ChecklistItem,
   ClientDetails,
   DomainStatus,
+  KeywordStatus,
   PaymentKind,
   PaymentPlanType,
   ProjectType,
@@ -28,6 +29,12 @@ function refresh(projectId?: string) {
 
 function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
+}
+
+function numOrNull(value: string): number | null {
+  if (!value.trim()) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 interface RawChecklistItem {
@@ -434,6 +441,51 @@ export async function deletePaymentPlanAction(formData: FormData) {
   await store.deletePaymentPlan(projectId, currency);
   refresh(projectId);
   revalidatePath("/finance");
+}
+
+export async function createKeywordAction(formData: FormData) {
+  const projectId = str(formData, "projectId");
+  const keyword = str(formData, "keyword");
+  if (!projectId || !keyword) return;
+  await requireProjectAccess(projectId);
+
+  await store.createKeyword({
+    projectId,
+    keyword,
+    targetPage: str(formData, "targetPage"),
+    searchVolume: numOrNull(str(formData, "searchVolume")),
+    difficulty: numOrNull(str(formData, "difficulty")),
+    currentRank: numOrNull(str(formData, "currentRank")),
+    targetRank: numOrNull(str(formData, "targetRank")),
+    status: (str(formData, "status") || "not_started") as KeywordStatus,
+    notes: str(formData, "notes"),
+  });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateKeywordAction(formData: FormData) {
+  const id = str(formData, "id");
+  const projectId = str(formData, "projectId");
+  if (!id || !projectId) return;
+  await requireProjectAccess(projectId);
+
+  await store.updateKeyword(id, {
+    keyword: str(formData, "keyword"),
+    targetPage: str(formData, "targetPage"),
+    searchVolume: numOrNull(str(formData, "searchVolume")),
+    difficulty: numOrNull(str(formData, "difficulty")),
+    currentRank: numOrNull(str(formData, "currentRank")),
+    targetRank: numOrNull(str(formData, "targetRank")),
+    status: (str(formData, "status") || "not_started") as KeywordStatus,
+    notes: str(formData, "notes"),
+  });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteKeywordAction(id: string, projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.deleteKeyword(id);
+  revalidatePath(`/projects/${projectId}`);
 }
 
 /**

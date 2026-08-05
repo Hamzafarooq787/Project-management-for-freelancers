@@ -1,30 +1,34 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ListTodo, User } from "lucide-react";
+import { ListTodo, Search, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type TabKey = "board" | "client";
+type TabKey = "board" | "keywords" | "client";
 
 const TABS: { key: TabKey; label: string; icon: typeof ListTodo }[] = [
   { key: "board", label: "Stages & Tasks", icon: ListTodo },
+  { key: "keywords", label: "Keywords", icon: Search },
   { key: "client", label: "Client Details", icon: User },
 ];
 
 export function ProjectDetailTabs({
   board,
+  keywords,
   clientDetails,
 }: {
   board: ReactNode;
+  keywords?: ReactNode;
   clientDetails: ReactNode;
 }) {
   const [active, setActive] = useState<TabKey>("board");
-  const content = { board, client: clientDetails } as const;
+  const content = { board, keywords, client: clientDetails } as const;
+  const visibleTabs = TABS.filter((tab) => tab.key !== "keywords" || keywords !== undefined);
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap gap-2 border-b border-base-700/60 pb-3">
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = active === tab.key;
           return (

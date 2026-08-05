@@ -201,6 +201,13 @@ Finance page's totals, since that money was genuinely received.
 > of them can ever collide with a same-named table from anything else in the
 > same database. All rows, columns, and foreign keys carry over unchanged —
 > only the table names change.
+>
+> Already ran 012? Also run
+> [`supabase/migrations/013_seo_keywords.sql`](./supabase/migrations/013_seo_keywords.sql) —
+> it adds a `freelance_hq_keywords` table so SEO projects get a proper
+> keyword rank-tracker (keyword, target page, volume, difficulty, current vs.
+> target rank, status, notes) instead of keyword lists buried in task
+> checklists.
 
 ### 3. Get your API credentials
 

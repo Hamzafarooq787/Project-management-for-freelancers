@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import {
   getBusinessProfile,
+  listKeywords,
   listPaymentPlansForProject,
   getProject,
   getProjectProgress,
@@ -22,6 +23,7 @@ import { DailyReportPanel } from "@/components/DailyReportPanel";
 import { ProjectDetailTabs } from "@/components/ProjectDetailTabs";
 import { ShareLinkPanel } from "@/components/ShareLinkPanel";
 import { PaymentsCard } from "@/components/PaymentsCard";
+import { KeywordsPanel } from "@/components/KeywordsPanel";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { CheckCircle2 } from "lucide-react";
 
@@ -37,12 +39,13 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
   const isAdmin = profile.role === "admin";
 
-  const [tasks, progress, businessProfile, paymentPlans, payments] = await Promise.all([
+  const [tasks, progress, businessProfile, paymentPlans, payments, keywords] = await Promise.all([
     getTasksByProject(project.id),
     getProjectProgress(project.id),
     getBusinessProfile(),
     isAdmin ? listPaymentPlansForProject(project.id) : Promise.resolve([]),
     isAdmin ? listPaymentsForProject(project.id) : Promise.resolve([]),
+    project.type === "seo" ? listKeywords(project.id) : Promise.resolve([]),
   ]);
 
   const completed = tasks
@@ -164,7 +167,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      <ProjectDetailTabs board={board} clientDetails={clientDetailsTab} />
+      <ProjectDetailTabs
+        board={board}
+        keywords={project.type === "seo" ? <KeywordsPanel projectId={project.id} keywords={keywords} /> : undefined}
+        clientDetails={clientDetailsTab}
+      />
     </div>
   );
 }
