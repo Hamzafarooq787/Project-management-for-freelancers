@@ -1,10 +1,17 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { Search, Trash2, Pencil, Plus, X, Download, Upload, History, ChevronDown, ArrowUp, ArrowDown, Minus } from "lucide-react";
-import type { Keyword, KeywordRankHistoryEntry, KeywordStatus } from "@/lib/types";
-import { createKeywordAction, deleteKeywordAction, importKeywordsAction, updateKeywordAction } from "@/lib/actions";
+import { Search, Trash2, Pencil, Plus, X, Download, Upload, History, ChevronDown, ArrowUp, ArrowDown, Minus, LineChart } from "lucide-react";
+import type { Keyword, KeywordMonthlyPosition, KeywordRankHistoryEntry, KeywordStatus } from "@/lib/types";
+import {
+  createKeywordAction,
+  deleteKeywordAction,
+  importKeywordsAction,
+  setKeywordTrackedAction,
+  updateKeywordAction,
+} from "@/lib/actions";
 import { cn, formatDateKey } from "@/lib/utils";
+import { MonthlyPositionTracker } from "@/components/MonthlyPositionTracker";
 
 type SortMode = "default" | "rank_asc" | "rank_desc";
 
@@ -117,11 +124,13 @@ export function KeywordsPanel({
   projectName,
   keywords,
   rankHistory,
+  monthlyPositions,
 }: {
   projectId: string;
   projectName: string;
   keywords: Keyword[];
   rankHistory: Record<string, KeywordRankHistoryEntry[]>;
+  monthlyPositions: Record<string, KeywordMonthlyPosition[]>;
 }) {
   const [isPending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
@@ -132,6 +141,7 @@ export function KeywordsPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sortedKeywords = useMemo(() => sortKeywords(keywords, sortMode), [keywords, sortMode]);
+  const trackedKeywords = useMemo(() => keywords.filter((k) => k.isTracked), [keywords]);
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -156,6 +166,14 @@ export function KeywordsPanel({
   }
 
   return (
+    <div className="flex flex-col gap-6">
+      <MonthlyPositionTracker
+        projectId={projectId}
+        projectName={projectName}
+        keywords={trackedKeywords}
+        positions={monthlyPositions}
+      />
+
     <div className="rounded-xl2 border border-base-700/60 bg-base-850 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -280,10 +298,14 @@ export function KeywordsPanel({
                 formData.set("notes", keyword.notes);
                 startTransition(() => updateKeywordAction(formData));
               }}
+              onToggleTracked={() =>
+                startTransition(() => setKeywordTrackedAction(keyword.id, projectId, !keyword.isTracked))
+              }
             />
           ),
         )}
       </div>
+    </div>
     </div>
   );
 }
@@ -298,6 +320,7 @@ function KeywordRow({
   onDelete,
   onRankChange,
   onStatusChange,
+  onToggleTracked,
 }: {
   keyword: Keyword;
   history: KeywordRankHistoryEntry[];
@@ -308,6 +331,7 @@ function KeywordRow({
   onDelete: () => void;
   onRankChange: (rank: string) => void;
   onStatusChange: (status: KeywordStatus) => void;
+  onToggleTracked: () => void;
 }) {
   return (
     <div className="rounded-lg border border-base-700/60 bg-base-900 p-3">
@@ -356,6 +380,17 @@ function KeywordRow({
           >
             <History size={13} />
             <ChevronDown size={11} className={cn("transition-transform", historyOpen && "rotate-180")} />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleTracked}
+            className={cn(
+              "flex items-center gap-1 rounded-md p-1.5 hover:text-accent-300",
+              keyword.isTracked ? "text-accent-400" : "text-neutral-400",
+            )}
+            title={keyword.isTracked ? "Remove from monthly tracker" : "Add to monthly tracker"}
+          >
+            <LineChart size={13} />
           </button>
           <button
             type="button"

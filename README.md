@@ -216,6 +216,15 @@ Finance page's totals, since that money was genuinely received.
 > keyword, editing it, or importing), so its **History** button on the
 > Keywords tab shows how its position moved over time instead of only ever
 > showing the latest value.
+>
+> Already ran 014? Also run
+> [`supabase/migrations/015_keyword_monthly_tracking.sql`](./supabase/migrations/015_keyword_monthly_tracking.sql) —
+> it adds an `is_tracked` flag to `freelance_hq_keywords` and a new
+> `freelance_hq_keyword_monthly_positions` table, powering the **Monthly
+> Position Tracker** on the Keywords tab: pick keywords into a tracking
+> list, manually enter one rank per keyword per calendar month, see every
+> previous month alongside the newest one in a grid, and export it to XLSX
+> or PDF.
 
 ### 3. Get your API credentials
 
