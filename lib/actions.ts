@@ -488,6 +488,16 @@ export async function deleteKeywordAction(id: string, projectId: string) {
   revalidatePath(`/projects/${projectId}`);
 }
 
+export async function importKeywordsAction(
+  projectId: string,
+  rows: store.KeywordImportRow[],
+): Promise<number> {
+  await requireProjectAccess(projectId);
+  const count = await store.createKeywordsBulk(projectId, rows);
+  revalidatePath(`/projects/${projectId}`);
+  return count;
+}
+
 /**
  * Public, unauthenticated actions reachable from /share/[token]. These never trust a
  * client-supplied projectId — the project is always resolved strictly from the share

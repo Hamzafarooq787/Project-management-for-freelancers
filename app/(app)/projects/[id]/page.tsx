@@ -169,7 +169,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
       <ProjectDetailTabs
         board={board}
-        keywords={project.type === "seo" ? <KeywordsPanel projectId={project.id} keywords={keywords} /> : undefined}
+        keywords={
+          project.type === "seo" ? (
+            <KeywordsPanel projectId={project.id} projectName={project.name} keywords={keywords} />
+          ) : undefined
+        }
         clientDetails={clientDetailsTab}
       />
     </div>
