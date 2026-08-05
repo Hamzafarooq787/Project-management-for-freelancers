@@ -1125,11 +1125,20 @@ export async function createKeyword(input: {
   return keyword;
 }
 
+/**
+ * Fails open when the history table doesn't exist yet (migration 014 not run):
+ * rank history is a nice-to-have on top of a keyword's current rank, so a
+ * missing optional table shouldn't break creating or updating a keyword.
+ */
 async function logKeywordRank(keywordId: string, rank: number | null): Promise<void> {
-  const { error } = await getSupabase()
-    .from("freelance_hq_keyword_rank_history")
-    .insert({ keyword_id: keywordId, rank });
-  if (error) throw error;
+  try {
+    const { error } = await getSupabase()
+      .from("freelance_hq_keyword_rank_history")
+      .insert({ keyword_id: keywordId, rank });
+    if (error) throw error;
+  } catch (error) {
+    if (!isMissingTableError(error)) throw error;
+  }
 }
 
 export async function updateKeyword(
@@ -1245,10 +1254,14 @@ export async function createKeywordsBulk(projectId: string, rows: KeywordImportR
   const inserted = (data ?? []) as { id: string; current_rank: number | null }[];
   const withRank = inserted.filter((row) => row.current_rank !== null);
   if (withRank.length > 0) {
-    const { error: historyError } = await getSupabase()
-      .from("freelance_hq_keyword_rank_history")
-      .insert(withRank.map((row) => ({ keyword_id: row.id, rank: row.current_rank })));
-    if (historyError) throw historyError;
+    try {
+      const { error: historyError } = await getSupabase()
+        .from("freelance_hq_keyword_rank_history")
+        .insert(withRank.map((row) => ({ keyword_id: row.id, rank: row.current_rank })));
+      if (historyError) throw historyError;
+    } catch (error) {
+      if (!isMissingTableError(error)) throw error;
+    }
   }
 
   return valid.length;
