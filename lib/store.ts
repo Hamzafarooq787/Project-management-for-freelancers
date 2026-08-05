@@ -1150,6 +1150,41 @@ export async function deleteKeyword(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export interface KeywordImportRow {
+  keyword: string;
+  targetPage: string;
+  searchVolume: number | null;
+  difficulty: number | null;
+  currentRank: number | null;
+  targetRank: number | null;
+  status: KeywordStatus;
+  notes: string;
+}
+
+/** Bulk-inserts imported keywords in a single round trip; rows without a keyword are dropped. */
+export async function createKeywordsBulk(projectId: string, rows: KeywordImportRow[]): Promise<number> {
+  const valid = rows.filter((r) => r.keyword.trim());
+  if (valid.length === 0) return 0;
+
+  const { error } = await getSupabase()
+    .from("freelance_hq_keywords")
+    .insert(
+      valid.map((r) => ({
+        project_id: projectId,
+        keyword: r.keyword,
+        target_page: r.targetPage,
+        search_volume: r.searchVolume,
+        difficulty: r.difficulty,
+        current_rank: r.currentRank,
+        target_rank: r.targetRank,
+        status: r.status,
+        notes: r.notes,
+      })),
+    );
+  if (error) throw error;
+  return valid.length;
+}
+
 export async function getProjectByShareToken(token: string): Promise<Project | null> {
   const { data, error } = await getSupabase()
     .from("freelance_hq_projects")

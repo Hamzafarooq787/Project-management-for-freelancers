@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Search, Trash2, Pencil, Plus, X } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { Search, Trash2, Pencil, Plus, X, Download, Upload } from "lucide-react";
 import type { Keyword, KeywordStatus } from "@/lib/types";
-import { createKeywordAction, deleteKeywordAction, updateKeywordAction } from "@/lib/actions";
+import { createKeywordAction, deleteKeywordAction, importKeywordsAction, updateKeywordAction } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABEL: Record<KeywordStatus, string> = {
@@ -20,29 +20,164 @@ const STATUS_STYLE: Record<KeywordStatus, string> = {
   achieved: "bg-accent-500/15 text-accent-400",
 };
 
-export function KeywordsPanel({ projectId, keywords }: { projectId: string; keywords: Keyword[] }) {
+const EXPORT_COLUMNS = [
+  "Keyword",
+  "Target Page",
+  "Search Volume",
+  "Difficulty",
+  "Current Rank",
+  "Target Rank",
+  "Status",
+  "Notes",
+] as const;
+
+function normalizeStatus(value: unknown): KeywordStatus {
+  const key = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  return key in STATUS_LABEL ? (key as KeywordStatus) : "not_started";
+}
+
+function toNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function exportKeywords(projectName: string, keywords: Keyword[]) {
+  const XLSX = await import("xlsx");
+  const rows = keywords.map((k) => ({
+    Keyword: k.keyword,
+    "Target Page": k.targetPage,
+    "Search Volume": k.searchVolume ?? "",
+    Difficulty: k.difficulty ?? "",
+    "Current Rank": k.currentRank ?? "",
+    "Target Rank": k.targetRank ?? "",
+    Status: STATUS_LABEL[k.status],
+    Notes: k.notes,
+  }));
+  const sheet = XLSX.utils.json_to_sheet(rows, { header: [...EXPORT_COLUMNS] });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Keywords");
+  const safeName = projectName.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "project";
+  XLSX.writeFile(workbook, `${safeName}-keywords.xlsx`);
+}
+
+/** Reads any sheet column name case-insensitively, tolerating the header variants a keyword-tracker spreadsheet is likely to use. */
+function pick(row: Record<string, unknown>, ...names: string[]): unknown {
+  const lower = new Map(Object.entries(row).map(([k, v]) => [k.trim().toLowerCase(), v]));
+  for (const name of names) {
+    const value = lower.get(name.toLowerCase());
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+async function parseKeywordFile(file: File) {
+  const XLSX = await import("xlsx");
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const firstSheet = workbook.Sheets[workbook.SheetNames[0] ?? ""];
+  if (!firstSheet) return [];
+
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "" });
+  return rows.map((row) => ({
+    keyword: String(pick(row, "keyword", "keywords") ?? "").trim(),
+    targetPage: String(pick(row, "target page", "targetpage", "page", "url") ?? "").trim(),
+    searchVolume: toNumberOrNull(pick(row, "search volume", "volume")),
+    difficulty: toNumberOrNull(pick(row, "difficulty", "kd")),
+    currentRank: toNumberOrNull(pick(row, "current rank", "rank")),
+    targetRank: toNumberOrNull(pick(row, "target rank", "goal rank")),
+    status: normalizeStatus(pick(row, "status")),
+    notes: String(pick(row, "notes", "note") ?? "").trim(),
+  }));
+}
+
+export function KeywordsPanel({
+  projectId,
+  projectName,
+  keywords,
+}: {
+  projectId: string;
+  projectName: string;
+  keywords: Keyword[];
+}) {
   const [isPending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setImportMessage(null);
+    try {
+      const rows = await parseKeywordFile(file);
+      const withKeyword = rows.filter((r) => r.keyword);
+      if (withKeyword.length === 0) {
+        setImportMessage("No rows with a keyword found in that file.");
+        return;
+      }
+      startTransition(async () => {
+        const count = await importKeywordsAction(projectId, withKeyword);
+        setImportMessage(`Imported ${count} keyword${count === 1 ? "" : "s"}.`);
+      });
+    } catch {
+      setImportMessage("Couldn't read that file — make sure it's a .csv or .xlsx export.");
+    }
+  }
 
   return (
     <div className="rounded-xl2 border border-base-700/60 bg-base-850 p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Search size={16} className="text-accent-400" />
           <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">Keywords</h2>
         </div>
-        {!adding && (
+        <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setAdding(true)}
-            className="flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300"
+            onClick={() => exportKeywords(projectName, keywords)}
+            disabled={keywords.length === 0}
+            className="flex items-center gap-1 text-xs text-neutral-400 hover:text-accent-300 disabled:opacity-40 disabled:hover:text-neutral-400"
           >
-            <Plus size={13} />
-            Add keyword
+            <Download size={13} />
+            Export
           </button>
-        )}
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1 text-xs text-neutral-400 hover:text-accent-300 disabled:opacity-50"
+          >
+            <Upload size={13} />
+            Import
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            onChange={handleImport}
+            className="hidden"
+          />
+          {!adding && (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300"
+            >
+              <Plus size={13} />
+              Add keyword
+            </button>
+          )}
+        </div>
       </div>
+
+      {importMessage && <p className="mb-3 text-xs text-neutral-400">{importMessage}</p>}
 
       {adding && (
         <div className="mb-3">
