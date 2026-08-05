@@ -158,6 +158,7 @@ export interface Keyword {
   targetRank: number | null;
   status: KeywordStatus;
   notes: string;
+  isTracked: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -167,4 +168,12 @@ export interface KeywordRankHistoryEntry {
   keywordId: string;
   rank: number | null;
   recordedOn: string;
+}
+
+/** One manually-entered rank for a tracked keyword in a given calendar month ('YYYY-MM'). */
+export interface KeywordMonthlyPosition {
+  id: string;
+  keywordId: string;
+  month: string;
+  rank: number | null;
 }

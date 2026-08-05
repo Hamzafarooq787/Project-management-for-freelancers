@@ -7,6 +7,7 @@ import type {
   Client,
   ClientDetails,
   Keyword,
+  KeywordMonthlyPosition,
   KeywordRankHistoryEntry,
   KeywordStatus,
   Payment,
@@ -1057,6 +1058,7 @@ interface KeywordRow {
   target_rank: number | null;
   status: KeywordStatus;
   notes: string;
+  is_tracked: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -1073,6 +1075,7 @@ function toKeyword(row: KeywordRow): Keyword {
     targetRank: row.target_rank,
     status: row.status,
     notes: row.notes,
+    isTracked: row.is_tracked ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -1214,6 +1217,70 @@ export async function listKeywordRankHistory(keywordIds: string[]): Promise<Reco
 
 export async function deleteKeyword(id: string): Promise<void> {
   const { error } = await getSupabase().from("freelance_hq_keywords").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Fails open when the is_tracked column doesn't exist yet (migration 015 not
+ * run yet): toggling the monthly-tracking list is optional on top of the
+ * core keyword record, so a missing column shouldn't break the page.
+ */
+export async function setKeywordTracked(id: string, isTracked: boolean): Promise<void> {
+  try {
+    const { error } = await getSupabase()
+      .from("freelance_hq_keywords")
+      .update({ is_tracked: isTracked, updated_at: nowIso() })
+      .eq("id", id);
+    if (error) throw error;
+  } catch (error) {
+    if (!isMissingTableError(error)) throw error;
+  }
+}
+
+interface KeywordMonthlyPositionRow {
+  id: string;
+  keyword_id: string;
+  month: string;
+  rank: number | null;
+}
+
+/** Groups monthly positions by keyword for the keywords given, oldest month first. */
+export async function listMonthlyPositions(
+  keywordIds: string[],
+): Promise<Record<string, KeywordMonthlyPosition[]>> {
+  if (keywordIds.length === 0) return {};
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_keyword_monthly_positions")
+      .select("*")
+      .in("keyword_id", keywordIds)
+      .order("month", { ascending: true });
+    if (error) throw error;
+
+    const map: Record<string, KeywordMonthlyPosition[]> = {};
+    for (const row of (data ?? []) as KeywordMonthlyPositionRow[]) {
+      const entry: KeywordMonthlyPosition = {
+        id: row.id,
+        keywordId: row.keyword_id,
+        month: row.month,
+        rank: row.rank,
+      };
+      const list = map[row.keyword_id] ?? [];
+      list.push(entry);
+      map[row.keyword_id] = list;
+    }
+    return map;
+  } catch (error) {
+    if (isMissingTableError(error)) return {};
+    throw error;
+  }
+}
+
+/** Upserts a keyword's manually-entered rank for a given month ('YYYY-MM'). */
+export async function setMonthlyPosition(keywordId: string, month: string, rank: number | null): Promise<void> {
+  const { error } = await getSupabase()
+    .from("freelance_hq_keyword_monthly_positions")
+    .upsert({ keyword_id: keywordId, month, rank, updated_at: nowIso() }, { onConflict: "keyword_id,month" });
   if (error) throw error;
 }
 

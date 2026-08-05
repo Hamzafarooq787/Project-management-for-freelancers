@@ -498,6 +498,23 @@ export async function importKeywordsAction(
   return count;
 }
 
+export async function setKeywordTrackedAction(id: string, projectId: string, isTracked: boolean) {
+  await requireProjectAccess(projectId);
+  await store.setKeywordTracked(id, isTracked);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function setMonthlyPositionAction(
+  keywordId: string,
+  projectId: string,
+  month: string,
+  rank: number | null,
+) {
+  await requireProjectAccess(projectId);
+  await store.setMonthlyPosition(keywordId, month, rank);
+  revalidatePath(`/projects/${projectId}`);
+}
+
 /**
  * Public, unauthenticated actions reachable from /share/[token]. These never trust a
  * client-supplied projectId — the project is always resolved strictly from the share

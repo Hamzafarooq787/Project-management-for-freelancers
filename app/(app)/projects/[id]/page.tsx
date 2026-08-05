@@ -4,6 +4,7 @@ import {
   getBusinessProfile,
   listKeywordRankHistory,
   listKeywords,
+  listMonthlyPositions,
   listPaymentPlansForProject,
   getProject,
   getProjectProgress,
@@ -53,6 +54,10 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     project.type === "seo" && keywords.length > 0
       ? await listKeywordRankHistory(keywords.map((k) => k.id))
       : {};
+
+  const trackedKeywordIds = keywords.filter((k) => k.isTracked).map((k) => k.id);
+  const keywordMonthlyPositions =
+    project.type === "seo" && trackedKeywordIds.length > 0 ? await listMonthlyPositions(trackedKeywordIds) : {};
 
   const completed = tasks
     .filter((t) => t.status === "done")
@@ -182,6 +187,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
               projectName={project.name}
               keywords={keywords}
               rankHistory={keywordRankHistory}
+              monthlyPositions={keywordMonthlyPositions}
             />
           ) : undefined
         }
