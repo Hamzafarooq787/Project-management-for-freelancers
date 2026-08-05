@@ -144,3 +144,20 @@ export interface ProjectTemplate {
   description: string;
   stages: string[];
 }
+
+export type KeywordStatus = "not_started" | "in_progress" | "ranking" | "achieved";
+
+export interface Keyword {
+  id: string;
+  projectId: string;
+  keyword: string;
+  targetPage: string;
+  searchVolume: number | null;
+  difficulty: number | null;
+  currentRank: number | null;
+  targetRank: number | null;
+  status: KeywordStatus;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}

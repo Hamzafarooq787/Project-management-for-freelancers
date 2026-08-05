@@ -6,6 +6,8 @@ import type {
   ChecklistItem,
   Client,
   ClientDetails,
+  Keyword,
+  KeywordStatus,
   Payment,
   PaymentKind,
   PaymentPlan,
@@ -1040,6 +1042,111 @@ export async function addPayment(input: {
 
 export async function deletePayment(id: string): Promise<void> {
   const { error } = await getSupabase().from("freelance_hq_payments").delete().eq("id", id);
+  if (error) throw error;
+}
+
+interface KeywordRow {
+  id: string;
+  project_id: string;
+  keyword: string;
+  target_page: string;
+  search_volume: number | null;
+  difficulty: number | null;
+  current_rank: number | null;
+  target_rank: number | null;
+  status: KeywordStatus;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function toKeyword(row: KeywordRow): Keyword {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    keyword: row.keyword,
+    targetPage: row.target_page,
+    searchVolume: row.search_volume,
+    difficulty: row.difficulty,
+    currentRank: row.current_rank,
+    targetRank: row.target_rank,
+    status: row.status,
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function listKeywords(projectId: string): Promise<Keyword[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_keywords")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return ((data ?? []) as KeywordRow[]).map(toKeyword);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export async function createKeyword(input: {
+  projectId: string;
+  keyword: string;
+  targetPage: string;
+  searchVolume: number | null;
+  difficulty: number | null;
+  currentRank: number | null;
+  targetRank: number | null;
+  status: KeywordStatus;
+  notes: string;
+}): Promise<Keyword> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_keywords")
+    .insert({
+      project_id: input.projectId,
+      keyword: input.keyword,
+      target_page: input.targetPage,
+      search_volume: input.searchVolume,
+      difficulty: input.difficulty,
+      current_rank: input.currentRank,
+      target_rank: input.targetRank,
+      status: input.status,
+      notes: input.notes,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toKeyword(data as KeywordRow);
+}
+
+export async function updateKeyword(
+  id: string,
+  patch: Partial<
+    Pick<
+      Keyword,
+      "keyword" | "targetPage" | "searchVolume" | "difficulty" | "currentRank" | "targetRank" | "status" | "notes"
+    >
+  >,
+): Promise<void> {
+  const update: Record<string, unknown> = { updated_at: nowIso() };
+  if (patch.keyword !== undefined) update.keyword = patch.keyword;
+  if (patch.targetPage !== undefined) update.target_page = patch.targetPage;
+  if (patch.searchVolume !== undefined) update.search_volume = patch.searchVolume;
+  if (patch.difficulty !== undefined) update.difficulty = patch.difficulty;
+  if (patch.currentRank !== undefined) update.current_rank = patch.currentRank;
+  if (patch.targetRank !== undefined) update.target_rank = patch.targetRank;
+  if (patch.status !== undefined) update.status = patch.status;
+  if (patch.notes !== undefined) update.notes = patch.notes;
+
+  const { error } = await getSupabase().from("freelance_hq_keywords").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteKeyword(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_keywords").delete().eq("id", id);
   if (error) throw error;
 }
 
