@@ -1,10 +1,28 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { Search, Trash2, Pencil, Plus, X, Download, Upload } from "lucide-react";
-import type { Keyword, KeywordStatus } from "@/lib/types";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { Search, Trash2, Pencil, Plus, X, Download, Upload, History, ChevronDown, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import type { Keyword, KeywordRankHistoryEntry, KeywordStatus } from "@/lib/types";
 import { createKeywordAction, deleteKeywordAction, importKeywordsAction, updateKeywordAction } from "@/lib/actions";
-import { cn } from "@/lib/utils";
+import { cn, formatDateKey } from "@/lib/utils";
+
+type SortMode = "default" | "rank_asc" | "rank_desc";
+
+const SORT_LABEL: Record<SortMode, string> = {
+  default: "Default order",
+  rank_asc: "Rank: best (#1) first",
+  rank_desc: "Rank: worst first",
+};
+
+function sortKeywords(keywords: Keyword[], mode: SortMode): Keyword[] {
+  if (mode === "default") return keywords;
+  return [...keywords].sort((a, b) => {
+    if (a.currentRank === null && b.currentRank === null) return 0;
+    if (a.currentRank === null) return 1;
+    if (b.currentRank === null) return -1;
+    return mode === "rank_asc" ? a.currentRank - b.currentRank : b.currentRank - a.currentRank;
+  });
+}
 
 const STATUS_LABEL: Record<KeywordStatus, string> = {
   not_started: "Not started",
@@ -98,16 +116,22 @@ export function KeywordsPanel({
   projectId,
   projectName,
   keywords,
+  rankHistory,
 }: {
   projectId: string;
   projectName: string;
   keywords: Keyword[];
+  rankHistory: Record<string, KeywordRankHistoryEntry[]>;
 }) {
   const [isPending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [historyId, setHistoryId] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>("default");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const sortedKeywords = useMemo(() => sortKeywords(keywords, sortMode), [keywords, sortMode]);
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -177,6 +201,23 @@ export function KeywordsPanel({
         </div>
       </div>
 
+      {keywords.length > 1 && (
+        <div className="mb-3 flex items-center gap-2">
+          <label className="text-[11px] text-neutral-500">Sort</label>
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as SortMode)}
+            className="rounded-md border border-base-600 bg-base-900 px-2 py-1 text-xs text-neutral-300 focus:border-accent-500 focus:outline-none"
+          >
+            {(Object.keys(SORT_LABEL) as SortMode[]).map((mode) => (
+              <option key={mode} value={mode}>
+                {SORT_LABEL[mode]}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {importMessage && <p className="mb-3 text-xs text-neutral-400">{importMessage}</p>}
 
       {adding && (
@@ -192,7 +233,7 @@ export function KeywordsPanel({
       )}
 
       <div className="flex flex-col gap-2">
-        {keywords.map((keyword) =>
+        {sortedKeywords.map((keyword) =>
           editingId === keyword.id ? (
             <KeywordForm
               key={keyword.id}
@@ -205,7 +246,10 @@ export function KeywordsPanel({
             <KeywordRow
               key={keyword.id}
               keyword={keyword}
+              history={rankHistory[keyword.id] ?? []}
               isPending={isPending}
+              historyOpen={historyId === keyword.id}
+              onToggleHistory={() => setHistoryId(historyId === keyword.id ? null : keyword.id)}
               onEdit={() => setEditingId(keyword.id)}
               onDelete={() => startTransition(() => deleteKeywordAction(keyword.id, projectId))}
               onRankChange={(rank) => {
@@ -246,6 +290,9 @@ export function KeywordsPanel({
 
 function KeywordRow({
   keyword,
+  history,
+  historyOpen,
+  onToggleHistory,
   isPending,
   onEdit,
   onDelete,
@@ -253,6 +300,9 @@ function KeywordRow({
   onStatusChange,
 }: {
   keyword: Keyword;
+  history: KeywordRankHistoryEntry[];
+  historyOpen: boolean;
+  onToggleHistory: () => void;
   isPending: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -260,60 +310,100 @@ function KeywordRow({
   onStatusChange: (status: KeywordStatus) => void;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-base-700/60 bg-base-900 p-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-neutral-100">{keyword.keyword}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-500">
-          {keyword.targetPage && <span className="truncate">{keyword.targetPage}</span>}
-          {keyword.searchVolume !== null && <span>Vol {keyword.searchVolume.toLocaleString()}</span>}
-          {keyword.difficulty !== null && <span>KD {keyword.difficulty}</span>}
-          {keyword.targetRank !== null && <span>Target #{keyword.targetRank}</span>}
+    <div className="rounded-lg border border-base-700/60 bg-base-900 p-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-neutral-100">{keyword.keyword}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-500">
+            {keyword.targetPage && <span className="truncate">{keyword.targetPage}</span>}
+            {keyword.searchVolume !== null && <span>Vol {keyword.searchVolume.toLocaleString()}</span>}
+            {keyword.difficulty !== null && <span>KD {keyword.difficulty}</span>}
+            {keyword.targetRank !== null && <span>Target #{keyword.targetRank}</span>}
+          </div>
+          {keyword.notes && <p className="mt-1 truncate text-xs text-neutral-500">{keyword.notes}</p>}
         </div>
-        {keyword.notes && <p className="mt-1 truncate text-xs text-neutral-500">{keyword.notes}</p>}
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs text-neutral-500">
+            Rank
+            <input
+              type="number"
+              min="0"
+              defaultValue={keyword.currentRank ?? ""}
+              onBlur={(e) => {
+                if (e.target.value !== (keyword.currentRank?.toString() ?? "")) onRankChange(e.target.value);
+              }}
+              className="w-16 rounded-md border border-base-600 bg-base-950 px-2 py-1 text-xs text-neutral-100 focus:border-accent-500 focus:outline-none"
+            />
+          </label>
+          <select
+            value={keyword.status}
+            onChange={(e) => onStatusChange(e.target.value as KeywordStatus)}
+            className={cn("rounded-full border-0 px-2.5 py-1 text-[11px] font-medium focus:outline-none", STATUS_STYLE[keyword.status])}
+          >
+            {(Object.keys(STATUS_LABEL) as KeywordStatus[]).map((s) => (
+              <option key={s} value={s} className="bg-base-900 text-neutral-100">
+                {STATUS_LABEL[s]}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={onToggleHistory}
+            disabled={history.length === 0}
+            className="flex items-center gap-1 rounded-md p-1.5 text-neutral-400 hover:text-accent-300 disabled:opacity-30 disabled:hover:text-neutral-400"
+            title="Rank history"
+          >
+            <History size={13} />
+            <ChevronDown size={11} className={cn("transition-transform", historyOpen && "rotate-180")} />
+          </button>
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-md p-1.5 text-neutral-400 hover:text-accent-300"
+            title="Edit keyword"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={onDelete}
+            className="rounded-md p-1.5 text-neutral-400 hover:text-rose-400 disabled:opacity-50"
+            title="Delete keyword"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1.5 text-xs text-neutral-500">
-          Rank
-          <input
-            type="number"
-            min="0"
-            defaultValue={keyword.currentRank ?? ""}
-            onBlur={(e) => {
-              if (e.target.value !== (keyword.currentRank?.toString() ?? "")) onRankChange(e.target.value);
-            }}
-            className="w-16 rounded-md border border-base-600 bg-base-950 px-2 py-1 text-xs text-neutral-100 focus:border-accent-500 focus:outline-none"
-          />
-        </label>
-        <select
-          value={keyword.status}
-          onChange={(e) => onStatusChange(e.target.value as KeywordStatus)}
-          className={cn("rounded-full border-0 px-2.5 py-1 text-[11px] font-medium focus:outline-none", STATUS_STYLE[keyword.status])}
-        >
-          {(Object.keys(STATUS_LABEL) as KeywordStatus[]).map((s) => (
-            <option key={s} value={s} className="bg-base-900 text-neutral-100">
-              {STATUS_LABEL[s]}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="rounded-md p-1.5 text-neutral-400 hover:text-accent-300"
-          title="Edit keyword"
-        >
-          <Pencil size={13} />
-        </button>
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={onDelete}
-          className="rounded-md p-1.5 text-neutral-400 hover:text-rose-400 disabled:opacity-50"
-          title="Delete keyword"
-        >
-          <Trash2 size={13} />
-        </button>
-      </div>
+      {historyOpen && <RankHistoryList history={history} />}
+    </div>
+  );
+}
+
+function RankHistoryList({ history }: { history: KeywordRankHistoryEntry[] }) {
+  return (
+    <div className="mt-3 flex flex-col gap-1 border-t border-base-700/60 pt-2.5">
+      {history.map((entry, i) => {
+        const previous = history[i + 1];
+        const delta = previous && entry.rank !== null && previous.rank !== null ? previous.rank - entry.rank : null;
+        return (
+          <div key={entry.id} className="flex items-center justify-between text-xs">
+            <span className="text-neutral-500">{formatDateKey(entry.recordedOn)}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-neutral-200">{entry.rank !== null ? `#${entry.rank}` : "Not ranking"}</span>
+              {delta !== null && delta !== 0 && (
+                <span className={cn("flex items-center gap-0.5", delta > 0 ? "text-accent-400" : "text-rose-400")}>
+                  {delta > 0 ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
+                  {Math.abs(delta)}
+                </span>
+              )}
+              {delta === 0 && <Minus size={11} className="text-neutral-600" />}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
