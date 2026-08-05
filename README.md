@@ -208,6 +208,14 @@ Finance page's totals, since that money was genuinely received.
 > keyword rank-tracker (keyword, target page, volume, difficulty, current vs.
 > target rank, status, notes) instead of keyword lists buried in task
 > checklists.
+>
+> Already ran 013? Also run
+> [`supabase/migrations/014_keyword_rank_history.sql`](./supabase/migrations/014_keyword_rank_history.sql) —
+> it adds a `freelance_hq_keyword_rank_history` table. A row is logged
+> automatically every time a keyword's current rank changes (adding a
+> keyword, editing it, or importing), so its **History** button on the
+> Keywords tab shows how its position moved over time instead of only ever
+> showing the latest value.
 
 ### 3. Get your API credentials
 

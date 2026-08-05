@@ -161,3 +161,10 @@ export interface Keyword {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface KeywordRankHistoryEntry {
+  id: string;
+  keywordId: string;
+  rank: number | null;
+  recordedOn: string;
+}

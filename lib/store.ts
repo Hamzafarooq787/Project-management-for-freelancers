@@ -7,6 +7,7 @@ import type {
   Client,
   ClientDetails,
   Keyword,
+  KeywordRankHistoryEntry,
   KeywordStatus,
   Payment,
   PaymentKind,
@@ -1119,7 +1120,16 @@ export async function createKeyword(input: {
     .select()
     .single();
   if (error) throw error;
-  return toKeyword(data as KeywordRow);
+  const keyword = toKeyword(data as KeywordRow);
+  if (keyword.currentRank !== null) await logKeywordRank(keyword.id, keyword.currentRank);
+  return keyword;
+}
+
+async function logKeywordRank(keywordId: string, rank: number | null): Promise<void> {
+  const { error } = await getSupabase()
+    .from("freelance_hq_keyword_rank_history")
+    .insert({ keyword_id: keywordId, rank });
+  if (error) throw error;
 }
 
 export async function updateKeyword(
@@ -1141,8 +1151,56 @@ export async function updateKeyword(
   if (patch.status !== undefined) update.status = patch.status;
   if (patch.notes !== undefined) update.notes = patch.notes;
 
+  if (patch.currentRank !== undefined) {
+    const { data: existing, error: fetchError } = await getSupabase()
+      .from("freelance_hq_keywords")
+      .select("current_rank")
+      .eq("id", id)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    const previousRank = (existing as { current_rank: number | null } | null)?.current_rank ?? null;
+    if (previousRank !== patch.currentRank) await logKeywordRank(id, patch.currentRank);
+  }
+
   const { error } = await getSupabase().from("freelance_hq_keywords").update(update).eq("id", id);
   if (error) throw error;
+}
+
+interface KeywordRankHistoryRow {
+  id: string;
+  keyword_id: string;
+  rank: number | null;
+  recorded_on: string;
+}
+
+/** Groups rank-history entries by keyword, newest first, for the keywords given. */
+export async function listKeywordRankHistory(keywordIds: string[]): Promise<Record<string, KeywordRankHistoryEntry[]>> {
+  if (keywordIds.length === 0) return {};
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_keyword_rank_history")
+      .select("*")
+      .in("keyword_id", keywordIds)
+      .order("recorded_on", { ascending: false });
+    if (error) throw error;
+
+    const map: Record<string, KeywordRankHistoryEntry[]> = {};
+    for (const row of (data ?? []) as KeywordRankHistoryRow[]) {
+      const entry: KeywordRankHistoryEntry = {
+        id: row.id,
+        keywordId: row.keyword_id,
+        rank: row.rank,
+        recordedOn: row.recorded_on,
+      };
+      const list = map[row.keyword_id] ?? [];
+      list.push(entry);
+      map[row.keyword_id] = list;
+    }
+    return map;
+  } catch (error) {
+    if (isMissingTableError(error)) return {};
+    throw error;
+  }
 }
 
 export async function deleteKeyword(id: string): Promise<void> {
@@ -1166,7 +1224,7 @@ export async function createKeywordsBulk(projectId: string, rows: KeywordImportR
   const valid = rows.filter((r) => r.keyword.trim());
   if (valid.length === 0) return 0;
 
-  const { error } = await getSupabase()
+  const { data, error } = await getSupabase()
     .from("freelance_hq_keywords")
     .insert(
       valid.map((r) => ({
@@ -1180,8 +1238,19 @@ export async function createKeywordsBulk(projectId: string, rows: KeywordImportR
         status: r.status,
         notes: r.notes,
       })),
-    );
+    )
+    .select("id, current_rank");
   if (error) throw error;
+
+  const inserted = (data ?? []) as { id: string; current_rank: number | null }[];
+  const withRank = inserted.filter((row) => row.current_rank !== null);
+  if (withRank.length > 0) {
+    const { error: historyError } = await getSupabase()
+      .from("freelance_hq_keyword_rank_history")
+      .insert(withRank.map((row) => ({ keyword_id: row.id, rank: row.current_rank })));
+    if (historyError) throw historyError;
+  }
+
   return valid.length;
 }
 

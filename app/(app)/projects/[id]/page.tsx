@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import {
   getBusinessProfile,
+  listKeywordRankHistory,
   listKeywords,
   listPaymentPlansForProject,
   getProject,
@@ -47,6 +48,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     isAdmin ? listPaymentsForProject(project.id) : Promise.resolve([]),
     project.type === "seo" ? listKeywords(project.id) : Promise.resolve([]),
   ]);
+
+  const keywordRankHistory =
+    project.type === "seo" && keywords.length > 0
+      ? await listKeywordRankHistory(keywords.map((k) => k.id))
+      : {};
 
   const completed = tasks
     .filter((t) => t.status === "done")
@@ -171,7 +177,12 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         board={board}
         keywords={
           project.type === "seo" ? (
-            <KeywordsPanel projectId={project.id} projectName={project.name} keywords={keywords} />
+            <KeywordsPanel
+              projectId={project.id}
+              projectName={project.name}
+              keywords={keywords}
+              rankHistory={keywordRankHistory}
+            />
           ) : undefined
         }
         clientDetails={clientDetailsTab}
