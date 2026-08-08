@@ -144,21 +144,71 @@ export function KeywordsPanel({
   const [historyId, setHistoryId] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("default");
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+  const [modalPage, setModalPage] = useState<KeywordPage | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredKeywords = useMemo(() => {
-    if (selectedPageId) return keywords.filter((k) => k.pageId === selectedPageId);
-    if (selectedGroupId) {
-      const pageIds = new Set((pagesByGroup[selectedGroupId] ?? []).map((p) => p.id));
-      return keywords.filter((k) => k.pageId && pageIds.has(k.pageId));
-    }
-    return keywords;
-  }, [keywords, pagesByGroup, selectedGroupId, selectedPageId]);
+  const ungroupedKeywords = useMemo(() => keywords.filter((k) => !k.pageId), [keywords]);
+  const sortedKeywords = useMemo(() => sortKeywords(ungroupedKeywords, sortMode), [ungroupedKeywords, sortMode]);
+  const trackedKeywords = useMemo(() => keywords.filter((k) => k.isTracked), [keywords]);
+  const modalKeywords = useMemo(
+    () => (modalPage ? sortKeywords(keywords.filter((k) => k.pageId === modalPage.id), sortMode) : []),
+    [keywords, modalPage, sortMode],
+  );
 
-  const sortedKeywords = useMemo(() => sortKeywords(filteredKeywords, sortMode), [filteredKeywords, sortMode]);
-  const trackedKeywords = useMemo(() => filteredKeywords.filter((k) => k.isTracked), [filteredKeywords]);
+  function renderKeywordRow(keyword: Keyword) {
+    return editingId === keyword.id ? (
+      <KeywordForm
+        key={keyword.id}
+        projectId={projectId}
+        keyword={keyword}
+        onCancel={() => setEditingId(null)}
+        onSaved={() => setEditingId(null)}
+      />
+    ) : (
+      <KeywordRow
+        key={keyword.id}
+        keyword={keyword}
+        history={rankHistory[keyword.id] ?? []}
+        groups={groups}
+        pagesByGroup={pagesByGroup}
+        isPending={isPending}
+        historyOpen={historyId === keyword.id}
+        onToggleHistory={() => setHistoryId(historyId === keyword.id ? null : keyword.id)}
+        onEdit={() => setEditingId(keyword.id)}
+        onDelete={() => startTransition(() => deleteKeywordAction(keyword.id, projectId))}
+        onPageChange={(pageId) => startTransition(() => setKeywordPageAction(keyword.id, projectId, pageId))}
+        onRankChange={(rank) => {
+          const formData = new FormData();
+          formData.set("id", keyword.id);
+          formData.set("projectId", projectId);
+          formData.set("keyword", keyword.keyword);
+          formData.set("targetPage", keyword.targetPage);
+          formData.set("searchVolume", keyword.searchVolume?.toString() ?? "");
+          formData.set("difficulty", keyword.difficulty?.toString() ?? "");
+          formData.set("currentRank", rank);
+          formData.set("targetRank", keyword.targetRank?.toString() ?? "");
+          formData.set("status", keyword.status);
+          formData.set("notes", keyword.notes);
+          startTransition(() => updateKeywordAction(formData));
+        }}
+        onStatusChange={(status) => {
+          const formData = new FormData();
+          formData.set("id", keyword.id);
+          formData.set("projectId", projectId);
+          formData.set("keyword", keyword.keyword);
+          formData.set("targetPage", keyword.targetPage);
+          formData.set("searchVolume", keyword.searchVolume?.toString() ?? "");
+          formData.set("difficulty", keyword.difficulty?.toString() ?? "");
+          formData.set("currentRank", keyword.currentRank?.toString() ?? "");
+          formData.set("targetRank", keyword.targetRank?.toString() ?? "");
+          formData.set("status", status);
+          formData.set("notes", keyword.notes);
+          startTransition(() => updateKeywordAction(formData));
+        }}
+        onToggleTracked={() => startTransition(() => setKeywordTrackedAction(keyword.id, projectId, !keyword.isTracked))}
+      />
+    );
+  }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -190,10 +240,7 @@ export function KeywordsPanel({
         pagesByGroup={pagesByGroup}
         keywords={keywords}
         rankHistory={rankHistory}
-        selectedGroupId={selectedGroupId}
-        selectedPageId={selectedPageId}
-        onSelectGroup={setSelectedGroupId}
-        onSelectPage={setSelectedPageId}
+        onOpenPage={setModalPage}
       />
 
       <MonthlyPositionTracker
@@ -248,7 +295,13 @@ export function KeywordsPanel({
         </div>
       </div>
 
-      {keywords.length > 1 && (
+      {groups.length > 0 && (
+        <p className="mb-3 text-xs text-neutral-500">
+          Showing ungrouped keywords only. Keywords assigned to a group/page appear in that page&rsquo;s popup above.
+        </p>
+      )}
+
+      {ungroupedKeywords.length > 1 && (
         <div className="mb-3 flex items-center gap-2">
           <label className="text-[11px] text-neutral-500">Sort</label>
           <select
@@ -277,69 +330,48 @@ export function KeywordsPanel({
         <p className="rounded-lg border border-dashed border-base-700 p-6 text-center text-sm text-neutral-500">
           {keywords.length === 0
             ? "No keywords tracked yet. Add one to start tracking its rank over time."
-            : "No keywords match the current group/page filter."}
+            : "All keywords are assigned to a group. Open a page above to view them."}
         </p>
       )}
 
-      <div className="flex flex-col gap-2">
-        {sortedKeywords.map((keyword) =>
-          editingId === keyword.id ? (
-            <KeywordForm
-              key={keyword.id}
-              projectId={projectId}
-              keyword={keyword}
-              onCancel={() => setEditingId(null)}
-              onSaved={() => setEditingId(null)}
-            />
-          ) : (
-            <KeywordRow
-              key={keyword.id}
-              keyword={keyword}
-              history={rankHistory[keyword.id] ?? []}
-              groups={groups}
-              pagesByGroup={pagesByGroup}
-              isPending={isPending}
-              historyOpen={historyId === keyword.id}
-              onToggleHistory={() => setHistoryId(historyId === keyword.id ? null : keyword.id)}
-              onEdit={() => setEditingId(keyword.id)}
-              onDelete={() => startTransition(() => deleteKeywordAction(keyword.id, projectId))}
-              onPageChange={(pageId) => startTransition(() => setKeywordPageAction(keyword.id, projectId, pageId))}
-              onRankChange={(rank) => {
-                const formData = new FormData();
-                formData.set("id", keyword.id);
-                formData.set("projectId", projectId);
-                formData.set("keyword", keyword.keyword);
-                formData.set("targetPage", keyword.targetPage);
-                formData.set("searchVolume", keyword.searchVolume?.toString() ?? "");
-                formData.set("difficulty", keyword.difficulty?.toString() ?? "");
-                formData.set("currentRank", rank);
-                formData.set("targetRank", keyword.targetRank?.toString() ?? "");
-                formData.set("status", keyword.status);
-                formData.set("notes", keyword.notes);
-                startTransition(() => updateKeywordAction(formData));
-              }}
-              onStatusChange={(status) => {
-                const formData = new FormData();
-                formData.set("id", keyword.id);
-                formData.set("projectId", projectId);
-                formData.set("keyword", keyword.keyword);
-                formData.set("targetPage", keyword.targetPage);
-                formData.set("searchVolume", keyword.searchVolume?.toString() ?? "");
-                formData.set("difficulty", keyword.difficulty?.toString() ?? "");
-                formData.set("currentRank", keyword.currentRank?.toString() ?? "");
-                formData.set("targetRank", keyword.targetRank?.toString() ?? "");
-                formData.set("status", status);
-                formData.set("notes", keyword.notes);
-                startTransition(() => updateKeywordAction(formData));
-              }}
-              onToggleTracked={() =>
-                startTransition(() => setKeywordTrackedAction(keyword.id, projectId, !keyword.isTracked))
-              }
-            />
-          ),
-        )}
-      </div>
+      <div className="flex flex-col gap-3">{sortedKeywords.map((keyword) => renderKeywordRow(keyword))}</div>
     </div>
+
+    {modalPage && (
+      <div
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10 backdrop-blur-sm"
+        onClick={() => setModalPage(null)}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-3xl rounded-xl2 border border-base-700/60 bg-base-850 p-5 shadow-card"
+        >
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-wide text-neutral-500">Page keywords</p>
+              <h3 className="mt-0.5 truncate text-lg font-semibold text-neutral-100">{modalPage.name}</h3>
+              {modalPage.url && <p className="mt-0.5 truncate text-xs text-neutral-500">{modalPage.url}</p>}
+            </div>
+            <button
+              onClick={() => setModalPage(null)}
+              className="shrink-0 rounded-md p-1 text-neutral-500 hover:bg-base-700/60 hover:text-neutral-300"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {modalKeywords.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-base-700 p-6 text-center text-sm text-neutral-500">
+              No keywords assigned to this page yet. Assign one from the Keywords list below.
+            </p>
+          ) : (
+            <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto pr-1">
+              {modalKeywords.map((keyword) => renderKeywordRow(keyword))}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
     </div>
   );
 }
@@ -381,43 +413,65 @@ function KeywordRow({
   const assignedGroup = assignedPage ? groups.find((g) => g.id === assignedPage.groupId) : null;
 
   return (
-    <div className="rounded-lg border border-base-700/60 bg-base-900 p-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-neutral-100">{keyword.keyword}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-500">
+    <div className="rounded-lg border border-base-700 bg-base-900 p-4 shadow-sm transition-colors hover:border-base-600">
+      <div className="flex flex-col gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="break-words text-base font-semibold text-neutral-100">{keyword.keyword}</p>
+            {keyword.currentRank !== null && (
+              <span className="rounded-full bg-base-950 px-2 py-0.5 text-xs font-medium text-neutral-300">
+                #{keyword.currentRank}
+              </span>
+            )}
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
             {assignedPage && (
-              <span className="truncate text-accent-400">
+              <span className="rounded-full bg-accent-500/10 px-2 py-0.5 text-accent-400">
                 {assignedGroup ? `${assignedGroup.name} / ` : ""}
                 {assignedPage.name}
               </span>
             )}
-            {!assignedPage && keyword.targetPage && <span className="truncate">{keyword.targetPage}</span>}
-            {keyword.searchVolume !== null && <span>Vol {keyword.searchVolume.toLocaleString()}</span>}
-            {keyword.difficulty !== null && <span>KD {keyword.difficulty}</span>}
-            {keyword.targetRank !== null && <span>Target #{keyword.targetRank}</span>}
+            {!assignedPage && keyword.targetPage && (
+              <span className="rounded-full bg-base-800 px-2 py-0.5">{keyword.targetPage}</span>
+            )}
+            {keyword.searchVolume !== null && (
+              <span className="rounded-full bg-base-800 px-2 py-0.5">Vol {keyword.searchVolume.toLocaleString()}</span>
+            )}
+            {keyword.difficulty !== null && <span className="rounded-full bg-base-800 px-2 py-0.5">KD {keyword.difficulty}</span>}
+            {keyword.targetRank !== null && (
+              <span className="rounded-full bg-base-800 px-2 py-0.5">Target #{keyword.targetRank}</span>
+            )}
           </div>
-          {keyword.notes && <p className="mt-1 truncate text-xs text-neutral-500">{keyword.notes}</p>}
+          {keyword.notes && <p className="mt-1.5 break-words text-xs text-neutral-500">{keyword.notes}</p>}
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 border-t border-base-800 pt-3">
           {groups.length > 0 && (
             <select
               value={keyword.pageId ?? ""}
               onChange={(e) => onPageChange(e.target.value || null)}
-              className="max-w-[9rem] rounded-md border border-base-600 bg-base-950 px-2 py-1 text-[11px] text-neutral-300 focus:border-accent-500 focus:outline-none"
+              className="max-w-[12rem] rounded-md border border-base-600 bg-base-950 px-2 py-1 text-[11px] text-neutral-300 focus:border-accent-500 focus:outline-none"
               title="Assign to page"
             >
               <option value="">Ungrouped</option>
-              {groups.map((group) => (
-                <optgroup key={group.id} label={group.name}>
-                  {(pagesByGroup[group.id] ?? []).map((page) => (
-                    <option key={page.id} value={page.id}>
-                      {page.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
+              {groups.map((group) => {
+                const pages = pagesByGroup[group.id] ?? [];
+                return (
+                  <optgroup key={group.id} label={group.name}>
+                    {pages.length === 0 ? (
+                      <option value="__no_pages__" disabled>
+                        (no pages yet — add one above)
+                      </option>
+                    ) : (
+                      pages.map((page) => (
+                        <option key={page.id} value={page.id}>
+                          {page.name}
+                        </option>
+                      ))
+                    )}
+                  </optgroup>
+                );
+              })}
             </select>
           )}
           <label className="flex items-center gap-1.5 text-xs text-neutral-500">

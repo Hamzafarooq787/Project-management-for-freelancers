@@ -15,13 +15,13 @@ import {
 import { cn } from "@/lib/utils";
 import { DragScrollRow } from "@/components/DragScrollRow";
 
-const COLOR_STYLE: Record<KeywordGroupColor, { bg: string; text: string; border: string; ring: string }> = {
-  accent: { bg: "bg-accent-500/15", text: "text-accent-400", border: "border-accent-500/30", ring: "ring-accent-500" },
-  sky: { bg: "bg-sky-500/15", text: "text-sky-400", border: "border-sky-500/30", ring: "ring-sky-500" },
-  amber: { bg: "bg-amber-500/15", text: "text-amber-400", border: "border-amber-500/30", ring: "ring-amber-500" },
-  rose: { bg: "bg-rose-500/15", text: "text-rose-400", border: "border-rose-500/30", ring: "ring-rose-500" },
-  violet: { bg: "bg-violet-500/15", text: "text-violet-400", border: "border-violet-500/30", ring: "ring-violet-500" },
-  neutral: { bg: "bg-base-700/60", text: "text-neutral-400", border: "border-base-600", ring: "ring-neutral-500" },
+const COLOR_STYLE: Record<KeywordGroupColor, { bg: string; text: string; border: string }> = {
+  accent: { bg: "bg-accent-500/15", text: "text-accent-400", border: "border-accent-500/30" },
+  sky: { bg: "bg-sky-500/15", text: "text-sky-400", border: "border-sky-500/30" },
+  amber: { bg: "bg-amber-500/15", text: "text-amber-400", border: "border-amber-500/30" },
+  rose: { bg: "bg-rose-500/15", text: "text-rose-400", border: "border-rose-500/30" },
+  violet: { bg: "bg-violet-500/15", text: "text-violet-400", border: "border-violet-500/30" },
+  neutral: { bg: "bg-base-700/60", text: "text-neutral-400", border: "border-base-600" },
 };
 
 interface Metrics {
@@ -67,29 +67,20 @@ export function KeywordGroupsCarousel({
   pagesByGroup,
   keywords,
   rankHistory,
-  selectedGroupId,
-  selectedPageId,
-  onSelectGroup,
-  onSelectPage,
+  onOpenPage,
 }: {
   projectId: string;
   groups: KeywordGroup[];
   pagesByGroup: Record<string, KeywordPage[]>;
   keywords: Keyword[];
   rankHistory: Record<string, KeywordRankHistoryEntry[]>;
-  selectedGroupId: string | null;
-  selectedPageId: string | null;
-  onSelectGroup: (id: string | null) => void;
-  onSelectPage: (id: string | null) => void;
+  onOpenPage: (page: KeywordPage) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [addingGroup, setAddingGroup] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-  const [addingPage, setAddingPage] = useState(false);
+  const [addingPageForGroupId, setAddingPageForGroupId] = useState<string | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
-
-  const selectedGroup = groups.find((g) => g.id === selectedGroupId) ?? null;
-  const pagesInSelectedGroup = selectedGroupId ? pagesByGroup[selectedGroupId] ?? [] : [];
 
   function keywordsForGroup(group: KeywordGroup): Keyword[] {
     const pageIds = new Set((pagesByGroup[group.id] ?? []).map((p) => p.id));
@@ -107,31 +98,16 @@ export function KeywordGroupsCarousel({
           <Layers size={16} className="text-accent-400" />
           <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">Keyword Groups</h2>
         </div>
-        <div className="flex items-center gap-3">
-          {(selectedGroupId || selectedPageId) && (
-            <button
-              type="button"
-              onClick={() => {
-                onSelectGroup(null);
-                onSelectPage(null);
-              }}
-              className="flex items-center gap-1 text-xs text-neutral-400 hover:text-accent-300"
-            >
-              <X size={13} />
-              Clear filter
-            </button>
-          )}
-          {!addingGroup && (
-            <button
-              type="button"
-              onClick={() => setAddingGroup(true)}
-              className="flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300"
-            >
-              <FolderPlus size={13} />
-              New group
-            </button>
-          )}
-        </div>
+        {!addingGroup && (
+          <button
+            type="button"
+            onClick={() => setAddingGroup(true)}
+            className="flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300"
+          >
+            <FolderPlus size={13} />
+            New group
+          </button>
+        )}
       </div>
 
       {addingGroup && (
@@ -150,10 +126,10 @@ export function KeywordGroupsCarousel({
       )}
 
       {groups.length > 0 && (
-        <DragScrollRow className="-mx-1 px-1 pb-2">
+        <DragScrollRow className="-mx-1 items-start px-1 pb-2">
           {groups.map((group) =>
             editingGroupId === group.id ? (
-              <div key={group.id} className="w-64 shrink-0">
+              <div key={group.id} className="w-72 shrink-0">
                 <GroupForm
                   projectId={projectId}
                   group={group}
@@ -165,86 +141,26 @@ export function KeywordGroupsCarousel({
               <GroupCard
                 key={group.id}
                 group={group}
-                pageCount={(pagesByGroup[group.id] ?? []).length}
+                pages={pagesByGroup[group.id] ?? []}
                 metrics={computeMetrics(keywordsForGroup(group), rankHistory)}
-                selected={selectedGroupId === group.id}
-                onSelect={() => {
-                  onSelectGroup(selectedGroupId === group.id ? null : group.id);
-                  onSelectPage(null);
-                }}
+                pageMetrics={(page) => computeMetrics(keywordsForPage(page), rankHistory)}
+                pageKeywordCount={(page) => keywordsForPage(page).length}
                 onEdit={() => setEditingGroupId(group.id)}
                 onDelete={() => startTransition(() => deleteKeywordGroupAction(group.id, projectId))}
+                onOpenPage={onOpenPage}
+                addingPage={addingPageForGroupId === group.id}
+                onStartAddPage={() => setAddingPageForGroupId(group.id)}
+                onCancelAddPage={() => setAddingPageForGroupId(null)}
+                editingPageId={editingPageId}
+                onEditPage={setEditingPageId}
+                onCancelEditPage={() => setEditingPageId(null)}
+                onDeletePage={(pageId) => startTransition(() => deleteKeywordPageAction(pageId, projectId))}
+                projectId={projectId}
                 isPending={isPending}
               />
             ),
           )}
         </DragScrollRow>
-      )}
-
-      {selectedGroup && (
-        <div className="mt-4 border-t border-base-700/60 pt-3">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
-              Pages in &ldquo;{selectedGroup.name}&rdquo;
-            </p>
-            {!addingPage && (
-              <button
-                type="button"
-                onClick={() => setAddingPage(true)}
-                className="flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300"
-              >
-                <Plus size={13} />
-                New page
-              </button>
-            )}
-          </div>
-
-          {addingPage && (
-            <PageForm
-              groupId={selectedGroup.id}
-              projectId={projectId}
-              page={null}
-              onCancel={() => setAddingPage(false)}
-              onSaved={() => setAddingPage(false)}
-            />
-          )}
-
-          {pagesInSelectedGroup.length === 0 && !addingPage && (
-            <p className="rounded-lg border border-dashed border-base-700 p-4 text-center text-xs text-neutral-500">
-              No pages in this group yet.
-            </p>
-          )}
-
-          {pagesInSelectedGroup.length > 0 && (
-            <DragScrollRow className="-mx-1 px-1 pb-1">
-              {pagesInSelectedGroup.map((page) =>
-                editingPageId === page.id ? (
-                  <div key={page.id} className="w-60 shrink-0">
-                    <PageForm
-                      groupId={selectedGroup.id}
-                      projectId={projectId}
-                      page={page}
-                      onCancel={() => setEditingPageId(null)}
-                      onSaved={() => setEditingPageId(null)}
-                    />
-                  </div>
-                ) : (
-                  <PageCard
-                    key={page.id}
-                    page={page}
-                    keywordCount={keywordsForPage(page).length}
-                    metrics={computeMetrics(keywordsForPage(page), rankHistory)}
-                    selected={selectedPageId === page.id}
-                    onSelect={() => onSelectPage(selectedPageId === page.id ? null : page.id)}
-                    onEdit={() => setEditingPageId(page.id)}
-                    onDelete={() => startTransition(() => deleteKeywordPageAction(page.id, projectId))}
-                    isPending={isPending}
-                  />
-                ),
-              )}
-            </DragScrollRow>
-          )}
-        </div>
       )}
     </div>
   );
@@ -252,133 +168,136 @@ export function KeywordGroupsCarousel({
 
 function GroupCard({
   group,
-  pageCount,
+  pages,
   metrics,
-  selected,
-  onSelect,
+  pageMetrics,
+  pageKeywordCount,
   onEdit,
   onDelete,
+  onOpenPage,
+  addingPage,
+  onStartAddPage,
+  onCancelAddPage,
+  editingPageId,
+  onEditPage,
+  onCancelEditPage,
+  onDeletePage,
+  projectId,
   isPending,
 }: {
   group: KeywordGroup;
-  pageCount: number;
+  pages: KeywordPage[];
   metrics: Metrics;
-  selected: boolean;
-  onSelect: () => void;
+  pageMetrics: (page: KeywordPage) => Metrics;
+  pageKeywordCount: (page: KeywordPage) => number;
   onEdit: () => void;
   onDelete: () => void;
+  onOpenPage: (page: KeywordPage) => void;
+  addingPage: boolean;
+  onStartAddPage: () => void;
+  onCancelAddPage: () => void;
+  editingPageId: string | null;
+  onEditPage: (id: string) => void;
+  onCancelEditPage: () => void;
+  onDeletePage: (id: string) => void;
+  projectId: string;
   isPending: boolean;
 }) {
   const style = COLOR_STYLE[group.color];
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={cn(
-        "group relative w-64 shrink-0 rounded-lg border p-3 text-left transition-colors",
-        selected ? cn(style.border, style.bg, "ring-1", style.ring) : "border-base-700/60 bg-base-900 hover:border-base-600",
-      )}
-    >
+    <div className={cn("group w-72 shrink-0 rounded-lg border p-3", style.border, style.bg)}>
       <div className="flex items-start justify-between gap-2">
-        <p className={cn("truncate text-sm font-medium", selected ? style.text : "text-neutral-100")}>{group.name}</p>
+        <p className={cn("truncate text-sm font-medium", style.text)}>{group.name}</p>
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            className="rounded p-1 text-neutral-400 hover:text-accent-300"
-          >
+          <button type="button" onClick={onEdit} className="rounded p-1 text-neutral-400 hover:text-accent-300">
             <Pencil size={12} />
-          </span>
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!isPending) onDelete();
-            }}
+          </button>
+          <button
+            type="button"
+            onClick={() => !isPending && onDelete()}
             className="rounded p-1 text-neutral-400 hover:text-rose-400"
           >
             <Trash2 size={12} />
-          </span>
+          </button>
         </div>
       </div>
-      <p className="mt-1 text-[11px] text-neutral-500">
-        {pageCount} page{pageCount === 1 ? "" : "s"}
-      </p>
-      <div className="mt-2">
+      <div className="mt-1 flex items-center justify-between">
+        <p className="text-[11px] text-neutral-500">
+          {pages.length} page{pages.length === 1 ? "" : "s"}
+        </p>
         <MetricBadge metrics={metrics} />
       </div>
-    </button>
-  );
-}
 
-function PageCard({
-  page,
-  keywordCount,
-  metrics,
-  selected,
-  onSelect,
-  onEdit,
-  onDelete,
-  isPending,
-}: {
-  page: KeywordPage;
-  keywordCount: number;
-  metrics: Metrics;
-  selected: boolean;
-  onSelect: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  isPending: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={cn(
-        "group relative w-60 shrink-0 rounded-lg border p-3 text-left transition-colors",
-        selected ? "border-accent-500/30 bg-accent-500/10 ring-1 ring-accent-500" : "border-base-700/60 bg-base-900 hover:border-base-600",
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <p className={cn("truncate text-sm font-medium", selected ? "text-accent-400" : "text-neutral-100")}>{page.name}</p>
-        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            className="rounded p-1 text-neutral-400 hover:text-accent-300"
+      <div className="mt-3 flex flex-col gap-1.5 border-t border-base-700/40 pt-2.5">
+        {pages.map((page) =>
+          editingPageId === page.id ? (
+            <PageForm
+              key={page.id}
+              groupId={group.id}
+              projectId={projectId}
+              page={page}
+              onCancel={onCancelEditPage}
+              onSaved={onCancelEditPage}
+            />
+          ) : (
+            <div
+              key={page.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onOpenPage(page)}
+              className="group/page flex cursor-pointer items-center justify-between gap-2 rounded-md bg-base-900/60 px-2 py-1.5 hover:bg-base-900"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-neutral-200">{page.name}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-neutral-500">
+                    {pageKeywordCount(page)} kw
+                  </span>
+                  <MetricBadge metrics={pageMetrics(page)} />
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/page:opacity-100">
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditPage(page.id);
+                  }}
+                  className="rounded p-1 text-neutral-400 hover:text-accent-300"
+                >
+                  <Pencil size={11} />
+                </span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isPending) onDeletePage(page.id);
+                  }}
+                  className="rounded p-1 text-neutral-400 hover:text-rose-400"
+                >
+                  <Trash2 size={11} />
+                </span>
+              </div>
+            </div>
+          ),
+        )}
+
+        {addingPage ? (
+          <PageForm groupId={group.id} projectId={projectId} page={null} onCancel={onCancelAddPage} onSaved={onCancelAddPage} />
+        ) : (
+          <button
+            type="button"
+            onClick={onStartAddPage}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-accent-400 hover:text-accent-300"
           >
-            <Pencil size={12} />
-          </span>
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!isPending) onDelete();
-            }}
-            className="rounded p-1 text-neutral-400 hover:text-rose-400"
-          >
-            <Trash2 size={12} />
-          </span>
-        </div>
+            <Plus size={12} />
+            Add page
+          </button>
+        )}
       </div>
-      {page.url && <p className="mt-1 truncate text-[11px] text-neutral-500">{page.url}</p>}
-      <p className="mt-1 text-[11px] text-neutral-500">
-        {keywordCount} keyword{keywordCount === 1 ? "" : "s"}
-      </p>
-      <div className="mt-2">
-        <MetricBadge metrics={metrics} />
-      </div>
-    </button>
+    </div>
   );
 }
 
@@ -474,6 +393,7 @@ function PageForm({
 
   return (
     <form
+      onClick={(e) => e.stopPropagation()}
       action={(formData) => {
         const name = String(formData.get("name") ?? "").trim();
         const url = String(formData.get("url") ?? "").trim();
@@ -484,39 +404,33 @@ function PageForm({
           onSaved();
         });
       }}
-      className="mb-3 flex flex-col gap-2 rounded-lg border border-base-700/60 bg-base-900 p-3"
+      className="flex flex-col gap-1.5 rounded-md border border-base-700/60 bg-base-900 p-2"
     >
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-neutral-400">{page ? "Edit page" : "New page"}</span>
-        <button type="button" onClick={onCancel} className="text-neutral-500 hover:text-neutral-300">
-          <X size={14} />
-        </button>
-      </div>
       <input
         name="name"
         required
         placeholder="Page name (e.g. Homepage)"
         defaultValue={page?.name ?? ""}
-        className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
+        className="w-full rounded-md border border-base-600 bg-base-950 px-2 py-1 text-xs text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
       />
       <input
         name="url"
         placeholder="URL (optional)"
         defaultValue={page?.url ?? ""}
-        className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
+        className="w-full rounded-md border border-base-600 bg-base-950 px-2 py-1 text-xs text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
       />
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         <button
           type="submit"
           disabled={isPending}
-          className="w-fit rounded-md bg-accent-500 px-3 py-1.5 text-xs font-medium text-base-950 hover:bg-accent-400 disabled:opacity-60"
+          className="w-fit rounded-md bg-accent-500 px-2 py-1 text-[11px] font-medium text-base-950 hover:bg-accent-400 disabled:opacity-60"
         >
-          {isPending ? "Saving…" : "Save page"}
+          {isPending ? "Saving…" : "Save"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="w-fit rounded-md border border-base-600 px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200"
+          className="w-fit rounded-md border border-base-600 px-2 py-1 text-[11px] text-neutral-400 hover:text-neutral-200"
         >
           Cancel
         </button>

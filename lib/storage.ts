@@ -49,3 +49,13 @@ export async function uploadTaskFile(file: File | null, taskId: string): Promise
   if (!url || !file) return null;
   return { url, name: file.name, type: file.type || "application/octet-stream", size: file.size };
 }
+
+/** Uploads any kind of file attached to a project as a whole to the "project-attachments" bucket. */
+export async function uploadProjectAttachment(
+  file: File | null,
+  projectId: string,
+): Promise<{ url: string; name: string; type: string; size: number } | null> {
+  const url = await uploadToBucket(file, "project-attachments", `projects/${projectId}`, MAX_TASK_FILE_BYTES);
+  if (!url || !file) return null;
+  return { url, name: file.name, type: file.type || "application/octet-stream", size: file.size };
+}
