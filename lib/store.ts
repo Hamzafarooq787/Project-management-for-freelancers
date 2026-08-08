@@ -163,10 +163,19 @@ function nowIso(): string {
  * relevant migration hasn't been run). Callers use this to fail open — return
  * an empty/default result — instead of crashing every page that touches a
  * newer, optional feature (teams/roles, payments) before it's set up.
+ *
+ * Covers two distinct error shapes for the same underlying problem: raw
+ * Postgres ("42P01", "does not exist") when querying via a direct connection,
+ * and PostgREST's own ("PGRST205", "...in the schema cache") when the table
+ * is missing (or was just created and PostgREST's cache hasn't refreshed
+ * yet) — Supabase's JS client goes through PostgREST, so this second shape is
+ * actually the common case in production.
  */
 export function isMissingTableError(error: unknown): boolean {
   const err = error as { code?: string; message?: string } | null;
-  return err?.code === "42P01" || Boolean(err?.message?.includes("does not exist"));
+  if (err?.code === "42P01" || err?.code === "PGRST205") return true;
+  const message = err?.message ?? "";
+  return message.includes("does not exist") || message.includes("schema cache");
 }
 
 export function todayDateKey(): string {
@@ -1129,6 +1138,11 @@ export async function listKeywords(projectId: string): Promise<Keyword[]> {
   }
 }
 
+/** Case/whitespace-insensitive identity for a keyword string, used to silently dedupe instead of creating look-alike duplicate rows. */
+function normalizeKeywordText(text: string): string {
+  return text.trim().toLowerCase();
+}
+
 export async function createKeyword(input: {
   projectId: string;
   keyword: string;
@@ -1140,6 +1154,20 @@ export async function createKeyword(input: {
   status: KeywordStatus;
   notes: string;
 }): Promise<Keyword> {
+  const { data: existingRows, error: existingError } = await getSupabase()
+    .from("freelance_hq_keywords")
+    .select("*")
+    .eq("project_id", input.projectId)
+    .ilike("keyword", input.keyword.trim());
+  if (existingError) throw existingError;
+  const existing = (existingRows as KeywordRow[] | null)?.find(
+    (row) => normalizeKeywordText(row.keyword) === normalizeKeywordText(input.keyword),
+  );
+  if (existing) {
+    const pageIds = (await listKeywordPageIds([existing.id]))[existing.id] ?? [];
+    return toKeyword(existing, pageIds);
+  }
+
   const { data, error } = await getSupabase()
     .from("freelance_hq_keywords")
     .insert({
@@ -1489,7 +1517,25 @@ export interface KeywordImportRow {
 
 /** Bulk-inserts imported keywords in a single round trip; rows without a keyword are dropped. */
 export async function createKeywordsBulk(projectId: string, rows: KeywordImportRow[]): Promise<number> {
-  const valid = rows.filter((r) => r.keyword.trim());
+  const withText = rows.filter((r) => r.keyword.trim());
+  if (withText.length === 0) return 0;
+
+  const { data: existingRows, error: existingError } = await getSupabase()
+    .from("freelance_hq_keywords")
+    .select("keyword")
+    .eq("project_id", projectId);
+  if (existingError) throw existingError;
+  const existingTexts = new Set(
+    ((existingRows ?? []) as { keyword: string }[]).map((row) => normalizeKeywordText(row.keyword)),
+  );
+
+  const seenInBatch = new Set<string>();
+  const valid = withText.filter((r) => {
+    const normalized = normalizeKeywordText(r.keyword);
+    if (existingTexts.has(normalized) || seenInBatch.has(normalized)) return false;
+    seenInBatch.add(normalized);
+    return true;
+  });
   if (valid.length === 0) return 0;
 
   const { data, error } = await getSupabase()
