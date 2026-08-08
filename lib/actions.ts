@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as store from "./store";
 import { requireAdmin, requireProjectAccess } from "./auth";
-import { uploadLogo, uploadTaskFile } from "./storage";
+import { uploadLogo, uploadProjectAttachment, uploadTaskFile } from "./storage";
 import type {
   ChecklistItem,
   ClientDetails,
@@ -323,6 +323,25 @@ export async function removeTaskFileAction(taskId: string, projectId: string, ur
   await requireProjectAccess(projectId);
   await store.removeTaskFile(taskId, url);
   refresh(projectId);
+}
+
+export async function addProjectAttachmentAction(formData: FormData) {
+  const projectId = str(formData, "projectId");
+  const file = formData.get("file");
+  if (!projectId || !(file instanceof File)) return;
+  await requireProjectAccess(projectId);
+
+  const uploaded = await uploadProjectAttachment(file, projectId);
+  if (!uploaded) return;
+
+  await store.addProjectAttachment(projectId, uploaded);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function removeProjectAttachmentAction(id: string, projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.removeProjectAttachment(id);
+  revalidatePath(`/projects/${projectId}`);
 }
 
 export async function enableSharingAction(projectId: string): Promise<string> {

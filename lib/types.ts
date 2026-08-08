@@ -187,6 +187,17 @@ export interface KeywordPage {
   createdAt: string;
 }
 
+/** A file attached to a project as a whole (not tied to a single task). */
+export interface ProjectAttachment {
+  id: string;
+  projectId: string;
+  url: string;
+  name: string;
+  type: string;
+  size: number;
+  createdAt: string;
+}
+
 export interface KeywordRankHistoryEntry {
   id: string;
   keywordId: string;

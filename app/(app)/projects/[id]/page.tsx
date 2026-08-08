@@ -8,6 +8,7 @@ import {
   listKeywords,
   listMonthlyPositions,
   listPaymentPlansForProject,
+  listProjectAttachments,
   getProject,
   getProjectProgress,
   isProjectAssignedToUser,
@@ -28,6 +29,7 @@ import { ProjectDetailTabs } from "@/components/ProjectDetailTabs";
 import { ShareLinkPanel } from "@/components/ShareLinkPanel";
 import { PaymentsCard } from "@/components/PaymentsCard";
 import { KeywordsPanel } from "@/components/KeywordsPanel";
+import { ProjectAttachments } from "@/components/ProjectAttachments";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { CheckCircle2 } from "lucide-react";
 
@@ -64,6 +66,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const keywordGroups = project.type === "seo" ? await listKeywordGroups(project.id) : [];
   const keywordPagesByGroup =
     keywordGroups.length > 0 ? await listKeywordPages(keywordGroups.map((g) => g.id)) : {};
+
+  const projectAttachments = project.type === "seo" ? await listProjectAttachments(project.id) : [];
 
   const completed = tasks
     .filter((t) => t.status === "done")
@@ -197,6 +201,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
               groups={keywordGroups}
               pagesByGroup={keywordPagesByGroup}
             />
+          ) : undefined
+        }
+        attachments={
+          project.type === "seo" ? (
+            <ProjectAttachments projectId={project.id} attachments={projectAttachments} />
           ) : undefined
         }
         clientDetails={clientDetailsTab}

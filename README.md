@@ -235,6 +235,14 @@ Finance page's totals, since that money was genuinely received.
 > keywords to a page to track their performance by group and by page —
 > each card shows a live average rank and month-over-month trend. Keywords
 > left unassigned still show up normally in the flat list below.
+>
+> Already ran 016? Also run
+> [`supabase/migrations/017_project_attachments.sql`](./supabase/migrations/017_project_attachments.sql) —
+> it adds a `freelance_hq_project_attachments` table and a public
+> `project-attachments` storage bucket, powering a new **Attachments** tab
+> on SEO projects (shown before Client Details) for files that belong to
+> the project as a whole — briefs, reports, exports — rather than a single
+> task.
 
 ### 3. Get your API credentials
 

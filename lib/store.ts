@@ -13,6 +13,7 @@ import type {
   KeywordPage,
   KeywordRankHistoryEntry,
   KeywordStatus,
+  ProjectAttachment,
   Payment,
   PaymentKind,
   PaymentPlan,
@@ -1484,6 +1485,58 @@ export async function createKeywordsBulk(projectId: string, rows: KeywordImportR
   }
 
   return valid.length;
+}
+
+interface ProjectAttachmentRow {
+  id: string;
+  project_id: string;
+  url: string;
+  name: string;
+  type: string;
+  size: number;
+  created_at: string;
+}
+
+function toProjectAttachment(row: ProjectAttachmentRow): ProjectAttachment {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    url: row.url,
+    name: row.name,
+    type: row.type,
+    size: row.size,
+    createdAt: row.created_at,
+  };
+}
+
+export async function listProjectAttachments(projectId: string): Promise<ProjectAttachment[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_project_attachments")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return ((data ?? []) as ProjectAttachmentRow[]).map(toProjectAttachment);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export async function addProjectAttachment(
+  projectId: string,
+  file: { url: string; name: string; type: string; size: number },
+): Promise<void> {
+  const { error } = await getSupabase()
+    .from("freelance_hq_project_attachments")
+    .insert({ project_id: projectId, url: file.url, name: file.name, type: file.type, size: file.size });
+  if (error) throw error;
+}
+
+export async function removeProjectAttachment(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_project_attachments").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function getProjectByShareToken(token: string): Promise<Project | null> {
