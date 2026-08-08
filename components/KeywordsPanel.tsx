@@ -409,15 +409,24 @@ function KeywordRow({
               title="Assign to page"
             >
               <option value="">Ungrouped</option>
-              {groups.map((group) => (
-                <optgroup key={group.id} label={group.name}>
-                  {(pagesByGroup[group.id] ?? []).map((page) => (
-                    <option key={page.id} value={page.id}>
-                      {page.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
+              {groups.map((group) => {
+                const pages = pagesByGroup[group.id] ?? [];
+                return (
+                  <optgroup key={group.id} label={group.name}>
+                    {pages.length === 0 ? (
+                      <option value="__no_pages__" disabled>
+                        (no pages yet — add one above)
+                      </option>
+                    ) : (
+                      pages.map((page) => (
+                        <option key={page.id} value={page.id}>
+                          {page.name}
+                        </option>
+                      ))
+                    )}
+                  </optgroup>
+                );
+              })}
             </select>
           )}
           <label className="flex items-center gap-1.5 text-xs text-neutral-500">
