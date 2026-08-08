@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Paperclip, Download, Trash2, FileText } from "lucide-react";
+import { Paperclip, Download, Trash2, FileText, Eye } from "lucide-react";
 import type { ProjectAttachment } from "@/lib/types";
 import { addProjectAttachmentAction, removeProjectAttachmentAction } from "@/lib/actions";
-import { formatFileSize, formatDateKey } from "@/lib/utils";
+import { cn, formatFileSize, formatDateKey } from "@/lib/utils";
+import { AttachmentPreviewModal, getPreviewKind } from "@/components/AttachmentPreviewModal";
 
 export function ProjectAttachments({
   projectId,
@@ -17,6 +18,7 @@ export function ProjectAttachments({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<ProjectAttachment | null>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
@@ -62,45 +64,71 @@ export function ProjectAttachments({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {attachments.map((file) => (
-            <div
-              key={file.id}
-              className="flex items-center gap-3 rounded-lg border border-base-700/60 bg-base-900 px-3 py-2.5"
-            >
-              <FileText size={16} className="shrink-0 text-neutral-500" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-neutral-200">{file.name}</p>
-                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-neutral-500">
-                  <span>{formatDateKey(file.createdAt)}</span>
-                  {file.size > 0 && <span>{formatFileSize(file.size)}</span>}
+          {attachments.map((file) => {
+            const previewable = getPreviewKind(file.name, file.type) !== null;
+            return (
+              <div
+                key={file.id}
+                role={previewable ? "button" : undefined}
+                tabIndex={previewable ? 0 : undefined}
+                onClick={previewable ? () => setPreviewFile(file) : undefined}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg border border-base-700/60 bg-base-900 px-3 py-2.5",
+                  previewable && "cursor-pointer hover:border-base-600",
+                )}
+              >
+                <FileText size={16} className="shrink-0 text-neutral-500" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-neutral-200">{file.name}</p>
+                  <div className="mt-0.5 flex items-center gap-2 text-[11px] text-neutral-500">
+                    <span>{formatDateKey(file.createdAt)}</span>
+                    {file.size > 0 && <span>{formatFileSize(file.size)}</span>}
+                  </div>
                 </div>
+                {previewable && (
+                  <button
+                    type="button"
+                    title="Preview"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPreviewFile(file);
+                    }}
+                    className="shrink-0 rounded-md p-1.5 text-neutral-400 hover:text-accent-300"
+                  >
+                    <Eye size={15} />
+                  </button>
+                )}
+                <a
+                  href={file.url}
+                  download={file.name}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Download"
+                  onClick={(e) => e.stopPropagation()}
+                  className="shrink-0 rounded-md p-1.5 text-neutral-400 hover:text-accent-300"
+                >
+                  <Download size={15} />
+                </a>
+                <button
+                  type="button"
+                  title="Remove"
+                  disabled={isPending && removingId === file.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRemovingId(file.id);
+                    startTransition(() => removeProjectAttachmentAction(file.id, projectId));
+                  }}
+                  className="shrink-0 rounded-md p-1.5 text-neutral-400 hover:text-rose-400 disabled:opacity-50"
+                >
+                  <Trash2 size={15} />
+                </button>
               </div>
-              <a
-                href={file.url}
-                download={file.name}
-                target="_blank"
-                rel="noreferrer"
-                title="Download"
-                className="shrink-0 rounded-md p-1.5 text-neutral-400 hover:text-accent-300"
-              >
-                <Download size={15} />
-              </a>
-              <button
-                type="button"
-                title="Remove"
-                disabled={isPending && removingId === file.id}
-                onClick={() => {
-                  setRemovingId(file.id);
-                  startTransition(() => removeProjectAttachmentAction(file.id, projectId));
-                }}
-                className="shrink-0 rounded-md p-1.5 text-neutral-400 hover:text-rose-400 disabled:opacity-50"
-              >
-                <Trash2 size={15} />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      {previewFile && <AttachmentPreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />}
     </div>
   );
 }
