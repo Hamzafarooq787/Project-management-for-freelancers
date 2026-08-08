@@ -1138,6 +1138,11 @@ export async function listKeywords(projectId: string): Promise<Keyword[]> {
   }
 }
 
+/** Case/whitespace-insensitive identity for a keyword string, used to silently dedupe instead of creating look-alike duplicate rows. */
+function normalizeKeywordText(text: string): string {
+  return text.trim().toLowerCase();
+}
+
 export async function createKeyword(input: {
   projectId: string;
   keyword: string;
@@ -1149,6 +1154,20 @@ export async function createKeyword(input: {
   status: KeywordStatus;
   notes: string;
 }): Promise<Keyword> {
+  const { data: existingRows, error: existingError } = await getSupabase()
+    .from("freelance_hq_keywords")
+    .select("*")
+    .eq("project_id", input.projectId)
+    .ilike("keyword", input.keyword.trim());
+  if (existingError) throw existingError;
+  const existing = (existingRows as KeywordRow[] | null)?.find(
+    (row) => normalizeKeywordText(row.keyword) === normalizeKeywordText(input.keyword),
+  );
+  if (existing) {
+    const pageIds = (await listKeywordPageIds([existing.id]))[existing.id] ?? [];
+    return toKeyword(existing, pageIds);
+  }
+
   const { data, error } = await getSupabase()
     .from("freelance_hq_keywords")
     .insert({
@@ -1498,7 +1517,25 @@ export interface KeywordImportRow {
 
 /** Bulk-inserts imported keywords in a single round trip; rows without a keyword are dropped. */
 export async function createKeywordsBulk(projectId: string, rows: KeywordImportRow[]): Promise<number> {
-  const valid = rows.filter((r) => r.keyword.trim());
+  const withText = rows.filter((r) => r.keyword.trim());
+  if (withText.length === 0) return 0;
+
+  const { data: existingRows, error: existingError } = await getSupabase()
+    .from("freelance_hq_keywords")
+    .select("keyword")
+    .eq("project_id", projectId);
+  if (existingError) throw existingError;
+  const existingTexts = new Set(
+    ((existingRows ?? []) as { keyword: string }[]).map((row) => normalizeKeywordText(row.keyword)),
+  );
+
+  const seenInBatch = new Set<string>();
+  const valid = withText.filter((r) => {
+    const normalized = normalizeKeywordText(r.keyword);
+    if (existingTexts.has(normalized) || seenInBatch.has(normalized)) return false;
+    seenInBatch.add(normalized);
+    return true;
+  });
   if (valid.length === 0) return 0;
 
   const { data, error } = await getSupabase()
