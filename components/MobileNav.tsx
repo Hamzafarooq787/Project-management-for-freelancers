@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ListChecks, FolderKanban, Settings, Plus, Shield, Wallet, Building2, MoreHorizontal, X } from "lucide-react";
+import { LayoutDashboard, ListChecks, FolderKanban, Archive, Settings, Plus, Shield, Wallet, Building2, MoreHorizontal, X } from "lucide-react";
 import type { Profile } from "@/lib/types";
 import { InstallAppButton } from "./InstallAppButton";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,8 @@ const PRIMARY_NAV = [
   { href: "/today", label: "Today", icon: ListChecks },
   { href: "/projects", label: "Projects", icon: FolderKanban },
 ];
+
+const COMMON_MORE_NAV = [{ href: "/projects/closed", label: "Closed Projects", icon: Archive }];
 
 const MORE_NAV = [
   { href: "/projects/new", label: "New Project", icon: Plus },
@@ -33,7 +35,9 @@ export function MobileNav({ profile }: { profile: Profile | null }) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   const financeItem = isAdmin ? MORE_NAV.find((item) => item.href === "/finance") : undefined;
-  const sheetItems = isAdmin ? MORE_NAV.filter((item) => item.href !== "/finance") : [];
+  const sheetItems = isAdmin
+    ? [...COMMON_MORE_NAV, ...MORE_NAV.filter((item) => item.href !== "/finance")]
+    : COMMON_MORE_NAV;
 
   return (
     <>

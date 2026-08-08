@@ -14,7 +14,7 @@ export function ArchiveToggle({ projectId, archived }: { projectId: string; arch
       className="flex items-center gap-2 rounded-lg border border-base-600 px-3 py-1.5 text-xs text-neutral-300 hover:border-accent-500/50 hover:text-accent-300 disabled:opacity-50"
     >
       {archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
-      {archived ? "Unarchive" : "Archive"}
+      {archived ? "Reopen Project" : "Close Project"}
     </button>
   );
 }
