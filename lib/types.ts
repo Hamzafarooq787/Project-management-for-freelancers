@@ -159,7 +159,7 @@ export interface Keyword {
   status: KeywordStatus;
   notes: string;
   isTracked: boolean;
-  pageId: string | null;
+  pageIds: string[];
   createdAt: string;
   updatedAt: string;
 }

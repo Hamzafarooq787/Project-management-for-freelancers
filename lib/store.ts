@@ -1067,12 +1067,11 @@ interface KeywordRow {
   status: KeywordStatus;
   notes: string;
   is_tracked: boolean;
-  page_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-function toKeyword(row: KeywordRow): Keyword {
+function toKeyword(row: KeywordRow, pageIds: string[]): Keyword {
   return {
     id: row.id,
     projectId: row.project_id,
@@ -1085,10 +1084,32 @@ function toKeyword(row: KeywordRow): Keyword {
     status: row.status,
     notes: row.notes,
     isTracked: row.is_tracked ?? false,
-    pageId: row.page_id ?? null,
+    pageIds,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/** Fails open (empty map) when migration 019 hasn't run yet — keywords still load, just without page assignments. */
+async function listKeywordPageIds(keywordIds: string[]): Promise<Record<string, string[]>> {
+  if (keywordIds.length === 0) return {};
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_keyword_page_links")
+      .select("keyword_id, page_id")
+      .in("keyword_id", keywordIds);
+    if (error) throw error;
+    const map: Record<string, string[]> = {};
+    for (const row of (data ?? []) as { keyword_id: string; page_id: string }[]) {
+      const list = map[row.keyword_id] ?? [];
+      list.push(row.page_id);
+      map[row.keyword_id] = list;
+    }
+    return map;
+  } catch (error) {
+    if (isMissingTableError(error)) return {};
+    throw error;
+  }
 }
 
 export async function listKeywords(projectId: string): Promise<Keyword[]> {
@@ -1099,7 +1120,9 @@ export async function listKeywords(projectId: string): Promise<Keyword[]> {
       .eq("project_id", projectId)
       .order("created_at", { ascending: true });
     if (error) throw error;
-    return ((data ?? []) as KeywordRow[]).map(toKeyword);
+    const rows = (data ?? []) as KeywordRow[];
+    const pageIdsByKeyword = await listKeywordPageIds(rows.map((r) => r.id));
+    return rows.map((row) => toKeyword(row, pageIdsByKeyword[row.id] ?? []));
   } catch (error) {
     if (isMissingTableError(error)) return [];
     throw error;
@@ -1133,7 +1156,7 @@ export async function createKeyword(input: {
     .select()
     .single();
   if (error) throw error;
-  const keyword = toKeyword(data as KeywordRow);
+  const keyword = toKeyword(data as KeywordRow, []);
   if (keyword.currentRank !== null) await logKeywordRank(keyword.id, keyword.currentRank);
   return keyword;
 }
@@ -1248,16 +1271,28 @@ export async function setKeywordTracked(id: string, isTracked: boolean): Promise
 }
 
 /**
- * Fails open when the page_id column doesn't exist yet (migration 016 not
- * run yet): assigning a keyword to a Page is optional grouping on top of
- * the core keyword record, so a missing column shouldn't break the page.
+ * Fails open when the join table doesn't exist yet (migration 019 not run
+ * yet): assigning a keyword to Pages is optional grouping on top of the
+ * core keyword record, so a missing table shouldn't break the page.
  */
-export async function setKeywordPage(id: string, pageId: string | null): Promise<void> {
+export async function addKeywordToPage(keywordId: string, pageId: string): Promise<void> {
   try {
     const { error } = await getSupabase()
-      .from("freelance_hq_keywords")
-      .update({ page_id: pageId, updated_at: nowIso() })
-      .eq("id", id);
+      .from("freelance_hq_keyword_page_links")
+      .upsert({ keyword_id: keywordId, page_id: pageId }, { onConflict: "keyword_id,page_id" });
+    if (error) throw error;
+  } catch (error) {
+    if (!isMissingTableError(error)) throw error;
+  }
+}
+
+export async function removeKeywordFromPage(keywordId: string, pageId: string): Promise<void> {
+  try {
+    const { error } = await getSupabase()
+      .from("freelance_hq_keyword_page_links")
+      .delete()
+      .eq("keyword_id", keywordId)
+      .eq("page_id", pageId);
     if (error) throw error;
   } catch (error) {
     if (!isMissingTableError(error)) throw error;

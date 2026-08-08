@@ -678,9 +678,15 @@ export async function setMonthlyPositionAction(
   revalidatePath(`/projects/${projectId}`);
 }
 
-export async function setKeywordPageAction(id: string, projectId: string, pageId: string | null) {
+export async function addKeywordToPageAction(keywordId: string, projectId: string, pageId: string) {
   await requireProjectAccess(projectId);
-  await store.setKeywordPage(id, pageId);
+  await store.addKeywordToPage(keywordId, pageId);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function removeKeywordFromPageAction(keywordId: string, projectId: string, pageId: string) {
+  await requireProjectAccess(projectId);
+  await store.removeKeywordFromPage(keywordId, pageId);
   revalidatePath(`/projects/${projectId}`);
 }
 

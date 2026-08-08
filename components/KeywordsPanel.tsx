@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Search, Trash2, Pencil, Plus, X, Download, Upload, History, ChevronDown, ArrowUp, ArrowDown, Minus, LineChart } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Search, Trash2, Pencil, Plus, X, Download, Upload, History, ChevronDown, ArrowUp, ArrowDown, Minus, LineChart, Check } from "lucide-react";
 import type { Keyword, KeywordGroup, KeywordMonthlyPosition, KeywordPage, KeywordRankHistoryEntry, KeywordStatus } from "@/lib/types";
 import {
+  addKeywordToPageAction,
   createKeywordAction,
   deleteKeywordAction,
   importKeywordsAction,
-  setKeywordPageAction,
+  removeKeywordFromPageAction,
   setKeywordTrackedAction,
   updateKeywordAction,
 } from "@/lib/actions";
@@ -147,13 +148,21 @@ export function KeywordsPanel({
   const [modalPage, setModalPage] = useState<KeywordPage | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const ungroupedKeywords = useMemo(() => keywords.filter((k) => !k.pageId), [keywords]);
+  const ungroupedKeywords = useMemo(() => keywords.filter((k) => k.pageIds.length === 0), [keywords]);
   const sortedKeywords = useMemo(() => sortKeywords(ungroupedKeywords, sortMode), [ungroupedKeywords, sortMode]);
   const trackedKeywords = useMemo(() => keywords.filter((k) => k.isTracked), [keywords]);
   const modalKeywords = useMemo(
-    () => (modalPage ? sortKeywords(keywords.filter((k) => k.pageId === modalPage.id), sortMode) : []),
+    () => (modalPage ? sortKeywords(keywords.filter((k) => k.pageIds.includes(modalPage.id)), sortMode) : []),
     [keywords, modalPage, sortMode],
   );
+
+  function togglePage(keyword: Keyword, pageId: string, assign: boolean) {
+    startTransition(() =>
+      assign
+        ? addKeywordToPageAction(keyword.id, projectId, pageId)
+        : removeKeywordFromPageAction(keyword.id, projectId, pageId),
+    );
+  }
 
   function renderKeywordRow(keyword: Keyword) {
     return editingId === keyword.id ? (
@@ -176,7 +185,7 @@ export function KeywordsPanel({
         onToggleHistory={() => setHistoryId(historyId === keyword.id ? null : keyword.id)}
         onEdit={() => setEditingId(keyword.id)}
         onDelete={() => startTransition(() => deleteKeywordAction(keyword.id, projectId))}
-        onPageChange={(pageId) => startTransition(() => setKeywordPageAction(keyword.id, projectId, pageId))}
+        onTogglePage={(pageId, assign) => togglePage(keyword, pageId, assign)}
         onRankChange={(rank) => {
           const formData = new FormData();
           formData.set("id", keyword.id);
@@ -344,7 +353,7 @@ export function KeywordsPanel({
       >
         <div
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-3xl rounded-xl2 border border-base-700/60 bg-base-850 p-5 shadow-card"
+          className="w-full max-w-5xl rounded-xl2 border border-base-700/60 bg-base-850 p-5 shadow-card"
         >
           <div className="mb-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -365,8 +374,54 @@ export function KeywordsPanel({
               No keywords assigned to this page yet. Assign one from the Keywords list below.
             </p>
           ) : (
-            <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto pr-1">
-              {modalKeywords.map((keyword) => renderKeywordRow(keyword))}
+            <div className="max-h-[65vh] overflow-y-auto">
+              <PageKeywordsTable
+                keywords={modalKeywords}
+                rankHistory={rankHistory}
+                groups={groups}
+                pagesByGroup={pagesByGroup}
+                projectId={projectId}
+                isPending={isPending}
+                editingId={editingId}
+                onEdit={setEditingId}
+                onCancelEdit={() => setEditingId(null)}
+                onSaved={() => setEditingId(null)}
+                historyId={historyId}
+                onToggleHistory={(id) => setHistoryId(historyId === id ? null : id)}
+                onDelete={(keyword) => startTransition(() => deleteKeywordAction(keyword.id, projectId))}
+                onTogglePage={togglePage}
+                onToggleTracked={(keyword) =>
+                  startTransition(() => setKeywordTrackedAction(keyword.id, projectId, !keyword.isTracked))
+                }
+                onRankChange={(keyword, rank) => {
+                  const formData = new FormData();
+                  formData.set("id", keyword.id);
+                  formData.set("projectId", projectId);
+                  formData.set("keyword", keyword.keyword);
+                  formData.set("targetPage", keyword.targetPage);
+                  formData.set("searchVolume", keyword.searchVolume?.toString() ?? "");
+                  formData.set("difficulty", keyword.difficulty?.toString() ?? "");
+                  formData.set("currentRank", rank);
+                  formData.set("targetRank", keyword.targetRank?.toString() ?? "");
+                  formData.set("status", keyword.status);
+                  formData.set("notes", keyword.notes);
+                  startTransition(() => updateKeywordAction(formData));
+                }}
+                onStatusChange={(keyword, status) => {
+                  const formData = new FormData();
+                  formData.set("id", keyword.id);
+                  formData.set("projectId", projectId);
+                  formData.set("keyword", keyword.keyword);
+                  formData.set("targetPage", keyword.targetPage);
+                  formData.set("searchVolume", keyword.searchVolume?.toString() ?? "");
+                  formData.set("difficulty", keyword.difficulty?.toString() ?? "");
+                  formData.set("currentRank", keyword.currentRank?.toString() ?? "");
+                  formData.set("targetRank", keyword.targetRank?.toString() ?? "");
+                  formData.set("status", status);
+                  formData.set("notes", keyword.notes);
+                  startTransition(() => updateKeywordAction(formData));
+                }}
+              />
             </div>
           )}
         </div>
@@ -389,7 +444,7 @@ function KeywordRow({
   onRankChange,
   onStatusChange,
   onToggleTracked,
-  onPageChange,
+  onTogglePage,
 }: {
   keyword: Keyword;
   history: KeywordRankHistoryEntry[];
@@ -403,14 +458,11 @@ function KeywordRow({
   onRankChange: (rank: string) => void;
   onStatusChange: (status: KeywordStatus) => void;
   onToggleTracked: () => void;
-  onPageChange: (pageId: string | null) => void;
+  onTogglePage: (pageId: string, assign: boolean) => void;
 }) {
-  const assignedPage = keyword.pageId
-    ? Object.values(pagesByGroup)
-        .flat()
-        .find((p) => p.id === keyword.pageId)
-    : null;
-  const assignedGroup = assignedPage ? groups.find((g) => g.id === assignedPage.groupId) : null;
+  const assignedPages = keyword.pageIds
+    .map((id) => Object.values(pagesByGroup).flat().find((p) => p.id === id))
+    .filter((p): p is KeywordPage => Boolean(p));
 
   return (
     <div className="rounded-lg border border-base-600 bg-base-800 p-4 shadow-md transition-colors hover:border-accent-500/50">
@@ -425,13 +477,16 @@ function KeywordRow({
             )}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
-            {assignedPage && (
-              <span className="rounded-full bg-accent-500/10 px-2 py-0.5 text-accent-400">
-                {assignedGroup ? `${assignedGroup.name} / ` : ""}
-                {assignedPage.name}
-              </span>
-            )}
-            {!assignedPage && keyword.targetPage && (
+            {assignedPages.map((page) => {
+              const group = groups.find((g) => g.id === page.groupId);
+              return (
+                <span key={page.id} className="rounded-full bg-accent-500/10 px-2 py-0.5 text-accent-400">
+                  {group ? `${group.name} / ` : ""}
+                  {page.name}
+                </span>
+              );
+            })}
+            {assignedPages.length === 0 && keyword.targetPage && (
               <span className="rounded-full bg-base-800 px-2 py-0.5">{keyword.targetPage}</span>
             )}
             {keyword.searchVolume !== null && (
@@ -447,11 +502,11 @@ function KeywordRow({
 
         <div className="flex flex-wrap items-center gap-2 border-t border-base-700 pt-3">
           {groups.length > 0 && (
-            <PageAssignDropdown
-              value={keyword.pageId}
+            <PageAssignMultiDropdown
+              assignedPageIds={keyword.pageIds}
               groups={groups}
               pagesByGroup={pagesByGroup}
-              onChange={onPageChange}
+              onToggle={onTogglePage}
             />
           )}
           <label className="flex items-center gap-1.5 text-xs text-neutral-500">
@@ -523,16 +578,18 @@ function KeywordRow({
   );
 }
 
-function PageAssignDropdown({
-  value,
+function PageAssignMultiDropdown({
+  assignedPageIds,
   groups,
   pagesByGroup,
-  onChange,
+  onToggle,
+  compact = false,
 }: {
-  value: string | null;
+  assignedPageIds: string[];
   groups: KeywordGroup[];
   pagesByGroup: Record<string, KeywordPage[]>;
-  onChange: (pageId: string | null) => void;
+  onToggle: (pageId: string, assign: boolean) => void;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -550,37 +607,28 @@ function PageAssignDropdown({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  const selectedPage = value
-    ? Object.values(pagesByGroup)
-        .flat()
-        .find((p) => p.id === value)
-    : null;
-  const selectedGroup = selectedPage ? groups.find((g) => g.id === selectedPage.groupId) : null;
-
   const q = query.trim().toLowerCase();
-
-  function select(pageId: string | null) {
-    onChange(pageId);
-    setOpen(false);
-    setQuery("");
-  }
+  const assignedSet = new Set(assignedPageIds);
 
   return (
     <div ref={containerRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex max-w-[12rem] items-center gap-1 rounded-md border border-base-600 bg-base-950 px-2 py-1 text-[11px] text-neutral-300 hover:border-accent-500"
-        title="Assign to page"
+        className={cn(
+          "flex items-center gap-1 rounded-md border border-base-600 bg-base-950 px-2 py-1 text-[11px] text-neutral-300 hover:border-accent-500",
+          compact ? "max-w-[7rem]" : "max-w-[12rem]",
+        )}
+        title="Assign to pages"
       >
         <span className="truncate">
-          {selectedPage ? (selectedGroup ? `${selectedGroup.name} / ${selectedPage.name}` : selectedPage.name) : "Ungrouped"}
+          {assignedPageIds.length === 0 ? "Unassigned" : `${assignedPageIds.length} page${assignedPageIds.length === 1 ? "" : "s"}`}
         </span>
         <ChevronDown size={11} className={cn("shrink-0 text-neutral-500 transition-transform", open && "rotate-180")} />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-[60] mt-1 w-64 overflow-hidden rounded-lg border border-base-600 bg-base-900 shadow-lg">
+        <div className="absolute right-0 top-full z-[60] mt-1 w-64 overflow-hidden rounded-lg border border-base-600 bg-base-900 shadow-lg">
           <div className="border-b border-base-700 p-2">
             <input
               autoFocus
@@ -591,18 +639,7 @@ function PageAssignDropdown({
             />
           </div>
           <div className="max-h-64 overflow-y-auto p-1.5">
-            {!q && (
-              <button
-                type="button"
-                onClick={() => select(null)}
-                className={cn(
-                  "block w-full rounded-md px-2 py-1.5 text-left text-xs",
-                  value === null ? "bg-accent-500/15 text-accent-300" : "text-neutral-300 hover:bg-base-800",
-                )}
-              >
-                Ungrouped
-              </button>
-            )}
+            {groups.length === 0 && <p className="px-2 py-1.5 text-[11px] text-neutral-600">No groups yet</p>}
             {groups.map((group) => {
               const pages = (pagesByGroup[group.id] ?? []).filter((p) => !q || p.name.toLowerCase().includes(q));
               if (q && pages.length === 0) return null;
@@ -612,19 +649,30 @@ function PageAssignDropdown({
                   {pages.length === 0 ? (
                     <p className="px-2 py-1 text-[11px] text-neutral-600">No pages yet</p>
                   ) : (
-                    pages.map((page) => (
-                      <button
-                        key={page.id}
-                        type="button"
-                        onClick={() => select(page.id)}
-                        className={cn(
-                          "block w-full truncate rounded-md px-2 py-1.5 text-left text-xs",
-                          value === page.id ? "bg-accent-500/15 text-accent-300" : "text-neutral-300 hover:bg-base-800",
-                        )}
-                      >
-                        {page.name}
-                      </button>
-                    ))
+                    pages.map((page) => {
+                      const assigned = assignedSet.has(page.id);
+                      return (
+                        <button
+                          key={page.id}
+                          type="button"
+                          onClick={() => onToggle(page.id, !assigned)}
+                          className={cn(
+                            "flex w-full items-center gap-2 truncate rounded-md px-2 py-1.5 text-left text-xs",
+                            assigned ? "bg-accent-500/15 text-accent-300" : "text-neutral-300 hover:bg-base-800",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border",
+                              assigned ? "border-accent-400 bg-accent-500/20" : "border-base-600",
+                            )}
+                          >
+                            {assigned && <Check size={10} />}
+                          </span>
+                          <span className="truncate">{page.name}</span>
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               );
@@ -632,6 +680,186 @@ function PageAssignDropdown({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function PageKeywordsTable({
+  keywords,
+  rankHistory,
+  groups,
+  pagesByGroup,
+  projectId,
+  isPending,
+  editingId,
+  onEdit,
+  onCancelEdit,
+  onSaved,
+  historyId,
+  onToggleHistory,
+  onDelete,
+  onTogglePage,
+  onToggleTracked,
+  onRankChange,
+  onStatusChange,
+}: {
+  keywords: Keyword[];
+  rankHistory: Record<string, KeywordRankHistoryEntry[]>;
+  groups: KeywordGroup[];
+  pagesByGroup: Record<string, KeywordPage[]>;
+  projectId: string;
+  isPending: boolean;
+  editingId: string | null;
+  onEdit: (id: string) => void;
+  onCancelEdit: () => void;
+  onSaved: () => void;
+  historyId: string | null;
+  onToggleHistory: (id: string) => void;
+  onDelete: (keyword: Keyword) => void;
+  onTogglePage: (keyword: Keyword, pageId: string, assign: boolean) => void;
+  onToggleTracked: (keyword: Keyword) => void;
+  onRankChange: (keyword: Keyword, rank: string) => void;
+  onStatusChange: (keyword: Keyword, status: KeywordStatus) => void;
+}) {
+  const allPages = useMemo(() => Object.values(pagesByGroup).flat(), [pagesByGroup]);
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-base-600">
+      <table className="w-full min-w-[760px] border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-base-600 bg-base-900 text-left text-[11px] uppercase tracking-wide text-neutral-500">
+            <th className="px-3 py-2 font-medium">Keyword</th>
+            <th className="px-3 py-2 font-medium">Vol</th>
+            <th className="px-3 py-2 font-medium">KD</th>
+            <th className="px-3 py-2 font-medium">Rank</th>
+            <th className="px-3 py-2 font-medium">Status</th>
+            <th className="px-3 py-2 text-right font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {keywords.map((keyword) => {
+            if (editingId === keyword.id) {
+              return (
+                <tr key={keyword.id} className="border-b border-base-700/60">
+                  <td colSpan={6} className="bg-base-850 p-2">
+                    <KeywordForm projectId={projectId} keyword={keyword} onCancel={onCancelEdit} onSaved={onSaved} />
+                  </td>
+                </tr>
+              );
+            }
+
+            const history = rankHistory[keyword.id] ?? [];
+            const assignedPages = keyword.pageIds
+              .map((id) => allPages.find((p) => p.id === id))
+              .filter((p): p is KeywordPage => Boolean(p));
+
+            return (
+              <Fragment key={keyword.id}>
+                <tr className="border-b border-base-700/60 odd:bg-base-900/40 hover:bg-base-900">
+                  <td className="px-3 py-2 align-top">
+                    <p className="font-medium text-neutral-100">{keyword.keyword}</p>
+                    {assignedPages.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {assignedPages.map((page) => (
+                          <span key={page.id} className="rounded-full bg-accent-500/10 px-1.5 py-0.5 text-[10px] text-accent-400">
+                            {page.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 align-top text-neutral-400">{keyword.searchVolume ?? "—"}</td>
+                  <td className="px-3 py-2 align-top text-neutral-400">{keyword.difficulty ?? "—"}</td>
+                  <td className="px-3 py-2 align-top">
+                    <input
+                      type="number"
+                      min="0"
+                      defaultValue={keyword.currentRank ?? ""}
+                      onBlur={(e) => {
+                        if (e.target.value !== (keyword.currentRank?.toString() ?? "")) onRankChange(keyword, e.target.value);
+                      }}
+                      className="w-14 rounded-md border border-base-600 bg-base-950 px-1.5 py-1 text-xs text-neutral-100 focus:border-accent-500 focus:outline-none"
+                    />
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <select
+                      value={keyword.status}
+                      onChange={(e) => onStatusChange(keyword, e.target.value as KeywordStatus)}
+                      className={cn(
+                        "rounded-full border-0 px-2 py-1 text-[10px] font-medium focus:outline-none",
+                        STATUS_STYLE[keyword.status],
+                      )}
+                    >
+                      {(Object.keys(STATUS_LABEL) as KeywordStatus[]).map((s) => (
+                        <option key={s} value={s} className="bg-base-900 text-neutral-100">
+                          {STATUS_LABEL[s]}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <div className="flex items-center justify-end gap-1">
+                      {groups.length > 0 && (
+                        <PageAssignMultiDropdown
+                          assignedPageIds={keyword.pageIds}
+                          groups={groups}
+                          pagesByGroup={pagesByGroup}
+                          onToggle={(pageId, assign) => onTogglePage(keyword, pageId, assign)}
+                          compact
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onToggleHistory(keyword.id)}
+                        disabled={history.length === 0}
+                        className="rounded-md p-1.5 text-neutral-400 hover:text-accent-300 disabled:opacity-30 disabled:hover:text-neutral-400"
+                        title="Rank history"
+                      >
+                        <History size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onToggleTracked(keyword)}
+                        className={cn(
+                          "rounded-md p-1.5 hover:text-accent-300",
+                          keyword.isTracked ? "text-accent-400" : "text-neutral-400",
+                        )}
+                        title={keyword.isTracked ? "Remove from monthly tracker" : "Add to monthly tracker"}
+                      >
+                        <LineChart size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onEdit(keyword.id)}
+                        className="rounded-md p-1.5 text-neutral-400 hover:text-accent-300"
+                        title="Edit keyword"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => onDelete(keyword)}
+                        className="rounded-md p-1.5 text-neutral-400 hover:text-rose-400 disabled:opacity-50"
+                        title="Delete keyword"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {historyId === keyword.id && history.length > 0 && (
+                  <tr className="border-b border-base-700/60 bg-base-900/60">
+                    <td colSpan={6} className="px-3 py-2">
+                      <RankHistoryList history={history} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

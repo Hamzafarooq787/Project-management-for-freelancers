@@ -84,11 +84,11 @@ export function KeywordGroupsCarousel({
 
   function keywordsForGroup(group: KeywordGroup): Keyword[] {
     const pageIds = new Set((pagesByGroup[group.id] ?? []).map((p) => p.id));
-    return keywords.filter((k) => k.pageId && pageIds.has(k.pageId));
+    return keywords.filter((k) => k.pageIds.some((id) => pageIds.has(id)));
   }
 
   function keywordsForPage(page: KeywordPage): Keyword[] {
-    return keywords.filter((k) => k.pageId === page.id);
+    return keywords.filter((k) => k.pageIds.includes(page.id));
   }
 
   return (
