@@ -163,10 +163,19 @@ function nowIso(): string {
  * relevant migration hasn't been run). Callers use this to fail open — return
  * an empty/default result — instead of crashing every page that touches a
  * newer, optional feature (teams/roles, payments) before it's set up.
+ *
+ * Covers two distinct error shapes for the same underlying problem: raw
+ * Postgres ("42P01", "does not exist") when querying via a direct connection,
+ * and PostgREST's own ("PGRST205", "...in the schema cache") when the table
+ * is missing (or was just created and PostgREST's cache hasn't refreshed
+ * yet) — Supabase's JS client goes through PostgREST, so this second shape is
+ * actually the common case in production.
  */
 export function isMissingTableError(error: unknown): boolean {
   const err = error as { code?: string; message?: string } | null;
-  return err?.code === "42P01" || Boolean(err?.message?.includes("does not exist"));
+  if (err?.code === "42P01" || err?.code === "PGRST205") return true;
+  const message = err?.message ?? "";
+  return message.includes("does not exist") || message.includes("schema cache");
 }
 
 export function todayDateKey(): string {
