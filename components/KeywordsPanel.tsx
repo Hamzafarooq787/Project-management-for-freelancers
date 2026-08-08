@@ -335,7 +335,7 @@ export function KeywordsPanel({
       >
         <div
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-2xl rounded-xl2 border border-base-700/60 bg-base-850 p-5 shadow-card"
+          className="w-full max-w-3xl rounded-xl2 border border-base-700/60 bg-base-850 p-5 shadow-card"
         >
           <div className="mb-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -405,30 +405,30 @@ function KeywordRow({
 
   return (
     <div className="rounded-lg border border-base-700/60 bg-base-900 p-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-neutral-100">{keyword.keyword}</p>
+      <div className="flex flex-col gap-3">
+        <div className="min-w-0">
+          <p className="break-words text-sm font-medium text-neutral-100">{keyword.keyword}</p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-500">
             {assignedPage && (
-              <span className="truncate text-accent-400">
+              <span className="text-accent-400">
                 {assignedGroup ? `${assignedGroup.name} / ` : ""}
                 {assignedPage.name}
               </span>
             )}
-            {!assignedPage && keyword.targetPage && <span className="truncate">{keyword.targetPage}</span>}
+            {!assignedPage && keyword.targetPage && <span>{keyword.targetPage}</span>}
             {keyword.searchVolume !== null && <span>Vol {keyword.searchVolume.toLocaleString()}</span>}
             {keyword.difficulty !== null && <span>KD {keyword.difficulty}</span>}
             {keyword.targetRank !== null && <span>Target #{keyword.targetRank}</span>}
           </div>
-          {keyword.notes && <p className="mt-1 truncate text-xs text-neutral-500">{keyword.notes}</p>}
+          {keyword.notes && <p className="mt-1 break-words text-xs text-neutral-500">{keyword.notes}</p>}
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {groups.length > 0 && (
             <select
               value={keyword.pageId ?? ""}
               onChange={(e) => onPageChange(e.target.value || null)}
-              className="max-w-[9rem] rounded-md border border-base-600 bg-base-950 px-2 py-1 text-[11px] text-neutral-300 focus:border-accent-500 focus:outline-none"
+              className="max-w-[12rem] rounded-md border border-base-600 bg-base-950 px-2 py-1 text-[11px] text-neutral-300 focus:border-accent-500 focus:outline-none"
               title="Assign to page"
             >
               <option value="">Ungrouped</option>
