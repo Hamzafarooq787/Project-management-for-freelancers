@@ -362,22 +362,34 @@ function parseBacklinkLinks(formData: FormData): BacklinkLink[] {
 export async function createBacklinkCategoryAction(projectId: string, name: string): Promise<string | null> {
   if (!name.trim()) return null;
   await requireProjectAccess(projectId);
-  const category = await store.createBacklinkCategory(projectId, name);
-  revalidatePath(`/projects/${projectId}`);
-  return category.id;
+  try {
+    const category = await store.createBacklinkCategory(projectId, name);
+    revalidatePath(`/projects/${projectId}`);
+    return category.id;
+  } catch {
+    return null;
+  }
 }
 
 export async function updateBacklinkCategoryAction(id: string, projectId: string, name: string) {
   if (!name.trim()) return;
   await requireProjectAccess(projectId);
-  await store.updateBacklinkCategory(id, name);
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.updateBacklinkCategory(id, name);
+    revalidatePath(`/projects/${projectId}`);
+  } catch {
+    // Non-critical: renaming a category shouldn't be able to crash the page.
+  }
 }
 
 export async function deleteBacklinkCategoryAction(id: string, projectId: string) {
   await requireProjectAccess(projectId);
-  await store.deleteBacklinkCategory(id);
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.deleteBacklinkCategory(id);
+    revalidatePath(`/projects/${projectId}`);
+  } catch {
+    // Non-critical: deleting a category shouldn't be able to crash the page.
+  }
 }
 
 function backlinkSaveErrorMessage(error: unknown): string {
@@ -446,8 +458,12 @@ export async function updateBacklinkEntryAction(
 
 export async function deleteBacklinkEntryAction(id: string, projectId: string) {
   await requireProjectAccess(projectId);
-  await store.deleteBacklinkEntry(id);
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.deleteBacklinkEntry(id);
+    revalidatePath(`/projects/${projectId}`);
+  } catch {
+    // Non-critical: deleting an entry shouldn't be able to crash the page.
+  }
 }
 
 export async function revealBacklinkPasswordAction(
@@ -680,21 +696,33 @@ export async function setMonthlyPositionAction(
 
 export async function addKeywordToPageAction(keywordId: string, projectId: string, pageId: string) {
   await requireProjectAccess(projectId);
-  await store.addKeywordToPage(keywordId, pageId);
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.addKeywordToPage(keywordId, pageId);
+    revalidatePath(`/projects/${projectId}`);
+  } catch {
+    // Non-critical: assigning a keyword to a page shouldn't be able to crash the page.
+  }
 }
 
 export async function removeKeywordFromPageAction(keywordId: string, projectId: string, pageId: string) {
   await requireProjectAccess(projectId);
-  await store.removeKeywordFromPage(keywordId, pageId);
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.removeKeywordFromPage(keywordId, pageId);
+    revalidatePath(`/projects/${projectId}`);
+  } catch {
+    // Non-critical: unassigning a keyword from a page shouldn't be able to crash the page.
+  }
 }
 
 export async function createKeywordGroupAction(projectId: string, name: string, color: KeywordGroupColor) {
   if (!name.trim()) return;
   await requireProjectAccess(projectId);
-  await store.createKeywordGroup({ projectId, name, color });
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.createKeywordGroup({ projectId, name, color });
+    revalidatePath(`/projects/${projectId}`);
+  } catch {
+    // Non-critical: creating a group shouldn't be able to crash the page.
+  }
 }
 
 export async function updateKeywordGroupAction(
@@ -703,21 +731,33 @@ export async function updateKeywordGroupAction(
   patch: { name?: string; color?: KeywordGroupColor },
 ) {
   await requireProjectAccess(projectId);
-  await store.updateKeywordGroup(id, patch);
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.updateKeywordGroup(id, patch);
+    revalidatePath(`/projects/${projectId}`);
+  } catch {
+    // Non-critical: renaming a group shouldn't be able to crash the page.
+  }
 }
 
 export async function deleteKeywordGroupAction(id: string, projectId: string) {
   await requireProjectAccess(projectId);
-  await store.deleteKeywordGroup(id);
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.deleteKeywordGroup(id);
+    revalidatePath(`/projects/${projectId}`);
+  } catch {
+    // Non-critical: deleting a group shouldn't be able to crash the page.
+  }
 }
 
 export async function createKeywordPageAction(groupId: string, projectId: string, name: string, url: string) {
   if (!name.trim()) return;
   await requireProjectAccess(projectId);
-  await store.createKeywordPage({ groupId, name, url });
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.createKeywordPage({ groupId, name, url });
+    revalidatePath(`/projects/${projectId}`);
+  } catch {
+    // Non-critical: creating a page shouldn't be able to crash the page.
+  }
 }
 
 export async function updateKeywordPageAction(
@@ -726,14 +766,22 @@ export async function updateKeywordPageAction(
   patch: { name?: string; url?: string },
 ) {
   await requireProjectAccess(projectId);
-  await store.updateKeywordPage(id, patch);
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.updateKeywordPage(id, patch);
+    revalidatePath(`/projects/${projectId}`);
+  } catch {
+    // Non-critical: renaming a page shouldn't be able to crash the page.
+  }
 }
 
 export async function deleteKeywordPageAction(id: string, projectId: string) {
   await requireProjectAccess(projectId);
-  await store.deleteKeywordPage(id);
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.deleteKeywordPage(id);
+    revalidatePath(`/projects/${projectId}`);
+  } catch {
+    // Non-critical: deleting a page shouldn't be able to crash the page.
+  }
 }
 
 /**
