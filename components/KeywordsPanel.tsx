@@ -2,16 +2,18 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { Search, Trash2, Pencil, Plus, X, Download, Upload, History, ChevronDown, ArrowUp, ArrowDown, Minus, LineChart } from "lucide-react";
-import type { Keyword, KeywordMonthlyPosition, KeywordRankHistoryEntry, KeywordStatus } from "@/lib/types";
+import type { Keyword, KeywordGroup, KeywordMonthlyPosition, KeywordPage, KeywordRankHistoryEntry, KeywordStatus } from "@/lib/types";
 import {
   createKeywordAction,
   deleteKeywordAction,
   importKeywordsAction,
+  setKeywordPageAction,
   setKeywordTrackedAction,
   updateKeywordAction,
 } from "@/lib/actions";
 import { cn, formatDateKey } from "@/lib/utils";
 import { MonthlyPositionTracker } from "@/components/MonthlyPositionTracker";
+import { KeywordGroupsCarousel } from "@/components/KeywordGroupsCarousel";
 
 type SortMode = "default" | "rank_asc" | "rank_desc";
 
@@ -125,12 +127,16 @@ export function KeywordsPanel({
   keywords,
   rankHistory,
   monthlyPositions,
+  groups,
+  pagesByGroup,
 }: {
   projectId: string;
   projectName: string;
   keywords: Keyword[];
   rankHistory: Record<string, KeywordRankHistoryEntry[]>;
   monthlyPositions: Record<string, KeywordMonthlyPosition[]>;
+  groups: KeywordGroup[];
+  pagesByGroup: Record<string, KeywordPage[]>;
 }) {
   const [isPending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
@@ -138,10 +144,21 @@ export function KeywordsPanel({
   const [historyId, setHistoryId] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("default");
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const sortedKeywords = useMemo(() => sortKeywords(keywords, sortMode), [keywords, sortMode]);
-  const trackedKeywords = useMemo(() => keywords.filter((k) => k.isTracked), [keywords]);
+  const filteredKeywords = useMemo(() => {
+    if (selectedPageId) return keywords.filter((k) => k.pageId === selectedPageId);
+    if (selectedGroupId) {
+      const pageIds = new Set((pagesByGroup[selectedGroupId] ?? []).map((p) => p.id));
+      return keywords.filter((k) => k.pageId && pageIds.has(k.pageId));
+    }
+    return keywords;
+  }, [keywords, pagesByGroup, selectedGroupId, selectedPageId]);
+
+  const sortedKeywords = useMemo(() => sortKeywords(filteredKeywords, sortMode), [filteredKeywords, sortMode]);
+  const trackedKeywords = useMemo(() => filteredKeywords.filter((k) => k.isTracked), [filteredKeywords]);
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -167,6 +184,18 @@ export function KeywordsPanel({
 
   return (
     <div className="flex flex-col gap-6">
+      <KeywordGroupsCarousel
+        projectId={projectId}
+        groups={groups}
+        pagesByGroup={pagesByGroup}
+        keywords={keywords}
+        rankHistory={rankHistory}
+        selectedGroupId={selectedGroupId}
+        selectedPageId={selectedPageId}
+        onSelectGroup={setSelectedGroupId}
+        onSelectPage={setSelectedPageId}
+      />
+
       <MonthlyPositionTracker
         projectId={projectId}
         projectName={projectName}
@@ -244,9 +273,11 @@ export function KeywordsPanel({
         </div>
       )}
 
-      {keywords.length === 0 && !adding && (
+      {sortedKeywords.length === 0 && !adding && (
         <p className="rounded-lg border border-dashed border-base-700 p-6 text-center text-sm text-neutral-500">
-          No keywords tracked yet. Add one to start tracking its rank over time.
+          {keywords.length === 0
+            ? "No keywords tracked yet. Add one to start tracking its rank over time."
+            : "No keywords match the current group/page filter."}
         </p>
       )}
 
@@ -265,11 +296,14 @@ export function KeywordsPanel({
               key={keyword.id}
               keyword={keyword}
               history={rankHistory[keyword.id] ?? []}
+              groups={groups}
+              pagesByGroup={pagesByGroup}
               isPending={isPending}
               historyOpen={historyId === keyword.id}
               onToggleHistory={() => setHistoryId(historyId === keyword.id ? null : keyword.id)}
               onEdit={() => setEditingId(keyword.id)}
               onDelete={() => startTransition(() => deleteKeywordAction(keyword.id, projectId))}
+              onPageChange={(pageId) => startTransition(() => setKeywordPageAction(keyword.id, projectId, pageId))}
               onRankChange={(rank) => {
                 const formData = new FormData();
                 formData.set("id", keyword.id);
@@ -313,6 +347,8 @@ export function KeywordsPanel({
 function KeywordRow({
   keyword,
   history,
+  groups,
+  pagesByGroup,
   historyOpen,
   onToggleHistory,
   isPending,
@@ -321,9 +357,12 @@ function KeywordRow({
   onRankChange,
   onStatusChange,
   onToggleTracked,
+  onPageChange,
 }: {
   keyword: Keyword;
   history: KeywordRankHistoryEntry[];
+  groups: KeywordGroup[];
+  pagesByGroup: Record<string, KeywordPage[]>;
   historyOpen: boolean;
   onToggleHistory: () => void;
   isPending: boolean;
@@ -332,14 +371,28 @@ function KeywordRow({
   onRankChange: (rank: string) => void;
   onStatusChange: (status: KeywordStatus) => void;
   onToggleTracked: () => void;
+  onPageChange: (pageId: string | null) => void;
 }) {
+  const assignedPage = keyword.pageId
+    ? Object.values(pagesByGroup)
+        .flat()
+        .find((p) => p.id === keyword.pageId)
+    : null;
+  const assignedGroup = assignedPage ? groups.find((g) => g.id === assignedPage.groupId) : null;
+
   return (
     <div className="rounded-lg border border-base-700/60 bg-base-900 p-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-neutral-100">{keyword.keyword}</p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-500">
-            {keyword.targetPage && <span className="truncate">{keyword.targetPage}</span>}
+            {assignedPage && (
+              <span className="truncate text-accent-400">
+                {assignedGroup ? `${assignedGroup.name} / ` : ""}
+                {assignedPage.name}
+              </span>
+            )}
+            {!assignedPage && keyword.targetPage && <span className="truncate">{keyword.targetPage}</span>}
             {keyword.searchVolume !== null && <span>Vol {keyword.searchVolume.toLocaleString()}</span>}
             {keyword.difficulty !== null && <span>KD {keyword.difficulty}</span>}
             {keyword.targetRank !== null && <span>Target #{keyword.targetRank}</span>}
@@ -348,6 +401,25 @@ function KeywordRow({
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {groups.length > 0 && (
+            <select
+              value={keyword.pageId ?? ""}
+              onChange={(e) => onPageChange(e.target.value || null)}
+              className="max-w-[9rem] rounded-md border border-base-600 bg-base-950 px-2 py-1 text-[11px] text-neutral-300 focus:border-accent-500 focus:outline-none"
+              title="Assign to page"
+            >
+              <option value="">Ungrouped</option>
+              {groups.map((group) => (
+                <optgroup key={group.id} label={group.name}>
+                  {(pagesByGroup[group.id] ?? []).map((page) => (
+                    <option key={page.id} value={page.id}>
+                      {page.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          )}
           <label className="flex items-center gap-1.5 text-xs text-neutral-500">
             Rank
             <input

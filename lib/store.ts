@@ -7,7 +7,10 @@ import type {
   Client,
   ClientDetails,
   Keyword,
+  KeywordGroup,
+  KeywordGroupColor,
   KeywordMonthlyPosition,
+  KeywordPage,
   KeywordRankHistoryEntry,
   KeywordStatus,
   Payment,
@@ -1059,6 +1062,7 @@ interface KeywordRow {
   status: KeywordStatus;
   notes: string;
   is_tracked: boolean;
+  page_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1076,6 +1080,7 @@ function toKeyword(row: KeywordRow): Keyword {
     status: row.status,
     notes: row.notes,
     isTracked: row.is_tracked ?? false,
+    pageId: row.page_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -1235,6 +1240,153 @@ export async function setKeywordTracked(id: string, isTracked: boolean): Promise
   } catch (error) {
     if (!isMissingTableError(error)) throw error;
   }
+}
+
+/**
+ * Fails open when the page_id column doesn't exist yet (migration 016 not
+ * run yet): assigning a keyword to a Page is optional grouping on top of
+ * the core keyword record, so a missing column shouldn't break the page.
+ */
+export async function setKeywordPage(id: string, pageId: string | null): Promise<void> {
+  try {
+    const { error } = await getSupabase()
+      .from("freelance_hq_keywords")
+      .update({ page_id: pageId, updated_at: nowIso() })
+      .eq("id", id);
+    if (error) throw error;
+  } catch (error) {
+    if (!isMissingTableError(error)) throw error;
+  }
+}
+
+interface KeywordGroupRow {
+  id: string;
+  project_id: string;
+  name: string;
+  color: KeywordGroupColor;
+  order: number;
+  created_at: string;
+}
+
+function toKeywordGroup(row: KeywordGroupRow): KeywordGroup {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    name: row.name,
+    color: row.color,
+    order: row.order,
+    createdAt: row.created_at,
+  };
+}
+
+export async function listKeywordGroups(projectId: string): Promise<KeywordGroup[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_keyword_groups")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("order", { ascending: true });
+    if (error) throw error;
+    return ((data ?? []) as KeywordGroupRow[]).map(toKeywordGroup);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export async function createKeywordGroup(input: {
+  projectId: string;
+  name: string;
+  color: KeywordGroupColor;
+}): Promise<KeywordGroup> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_keyword_groups")
+    .insert({ project_id: input.projectId, name: input.name, color: input.color })
+    .select()
+    .single();
+  if (error) throw error;
+  return toKeywordGroup(data as KeywordGroupRow);
+}
+
+export async function updateKeywordGroup(id: string, patch: { name?: string; color?: KeywordGroupColor }): Promise<void> {
+  const update: Record<string, unknown> = {};
+  if (patch.name !== undefined) update.name = patch.name;
+  if (patch.color !== undefined) update.color = patch.color;
+  const { error } = await getSupabase().from("freelance_hq_keyword_groups").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteKeywordGroup(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_keyword_groups").delete().eq("id", id);
+  if (error) throw error;
+}
+
+interface KeywordPageRow {
+  id: string;
+  group_id: string;
+  name: string;
+  url: string;
+  order: number;
+  created_at: string;
+}
+
+function toKeywordPage(row: KeywordPageRow): KeywordPage {
+  return {
+    id: row.id,
+    groupId: row.group_id,
+    name: row.name,
+    url: row.url,
+    order: row.order,
+    createdAt: row.created_at,
+  };
+}
+
+/** Groups pages by their parent group for the groups given. */
+export async function listKeywordPages(groupIds: string[]): Promise<Record<string, KeywordPage[]>> {
+  if (groupIds.length === 0) return {};
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_keyword_pages")
+      .select("*")
+      .in("group_id", groupIds)
+      .order("order", { ascending: true });
+    if (error) throw error;
+
+    const map: Record<string, KeywordPage[]> = {};
+    for (const row of (data ?? []) as KeywordPageRow[]) {
+      const page = toKeywordPage(row);
+      const list = map[page.groupId] ?? [];
+      list.push(page);
+      map[page.groupId] = list;
+    }
+    return map;
+  } catch (error) {
+    if (isMissingTableError(error)) return {};
+    throw error;
+  }
+}
+
+export async function createKeywordPage(input: { groupId: string; name: string; url: string }): Promise<KeywordPage> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_keyword_pages")
+    .insert({ group_id: input.groupId, name: input.name, url: input.url })
+    .select()
+    .single();
+  if (error) throw error;
+  return toKeywordPage(data as KeywordPageRow);
+}
+
+export async function updateKeywordPage(id: string, patch: { name?: string; url?: string }): Promise<void> {
+  const update: Record<string, unknown> = {};
+  if (patch.name !== undefined) update.name = patch.name;
+  if (patch.url !== undefined) update.url = patch.url;
+  const { error } = await getSupabase().from("freelance_hq_keyword_pages").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteKeywordPage(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_keyword_pages").delete().eq("id", id);
+  if (error) throw error;
 }
 
 interface KeywordMonthlyPositionRow {

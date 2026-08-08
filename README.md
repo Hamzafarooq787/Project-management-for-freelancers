@@ -225,6 +225,16 @@ Finance page's totals, since that money was genuinely received.
 > list, manually enter one rank per keyword per calendar month, see every
 > previous month alongside the newest one in a grid, and export it to XLSX
 > or PDF.
+>
+> Already ran 015? Also run
+> [`supabase/migrations/016_keyword_groups.sql`](./supabase/migrations/016_keyword_groups.sql) —
+> it adds `freelance_hq_keyword_groups` and `freelance_hq_keyword_pages`
+> tables, plus a `page_id` column on `freelance_hq_keywords`. This powers
+> the **Keyword Groups** carousel at the top of the Keywords tab: create a
+> named group (e.g. a content silo), add pages within it, and assign
+> keywords to a page to track their performance by group and by page —
+> each card shows a live average rank and month-over-month trend. Keywords
+> left unassigned still show up normally in the flat list below.
 
 ### 3. Get your API credentials
 

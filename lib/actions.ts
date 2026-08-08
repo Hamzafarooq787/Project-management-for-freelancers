@@ -10,6 +10,7 @@ import type {
   ChecklistItem,
   ClientDetails,
   DomainStatus,
+  KeywordGroupColor,
   KeywordStatus,
   PaymentKind,
   PaymentPlanType,
@@ -512,6 +513,58 @@ export async function setMonthlyPositionAction(
 ) {
   await requireProjectAccess(projectId);
   await store.setMonthlyPosition(keywordId, month, rank);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function setKeywordPageAction(id: string, projectId: string, pageId: string | null) {
+  await requireProjectAccess(projectId);
+  await store.setKeywordPage(id, pageId);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function createKeywordGroupAction(projectId: string, name: string, color: KeywordGroupColor) {
+  if (!name.trim()) return;
+  await requireProjectAccess(projectId);
+  await store.createKeywordGroup({ projectId, name, color });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateKeywordGroupAction(
+  id: string,
+  projectId: string,
+  patch: { name?: string; color?: KeywordGroupColor },
+) {
+  await requireProjectAccess(projectId);
+  await store.updateKeywordGroup(id, patch);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteKeywordGroupAction(id: string, projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.deleteKeywordGroup(id);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function createKeywordPageAction(groupId: string, projectId: string, name: string, url: string) {
+  if (!name.trim()) return;
+  await requireProjectAccess(projectId);
+  await store.createKeywordPage({ groupId, name, url });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateKeywordPageAction(
+  id: string,
+  projectId: string,
+  patch: { name?: string; url?: string },
+) {
+  await requireProjectAccess(projectId);
+  await store.updateKeywordPage(id, patch);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteKeywordPageAction(id: string, projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.deleteKeywordPage(id);
   revalidatePath(`/projects/${projectId}`);
 }
 

@@ -159,8 +159,32 @@ export interface Keyword {
   status: KeywordStatus;
   notes: string;
   isTracked: boolean;
+  pageId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export const KEYWORD_GROUP_COLORS = ["accent", "sky", "amber", "rose", "violet", "neutral"] as const;
+export type KeywordGroupColor = (typeof KEYWORD_GROUP_COLORS)[number];
+
+/** A named topic/silo that organizes a project's keywords into Pages. */
+export interface KeywordGroup {
+  id: string;
+  projectId: string;
+  name: string;
+  color: KeywordGroupColor;
+  order: number;
+  createdAt: string;
+}
+
+/** A page within a Group that one or more keywords can target. */
+export interface KeywordPage {
+  id: string;
+  groupId: string;
+  name: string;
+  url: string;
+  order: number;
+  createdAt: string;
 }
 
 export interface KeywordRankHistoryEntry {
