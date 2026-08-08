@@ -334,7 +334,7 @@ export function KeywordsPanel({
         </p>
       )}
 
-      <div className="flex flex-col gap-2">{sortedKeywords.map((keyword) => renderKeywordRow(keyword))}</div>
+      <div className="flex flex-col gap-3">{sortedKeywords.map((keyword) => renderKeywordRow(keyword))}</div>
     </div>
 
     {modalPage && (
@@ -365,7 +365,7 @@ export function KeywordsPanel({
               No keywords assigned to this page yet. Assign one from the Keywords list below.
             </p>
           ) : (
-            <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto pr-1">
+            <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto pr-1">
               {modalKeywords.map((keyword) => renderKeywordRow(keyword))}
             </div>
           )}
@@ -413,7 +413,7 @@ function KeywordRow({
   const assignedGroup = assignedPage ? groups.find((g) => g.id === assignedPage.groupId) : null;
 
   return (
-    <div className="rounded-lg border border-base-700/60 bg-base-900 p-4 transition-colors hover:border-base-600">
+    <div className="rounded-lg border border-base-700 bg-base-900 p-4 shadow-sm transition-colors hover:border-base-600">
       <div className="flex flex-col gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
