@@ -256,6 +256,13 @@ Finance page's totals, since that money was genuinely received.
 > (see the `BACKLINKS_SECRET` env var below) and only decrypt after you enter
 > your own security password, a per-user reveal password set from the
 > Backlinks tab that's separate from your login password.
+>
+> Already ran 018? Also run
+> [`supabase/migrations/019_keyword_multi_page.sql`](./supabase/migrations/019_keyword_multi_page.sql) —
+> a keyword can now be assigned to more than one Page at once (e.g. the same
+> keyword targets both a service page and a location page). Existing
+> single-page assignments are copied over automatically; nothing to redo by
+> hand.
 
 ### 3. Get your API credentials
 
