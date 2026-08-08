@@ -160,6 +160,20 @@ export function KeywordsPanel({
   const sortedKeywords = useMemo(() => sortKeywords(filteredKeywords, sortMode), [filteredKeywords, sortMode]);
   const trackedKeywords = useMemo(() => filteredKeywords.filter((k) => k.isTracked), [filteredKeywords]);
 
+  const filterLabel = useMemo(() => {
+    if (selectedPageId) {
+      const page = Object.values(pagesByGroup)
+        .flat()
+        .find((p) => p.id === selectedPageId);
+      return page ? `Page: ${page.name}` : null;
+    }
+    if (selectedGroupId) {
+      const group = groups.find((g) => g.id === selectedGroupId);
+      return group ? `Group: ${group.name}` : null;
+    }
+    return null;
+  }, [groups, pagesByGroup, selectedGroupId, selectedPageId]);
+
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -247,6 +261,25 @@ export function KeywordsPanel({
           )}
         </div>
       </div>
+
+      {filterLabel && (
+        <div className="mb-3 flex items-center gap-2 rounded-md border border-accent-500/30 bg-accent-500/10 px-2.5 py-1.5 text-xs text-accent-300">
+          <span>
+            Showing keywords filtered by <strong className="font-medium">{filterLabel}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedGroupId(null);
+              setSelectedPageId(null);
+            }}
+            className="ml-auto flex items-center gap-1 text-accent-400 hover:text-accent-200"
+          >
+            <X size={12} />
+            Clear filter
+          </button>
+        </div>
+      )}
 
       {keywords.length > 1 && (
         <div className="mb-3 flex items-center gap-2">
