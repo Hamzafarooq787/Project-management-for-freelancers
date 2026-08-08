@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Search, Trash2, Pencil, Plus, X, Download, Upload, History, ChevronDown, ArrowUp, ArrowDown, Minus, LineChart } from "lucide-react";
 import type { Keyword, KeywordGroup, KeywordMonthlyPosition, KeywordPage, KeywordRankHistoryEntry, KeywordStatus } from "@/lib/types";
 import {
@@ -447,32 +447,12 @@ function KeywordRow({
 
         <div className="flex flex-wrap items-center gap-2 border-t border-base-700 pt-3">
           {groups.length > 0 && (
-            <select
-              value={keyword.pageId ?? ""}
-              onChange={(e) => onPageChange(e.target.value || null)}
-              className="max-w-[12rem] rounded-md border border-base-600 bg-base-950 px-2 py-1 text-[11px] text-neutral-300 focus:border-accent-500 focus:outline-none"
-              title="Assign to page"
-            >
-              <option value="">Ungrouped</option>
-              {groups.map((group) => {
-                const pages = pagesByGroup[group.id] ?? [];
-                return (
-                  <optgroup key={group.id} label={group.name}>
-                    {pages.length === 0 ? (
-                      <option value="__no_pages__" disabled>
-                        (no pages yet — add one above)
-                      </option>
-                    ) : (
-                      pages.map((page) => (
-                        <option key={page.id} value={page.id}>
-                          {page.name}
-                        </option>
-                      ))
-                    )}
-                  </optgroup>
-                );
-              })}
-            </select>
+            <PageAssignDropdown
+              value={keyword.pageId}
+              groups={groups}
+              pagesByGroup={pagesByGroup}
+              onChange={onPageChange}
+            />
           )}
           <label className="flex items-center gap-1.5 text-xs text-neutral-500">
             Rank
@@ -539,6 +519,119 @@ function KeywordRow({
       </div>
 
       {historyOpen && <RankHistoryList history={history} />}
+    </div>
+  );
+}
+
+function PageAssignDropdown({
+  value,
+  groups,
+  pagesByGroup,
+  onChange,
+}: {
+  value: string | null;
+  groups: KeywordGroup[];
+  pagesByGroup: Record<string, KeywordPage[]>;
+  onChange: (pageId: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const selectedPage = value
+    ? Object.values(pagesByGroup)
+        .flat()
+        .find((p) => p.id === value)
+    : null;
+  const selectedGroup = selectedPage ? groups.find((g) => g.id === selectedPage.groupId) : null;
+
+  const q = query.trim().toLowerCase();
+
+  function select(pageId: string | null) {
+    onChange(pageId);
+    setOpen(false);
+    setQuery("");
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex max-w-[12rem] items-center gap-1 rounded-md border border-base-600 bg-base-950 px-2 py-1 text-[11px] text-neutral-300 hover:border-accent-500"
+        title="Assign to page"
+      >
+        <span className="truncate">
+          {selectedPage ? (selectedGroup ? `${selectedGroup.name} / ${selectedPage.name}` : selectedPage.name) : "Ungrouped"}
+        </span>
+        <ChevronDown size={11} className={cn("shrink-0 text-neutral-500 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-[60] mt-1 w-64 overflow-hidden rounded-lg border border-base-600 bg-base-900 shadow-lg">
+          <div className="border-b border-base-700 p-2">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search pages…"
+              className="w-full rounded-md border border-base-600 bg-base-950 px-2 py-1 text-xs text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto p-1.5">
+            {!q && (
+              <button
+                type="button"
+                onClick={() => select(null)}
+                className={cn(
+                  "block w-full rounded-md px-2 py-1.5 text-left text-xs",
+                  value === null ? "bg-accent-500/15 text-accent-300" : "text-neutral-300 hover:bg-base-800",
+                )}
+              >
+                Ungrouped
+              </button>
+            )}
+            {groups.map((group) => {
+              const pages = (pagesByGroup[group.id] ?? []).filter((p) => !q || p.name.toLowerCase().includes(q));
+              if (q && pages.length === 0) return null;
+              return (
+                <div key={group.id} className="mt-1.5 first:mt-0">
+                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">{group.name}</p>
+                  {pages.length === 0 ? (
+                    <p className="px-2 py-1 text-[11px] text-neutral-600">No pages yet</p>
+                  ) : (
+                    pages.map((page) => (
+                      <button
+                        key={page.id}
+                        type="button"
+                        onClick={() => select(page.id)}
+                        className={cn(
+                          "block w-full truncate rounded-md px-2 py-1.5 text-left text-xs",
+                          value === page.id ? "bg-accent-500/15 text-accent-300" : "text-neutral-300 hover:bg-base-800",
+                        )}
+                      >
+                        {page.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
