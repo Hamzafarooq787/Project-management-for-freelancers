@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import {
   getBusinessProfile,
+  hasVaultPassword,
+  listBacklinkCategories,
+  listBacklinkEntries,
   listKeywordGroups,
   listKeywordPages,
   listKeywordRankHistory,
@@ -30,6 +33,7 @@ import { ShareLinkPanel } from "@/components/ShareLinkPanel";
 import { PaymentsCard } from "@/components/PaymentsCard";
 import { KeywordsPanel } from "@/components/KeywordsPanel";
 import { ProjectAttachments } from "@/components/ProjectAttachments";
+import { BacklinksPanel } from "@/components/BacklinksPanel";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { CheckCircle2 } from "lucide-react";
 
@@ -68,6 +72,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     keywordGroups.length > 0 ? await listKeywordPages(keywordGroups.map((g) => g.id)) : {};
 
   const projectAttachments = project.type === "seo" ? await listProjectAttachments(project.id) : [];
+
+  const backlinkCategories = project.type === "seo" ? await listBacklinkCategories(project.id) : [];
+  const backlinkEntriesByCategory =
+    backlinkCategories.length > 0 ? await listBacklinkEntries(backlinkCategories.map((c) => c.id)) : {};
+  const vaultPasswordSet = project.type === "seo" ? await hasVaultPassword(profile.id) : false;
 
   const completed = tasks
     .filter((t) => t.status === "done")
@@ -200,6 +209,16 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
               monthlyPositions={keywordMonthlyPositions}
               groups={keywordGroups}
               pagesByGroup={keywordPagesByGroup}
+            />
+          ) : undefined
+        }
+        backlinks={
+          project.type === "seo" ? (
+            <BacklinksPanel
+              projectId={project.id}
+              categories={backlinkCategories}
+              entriesByCategory={backlinkEntriesByCategory}
+              hasVaultPassword={vaultPasswordSet}
             />
           ) : undefined
         }

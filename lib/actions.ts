@@ -4,9 +4,10 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as store from "./store";
-import { requireAdmin, requireProjectAccess } from "./auth";
+import { requireAdmin, requireProfile, requireProjectAccess } from "./auth";
 import { uploadLogo, uploadProjectAttachment, uploadTaskFile } from "./storage";
 import type {
+  BacklinkLink,
   ChecklistItem,
   ClientDetails,
   DomainStatus,
@@ -342,6 +343,126 @@ export async function removeProjectAttachmentAction(id: string, projectId: strin
   await requireProjectAccess(projectId);
   await store.removeProjectAttachment(id);
   revalidatePath(`/projects/${projectId}`);
+}
+
+function parseBacklinkLinks(formData: FormData): BacklinkLink[] {
+  const raw = str(formData, "links");
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is { url: unknown; label?: unknown } => Boolean(item) && typeof item.url === "string")
+      .map((item) => ({ url: String(item.url), label: String(item.label ?? "") }));
+  } catch {
+    return [];
+  }
+}
+
+export async function createBacklinkCategoryAction(projectId: string, name: string): Promise<string | null> {
+  if (!name.trim()) return null;
+  await requireProjectAccess(projectId);
+  const category = await store.createBacklinkCategory(projectId, name);
+  revalidatePath(`/projects/${projectId}`);
+  return category.id;
+}
+
+export async function updateBacklinkCategoryAction(id: string, projectId: string, name: string) {
+  if (!name.trim()) return;
+  await requireProjectAccess(projectId);
+  await store.updateBacklinkCategory(id, name);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteBacklinkCategoryAction(id: string, projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.deleteBacklinkCategory(id);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function createBacklinkEntryAction(formData: FormData) {
+  const projectId = str(formData, "projectId");
+  const categoryId = str(formData, "categoryId");
+  const name = str(formData, "name");
+  if (!projectId || !categoryId || !name) return;
+  await requireProjectAccess(projectId);
+
+  await store.createBacklinkEntry({
+    categoryId,
+    projectId,
+    name,
+    url: str(formData, "url"),
+    username: str(formData, "username"),
+    email: str(formData, "email"),
+    password: str(formData, "password") || null,
+    postsPerMonth: numOrNull(str(formData, "postsPerMonth")),
+    notes: str(formData, "notes"),
+    links: parseBacklinkLinks(formData),
+  });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateBacklinkEntryAction(formData: FormData) {
+  const id = str(formData, "id");
+  const projectId = str(formData, "projectId");
+  if (!id || !projectId) return;
+  await requireProjectAccess(projectId);
+
+  await store.updateBacklinkEntry(id, {
+    name: str(formData, "name"),
+    url: str(formData, "url"),
+    username: str(formData, "username"),
+    email: str(formData, "email"),
+    password: str(formData, "password") || undefined,
+    clearPassword: formData.get("clearPassword") === "true",
+    postsPerMonth: numOrNull(str(formData, "postsPerMonth")),
+    notes: str(formData, "notes"),
+    links: parseBacklinkLinks(formData),
+  });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteBacklinkEntryAction(id: string, projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.deleteBacklinkEntry(id);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function revealBacklinkPasswordAction(
+  entryId: string,
+  projectId: string,
+  vaultPassword: string,
+): Promise<
+  | { ok: true; password: string }
+  | { ok: false; reason: "no_vault_password" | "wrong_password" | "no_password_set" | "error" }
+> {
+  const profile = await requireProjectAccess(projectId);
+  try {
+    const password = await store.revealBacklinkPassword(entryId, profile.id, vaultPassword);
+    return { ok: true, password };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "NO_VAULT_PASSWORD") return { ok: false, reason: "no_vault_password" };
+    if (message === "WRONG_VAULT_PASSWORD") return { ok: false, reason: "wrong_password" };
+    if (message === "NO_PASSWORD_SET") return { ok: false, reason: "no_password_set" };
+    return { ok: false, reason: "error" };
+  }
+}
+
+export async function setVaultPasswordAction(
+  newPassword: string,
+  currentPassword: string | null,
+): Promise<{ ok: true } | { ok: false; reason: "wrong_current_password" | "too_short" | "error" }> {
+  if (newPassword.length < 6) return { ok: false, reason: "too_short" };
+  const profile = await requireProfile();
+  try {
+    await store.setVaultPassword(profile.id, newPassword, currentPassword);
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "WRONG_VAULT_PASSWORD") return { ok: false, reason: "wrong_current_password" };
+    return { ok: false, reason: "error" };
+  }
 }
 
 export async function enableSharingAction(projectId: string): Promise<string> {

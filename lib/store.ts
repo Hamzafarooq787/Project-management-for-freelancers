@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { getSupabase } from "./supabaseClient";
 import { PROJECT_TEMPLATES } from "./templates";
+import { decryptSecret, encryptSecret, hashVaultPassword, verifyVaultPassword } from "./backlinkCrypto";
 import type {
+  BacklinkCategory,
+  BacklinkEntry,
+  BacklinkLink,
   BusinessProfile,
   ChecklistItem,
   Client,
@@ -1537,6 +1541,259 @@ export async function addProjectAttachment(
 export async function removeProjectAttachment(id: string): Promise<void> {
   const { error } = await getSupabase().from("freelance_hq_project_attachments").delete().eq("id", id);
   if (error) throw error;
+}
+
+const DEFAULT_BACKLINK_CATEGORIES = [
+  "Social Media Profiles",
+  "Local Listing Backlinks",
+  "Web 2.0 Backlinks",
+  "Guest Posting",
+];
+
+interface BacklinkCategoryRow {
+  id: string;
+  project_id: string;
+  name: string;
+  order: number;
+  created_at: string;
+}
+
+function toBacklinkCategory(row: BacklinkCategoryRow): BacklinkCategory {
+  return { id: row.id, projectId: row.project_id, name: row.name, order: row.order, createdAt: row.created_at };
+}
+
+/** Auto-seeds the four default categories the first time a project has none, so they're always there without a manual setup step. */
+export async function listBacklinkCategories(projectId: string): Promise<BacklinkCategory[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_backlink_categories")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("order", { ascending: true });
+    if (error) throw error;
+
+    let rows = (data ?? []) as BacklinkCategoryRow[];
+    if (rows.length === 0) {
+      const { data: seeded, error: seedError } = await getSupabase()
+        .from("freelance_hq_backlink_categories")
+        .insert(DEFAULT_BACKLINK_CATEGORIES.map((name, order) => ({ project_id: projectId, name, order })))
+        .select();
+      if (seedError) throw seedError;
+      rows = (seeded ?? []) as BacklinkCategoryRow[];
+    }
+    return rows.map(toBacklinkCategory);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export async function createBacklinkCategory(projectId: string, name: string): Promise<BacklinkCategory> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_backlink_categories")
+    .insert({ project_id: projectId, name })
+    .select()
+    .single();
+  if (error) throw error;
+  return toBacklinkCategory(data as BacklinkCategoryRow);
+}
+
+export async function updateBacklinkCategory(id: string, name: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_backlink_categories").update({ name }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteBacklinkCategory(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_backlink_categories").delete().eq("id", id);
+  if (error) throw error;
+}
+
+interface BacklinkEntryRow {
+  id: string;
+  category_id: string;
+  project_id: string;
+  name: string;
+  url: string;
+  username: string;
+  email: string;
+  password_encrypted: string | null;
+  posts_per_month: number | null;
+  notes: string;
+  links: BacklinkLink[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function toBacklinkEntry(row: BacklinkEntryRow): BacklinkEntry {
+  return {
+    id: row.id,
+    categoryId: row.category_id,
+    projectId: row.project_id,
+    name: row.name,
+    url: row.url,
+    username: row.username,
+    email: row.email,
+    hasPassword: Boolean(row.password_encrypted),
+    postsPerMonth: row.posts_per_month,
+    notes: row.notes,
+    links: row.links ?? [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/** Groups entries by category for the categories given. Never returns the encrypted password itself, only `hasPassword`. */
+export async function listBacklinkEntries(categoryIds: string[]): Promise<Record<string, BacklinkEntry[]>> {
+  if (categoryIds.length === 0) return {};
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_backlink_entries")
+      .select("*")
+      .in("category_id", categoryIds)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+
+    const map: Record<string, BacklinkEntry[]> = {};
+    for (const row of (data ?? []) as BacklinkEntryRow[]) {
+      const entry = toBacklinkEntry(row);
+      const list = map[entry.categoryId] ?? [];
+      list.push(entry);
+      map[entry.categoryId] = list;
+    }
+    return map;
+  } catch (error) {
+    if (isMissingTableError(error)) return {};
+    throw error;
+  }
+}
+
+export interface BacklinkEntryInput {
+  categoryId: string;
+  projectId: string;
+  name: string;
+  url: string;
+  username: string;
+  email: string;
+  password: string | null;
+  postsPerMonth: number | null;
+  notes: string;
+  links: BacklinkLink[];
+}
+
+export async function createBacklinkEntry(input: BacklinkEntryInput): Promise<BacklinkEntry> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_backlink_entries")
+    .insert({
+      category_id: input.categoryId,
+      project_id: input.projectId,
+      name: input.name,
+      url: input.url,
+      username: input.username,
+      email: input.email,
+      password_encrypted: input.password ? encryptSecret(input.password) : null,
+      posts_per_month: input.postsPerMonth,
+      notes: input.notes,
+      links: input.links,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toBacklinkEntry(data as BacklinkEntryRow);
+}
+
+export async function updateBacklinkEntry(
+  id: string,
+  patch: Partial<Omit<BacklinkEntryInput, "categoryId" | "projectId">> & { clearPassword?: boolean },
+): Promise<void> {
+  const update: Record<string, unknown> = { updated_at: nowIso() };
+  if (patch.name !== undefined) update.name = patch.name;
+  if (patch.url !== undefined) update.url = patch.url;
+  if (patch.username !== undefined) update.username = patch.username;
+  if (patch.email !== undefined) update.email = patch.email;
+  if (patch.postsPerMonth !== undefined) update.posts_per_month = patch.postsPerMonth;
+  if (patch.notes !== undefined) update.notes = patch.notes;
+  if (patch.links !== undefined) update.links = patch.links;
+  if (patch.clearPassword) update.password_encrypted = null;
+  else if (patch.password) update.password_encrypted = encryptSecret(patch.password);
+
+  const { error } = await getSupabase().from("freelance_hq_backlink_entries").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteBacklinkEntry(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_backlink_entries").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function hasVaultPassword(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_profiles")
+      .select("vault_password_hash")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return Boolean((data as { vault_password_hash: string | null } | null)?.vault_password_hash);
+  } catch (error) {
+    if (isMissingTableError(error)) return false;
+    throw error;
+  }
+}
+
+/** Sets or changes a user's security (reveal) password. If one is already set, `currentPassword` must match it. */
+export async function setVaultPassword(
+  userId: string,
+  newPassword: string,
+  currentPassword: string | null,
+): Promise<void> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_profiles")
+    .select("vault_password_hash")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+
+  const existingHash = (data as { vault_password_hash: string | null } | null)?.vault_password_hash ?? null;
+  if (existingHash) {
+    if (!currentPassword || !verifyVaultPassword(currentPassword, existingHash)) {
+      throw new Error("WRONG_VAULT_PASSWORD");
+    }
+  }
+
+  const { error: updateError } = await getSupabase()
+    .from("freelance_hq_profiles")
+    .update({ vault_password_hash: hashVaultPassword(newPassword), updated_at: nowIso() })
+    .eq("id", userId);
+  if (updateError) throw updateError;
+}
+
+/** Verifies the user's security password and decrypts the entry's saved password. Throws typed errors the caller maps to a message. */
+export async function revealBacklinkPassword(
+  entryId: string,
+  userId: string,
+  vaultPassword: string,
+): Promise<string> {
+  const { data: profileRow, error: profileError } = await getSupabase()
+    .from("freelance_hq_profiles")
+    .select("vault_password_hash")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profileError) throw profileError;
+
+  const hash = (profileRow as { vault_password_hash: string | null } | null)?.vault_password_hash ?? null;
+  if (!hash) throw new Error("NO_VAULT_PASSWORD");
+  if (!verifyVaultPassword(vaultPassword, hash)) throw new Error("WRONG_VAULT_PASSWORD");
+
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_backlink_entries")
+    .select("password_encrypted")
+    .eq("id", entryId)
+    .maybeSingle();
+  if (error) throw error;
+
+  const encrypted = (data as { password_encrypted: string | null } | null)?.password_encrypted ?? null;
+  if (!encrypted) throw new Error("NO_PASSWORD_SET");
+  return decryptSecret(encrypted);
 }
 
 export async function getProjectByShareToken(token: string): Promise<Project | null> {

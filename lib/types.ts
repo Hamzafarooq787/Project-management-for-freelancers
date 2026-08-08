@@ -187,6 +187,37 @@ export interface KeywordPage {
   createdAt: string;
 }
 
+/** A named grouping of backlink entries within a project (e.g. "Guest Posting"). */
+export interface BacklinkCategory {
+  id: string;
+  projectId: string;
+  name: string;
+  order: number;
+  createdAt: string;
+}
+
+export interface BacklinkLink {
+  url: string;
+  label: string;
+}
+
+/** A platform/site login and posting record. `hasPassword` never carries the actual value. */
+export interface BacklinkEntry {
+  id: string;
+  categoryId: string;
+  projectId: string;
+  name: string;
+  url: string;
+  username: string;
+  email: string;
+  hasPassword: boolean;
+  postsPerMonth: number | null;
+  notes: string;
+  links: BacklinkLink[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** A file attached to a project as a whole (not tied to a single task). */
 export interface ProjectAttachment {
   id: string;

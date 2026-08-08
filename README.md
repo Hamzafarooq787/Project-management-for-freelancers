@@ -243,6 +243,19 @@ Finance page's totals, since that money was genuinely received.
 > on SEO projects (shown before Client Details) for files that belong to
 > the project as a whole — briefs, reports, exports — rather than a single
 > task.
+>
+> Already ran 017? Also run
+> [`supabase/migrations/018_backlinks.sql`](./supabase/migrations/018_backlinks.sql) —
+> it adds `freelance_hq_backlink_categories` and `freelance_hq_backlink_entries`
+> tables, plus a `vault_password_hash` column on `freelance_hq_profiles`. This
+> powers a new **Backlinks** tab on SEO projects (shown before Attachments):
+> track backlink profiles — social media logins, local listings, Web 2.0
+> properties, guest posts, or any custom category you create — with a
+> username, email, password, posting cadence, notes, and a list of
+> article/backlink links per entry. Saved passwords are encrypted at rest
+> (see the `BACKLINKS_SECRET` env var below) and only decrypt after you enter
+> your own security password, a per-user reveal password set from the
+> Backlinks tab that's separate from your login password.
 
 ### 3. Get your API credentials
 
@@ -282,6 +295,12 @@ server-only, the other is exposed to the browser for the login flow.)
 2. Add all four variables above with the same values, for the **Production**
    and **Preview** environments.
 3. Redeploy (or just push — the next deploy will pick them up).
+
+> Using the **Backlinks** tab (SEO projects)? Also set `BACKLINKS_SECRET` — any
+> long random string, e.g. generate one with `openssl rand -hex 32`. It encrypts
+> saved backlink login passwords at rest; everything else in the app works fine
+> without it. Set it once and don't change it — changing or losing it makes any
+> previously saved backlink passwords permanently undecryptable.
 
 ### 5. Run it
 
