@@ -380,46 +380,68 @@ export async function deleteBacklinkCategoryAction(id: string, projectId: string
   revalidatePath(`/projects/${projectId}`);
 }
 
-export async function createBacklinkEntryAction(formData: FormData) {
+function backlinkSaveErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("BACKLINKS_SECRET")) {
+    return "Can't save a password yet — BACKLINKS_SECRET isn't configured. Ask your admin to set it, or leave the password field blank for now.";
+  }
+  return "Something went wrong saving this entry. Please try again.";
+}
+
+export async function createBacklinkEntryAction(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const projectId = str(formData, "projectId");
   const categoryId = str(formData, "categoryId");
   const name = str(formData, "name");
-  if (!projectId || !categoryId || !name) return;
+  if (!projectId || !categoryId || !name) return { ok: false, error: "Missing required fields." };
   await requireProjectAccess(projectId);
 
-  await store.createBacklinkEntry({
-    categoryId,
-    projectId,
-    name,
-    url: str(formData, "url"),
-    username: str(formData, "username"),
-    email: str(formData, "email"),
-    password: str(formData, "password") || null,
-    postsPerMonth: numOrNull(str(formData, "postsPerMonth")),
-    notes: str(formData, "notes"),
-    links: parseBacklinkLinks(formData),
-  });
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.createBacklinkEntry({
+      categoryId,
+      projectId,
+      name,
+      url: str(formData, "url"),
+      username: str(formData, "username"),
+      email: str(formData, "email"),
+      password: str(formData, "password") || null,
+      postsPerMonth: numOrNull(str(formData, "postsPerMonth")),
+      notes: str(formData, "notes"),
+      links: parseBacklinkLinks(formData),
+    });
+    revalidatePath(`/projects/${projectId}`);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: backlinkSaveErrorMessage(error) };
+  }
 }
 
-export async function updateBacklinkEntryAction(formData: FormData) {
+export async function updateBacklinkEntryAction(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const id = str(formData, "id");
   const projectId = str(formData, "projectId");
-  if (!id || !projectId) return;
+  if (!id || !projectId) return { ok: false, error: "Missing required fields." };
   await requireProjectAccess(projectId);
 
-  await store.updateBacklinkEntry(id, {
-    name: str(formData, "name"),
-    url: str(formData, "url"),
-    username: str(formData, "username"),
-    email: str(formData, "email"),
-    password: str(formData, "password") || undefined,
-    clearPassword: formData.get("clearPassword") === "true",
-    postsPerMonth: numOrNull(str(formData, "postsPerMonth")),
-    notes: str(formData, "notes"),
-    links: parseBacklinkLinks(formData),
-  });
-  revalidatePath(`/projects/${projectId}`);
+  try {
+    await store.updateBacklinkEntry(id, {
+      name: str(formData, "name"),
+      url: str(formData, "url"),
+      username: str(formData, "username"),
+      email: str(formData, "email"),
+      password: str(formData, "password") || undefined,
+      clearPassword: formData.get("clearPassword") === "true",
+      postsPerMonth: numOrNull(str(formData, "postsPerMonth")),
+      notes: str(formData, "notes"),
+      links: parseBacklinkLinks(formData),
+    });
+    revalidatePath(`/projects/${projectId}`);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: backlinkSaveErrorMessage(error) };
+  }
 }
 
 export async function deleteBacklinkEntryAction(id: string, projectId: string) {

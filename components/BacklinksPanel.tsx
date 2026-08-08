@@ -488,6 +488,7 @@ function EntryForm({
   const [isPending, startTransition] = useTransition();
   const [links, setLinks] = useState<BacklinkLink[]>(entry?.links ?? []);
   const [clearPassword, setClearPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function updateLink(index: number, patch: Partial<BacklinkLink>) {
     setLinks((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
@@ -506,9 +507,11 @@ function EntryForm({
           formData.set("id", entry.id);
           formData.set("clearPassword", clearPassword ? "true" : "false");
         }
+        setError(null);
         startTransition(async () => {
-          await (entry ? updateBacklinkEntryAction(formData) : createBacklinkEntryAction(formData));
-          onSaved();
+          const result = await (entry ? updateBacklinkEntryAction(formData) : createBacklinkEntryAction(formData));
+          if (result.ok) onSaved();
+          else setError(result.error);
         });
       }}
       className="flex flex-col gap-2.5 rounded-lg border border-base-700/60 bg-base-900 p-3.5"
@@ -623,6 +626,8 @@ function EntryForm({
         defaultValue={entry?.notes ?? ""}
         className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
       />
+
+      {error && <p className="text-xs text-rose-400">{error}</p>}
 
       <div className="flex gap-2">
         <button
