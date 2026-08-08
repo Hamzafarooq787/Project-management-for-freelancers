@@ -147,7 +147,8 @@ export function KeywordsPanel({
   const [modalPage, setModalPage] = useState<KeywordPage | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const sortedKeywords = useMemo(() => sortKeywords(keywords, sortMode), [keywords, sortMode]);
+  const ungroupedKeywords = useMemo(() => keywords.filter((k) => !k.pageId), [keywords]);
+  const sortedKeywords = useMemo(() => sortKeywords(ungroupedKeywords, sortMode), [ungroupedKeywords, sortMode]);
   const trackedKeywords = useMemo(() => keywords.filter((k) => k.isTracked), [keywords]);
   const modalKeywords = useMemo(
     () => (modalPage ? sortKeywords(keywords.filter((k) => k.pageId === modalPage.id), sortMode) : []),
@@ -294,7 +295,13 @@ export function KeywordsPanel({
         </div>
       </div>
 
-      {keywords.length > 1 && (
+      {groups.length > 0 && (
+        <p className="mb-3 text-xs text-neutral-500">
+          Showing ungrouped keywords only. Keywords assigned to a group/page appear in that page&rsquo;s popup above.
+        </p>
+      )}
+
+      {ungroupedKeywords.length > 1 && (
         <div className="mb-3 flex items-center gap-2">
           <label className="text-[11px] text-neutral-500">Sort</label>
           <select
@@ -321,7 +328,9 @@ export function KeywordsPanel({
 
       {sortedKeywords.length === 0 && !adding && (
         <p className="rounded-lg border border-dashed border-base-700 p-6 text-center text-sm text-neutral-500">
-          No keywords tracked yet. Add one to start tracking its rank over time.
+          {keywords.length === 0
+            ? "No keywords tracked yet. Add one to start tracking its rank over time."
+            : "All keywords are assigned to a group. Open a page above to view them."}
         </p>
       )}
 
@@ -404,26 +413,39 @@ function KeywordRow({
   const assignedGroup = assignedPage ? groups.find((g) => g.id === assignedPage.groupId) : null;
 
   return (
-    <div className="rounded-lg border border-base-700/60 bg-base-900 p-3">
+    <div className="rounded-lg border border-base-700/60 bg-base-900 p-4 transition-colors hover:border-base-600">
       <div className="flex flex-col gap-3">
         <div className="min-w-0">
-          <p className="break-words text-sm font-medium text-neutral-100">{keyword.keyword}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-500">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="break-words text-base font-semibold text-neutral-100">{keyword.keyword}</p>
+            {keyword.currentRank !== null && (
+              <span className="rounded-full bg-base-950 px-2 py-0.5 text-xs font-medium text-neutral-300">
+                #{keyword.currentRank}
+              </span>
+            )}
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
             {assignedPage && (
-              <span className="text-accent-400">
+              <span className="rounded-full bg-accent-500/10 px-2 py-0.5 text-accent-400">
                 {assignedGroup ? `${assignedGroup.name} / ` : ""}
                 {assignedPage.name}
               </span>
             )}
-            {!assignedPage && keyword.targetPage && <span>{keyword.targetPage}</span>}
-            {keyword.searchVolume !== null && <span>Vol {keyword.searchVolume.toLocaleString()}</span>}
-            {keyword.difficulty !== null && <span>KD {keyword.difficulty}</span>}
-            {keyword.targetRank !== null && <span>Target #{keyword.targetRank}</span>}
+            {!assignedPage && keyword.targetPage && (
+              <span className="rounded-full bg-base-800 px-2 py-0.5">{keyword.targetPage}</span>
+            )}
+            {keyword.searchVolume !== null && (
+              <span className="rounded-full bg-base-800 px-2 py-0.5">Vol {keyword.searchVolume.toLocaleString()}</span>
+            )}
+            {keyword.difficulty !== null && <span className="rounded-full bg-base-800 px-2 py-0.5">KD {keyword.difficulty}</span>}
+            {keyword.targetRank !== null && (
+              <span className="rounded-full bg-base-800 px-2 py-0.5">Target #{keyword.targetRank}</span>
+            )}
           </div>
-          {keyword.notes && <p className="mt-1 break-words text-xs text-neutral-500">{keyword.notes}</p>}
+          {keyword.notes && <p className="mt-1.5 break-words text-xs text-neutral-500">{keyword.notes}</p>}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 border-t border-base-800 pt-3">
           {groups.length > 0 && (
             <select
               value={keyword.pageId ?? ""}
