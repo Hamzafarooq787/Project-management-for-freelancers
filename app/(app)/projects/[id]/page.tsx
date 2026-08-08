@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import {
   getBusinessProfile,
+  listKeywordGroups,
+  listKeywordPages,
   listKeywordRankHistory,
   listKeywords,
   listMonthlyPositions,
@@ -58,6 +60,10 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const trackedKeywordIds = keywords.filter((k) => k.isTracked).map((k) => k.id);
   const keywordMonthlyPositions =
     project.type === "seo" && trackedKeywordIds.length > 0 ? await listMonthlyPositions(trackedKeywordIds) : {};
+
+  const keywordGroups = project.type === "seo" ? await listKeywordGroups(project.id) : [];
+  const keywordPagesByGroup =
+    keywordGroups.length > 0 ? await listKeywordPages(keywordGroups.map((g) => g.id)) : {};
 
   const completed = tasks
     .filter((t) => t.status === "done")
@@ -188,6 +194,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
               keywords={keywords}
               rankHistory={keywordRankHistory}
               monthlyPositions={keywordMonthlyPositions}
+              groups={keywordGroups}
+              pagesByGroup={keywordPagesByGroup}
             />
           ) : undefined
         }
