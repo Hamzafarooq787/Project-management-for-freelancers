@@ -528,17 +528,35 @@ export async function disableSharingAction(projectId: string) {
  * (created via the service-role admin API) with a role + optional per-project
  * assignments — see lib/auth.ts for how access is enforced.
  */
-export async function inviteTeamMemberAction(formData: FormData) {
+function inviteTeamMemberErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (message.toLowerCase().includes("already") || message.toLowerCase().includes("registered")) {
+    return "A team member with that email already exists.";
+  }
+  if (message.toLowerCase().includes("password")) {
+    return message;
+  }
+  return message || "Something went wrong inviting this team member. Please try again.";
+}
+
+export async function inviteTeamMemberAction(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   await requireAdmin();
 
   const email = str(formData, "email");
   const password = str(formData, "password");
   const name = str(formData, "name");
   const role = (str(formData, "role") || "member") as Role;
-  if (!email || !password) return;
+  if (!email || !password) return { ok: false, error: "Email and password are required." };
 
-  await store.inviteTeamMember({ email, password, name, role });
-  revalidatePath("/admin");
+  try {
+    await store.inviteTeamMember({ email, password, name, role });
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: inviteTeamMemberErrorMessage(error) };
+  }
 }
 
 export async function updateMemberRoleAction(userId: string, role: Role) {
