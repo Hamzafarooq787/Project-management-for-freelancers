@@ -47,15 +47,21 @@ export function AdminTeamPanel({
 
 function InviteMemberForm() {
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   return (
     <form
       ref={formRef}
       action={(formData) => {
+        setError(null);
         startTransition(async () => {
-          await inviteTeamMemberAction(formData);
-          formRef.current?.reset();
+          const result = await inviteTeamMemberAction(formData);
+          if (result.ok) {
+            formRef.current?.reset();
+          } else {
+            setError(result.error);
+          }
         });
       }}
       className="flex flex-col gap-3 rounded-xl2 border border-base-700/60 bg-base-850 p-4"
@@ -64,6 +70,9 @@ function InviteMemberForm() {
         <UserPlus size={16} className="text-accent-400" />
         <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">Invite team member</h2>
       </div>
+      {error && (
+        <p className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{error}</p>
+      )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <input
           name="name"
