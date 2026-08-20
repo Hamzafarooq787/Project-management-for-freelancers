@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { LayoutDashboard, ListChecks, FolderKanban, Archive, Settings, Plus, Shield, Wallet, Building2, Globe, FileText, MoreHorizontal, X } from "lucide-react";
 import type { Profile } from "@/lib/types";
 import { InstallAppButton } from "./InstallAppButton";
+import { NotificationBadge } from "./NotificationBadge";
 import { cn } from "@/lib/utils";
 
 const PRIMARY_NAV = [
@@ -33,10 +34,19 @@ function isActive(pathname: string, href: string): boolean {
   return pathname.startsWith(href);
 }
 
-export function MobileNav({ profile }: { profile: Profile | null }) {
+export function MobileNav({
+  profile,
+  unseenProjects = 0,
+  unseenNotes = 0,
+}: {
+  profile: Profile | null;
+  unseenProjects?: number;
+  unseenNotes?: number;
+}) {
   const pathname = usePathname();
   const isAdmin = profile?.role === "admin";
   const [moreOpen, setMoreOpen] = useState(false);
+  const badgeByHref: Record<string, number> = { "/projects": unseenProjects, "/notes": unseenNotes };
 
   const financeItem = isAdmin ? MORE_NAV.find((item) => item.href === "/finance") : undefined;
   const sheetItems = isAdmin
@@ -68,11 +78,18 @@ export function MobileNav({ profile }: { profile: Profile | null }) {
                   href={href}
                   onClick={() => setMoreOpen(false)}
                   className={cn(
-                    "flex flex-col items-center gap-2 rounded-xl border border-base-700/60 bg-base-850 px-2 py-4 text-xs",
+                    "relative flex flex-col items-center gap-2 rounded-xl border border-base-700/60 bg-base-850 px-2 py-4 text-xs",
                     isActive(pathname, href) ? "text-accent-300" : "text-neutral-300",
                   )}
                 >
-                  <Icon size={22} />
+                  <span className="relative">
+                    <Icon size={22} />
+                    {(badgeByHref[href] ?? 0) > 0 && (
+                      <span className="absolute -right-1.5 -top-1.5">
+                        <NotificationBadge count={badgeByHref[href] ?? 0} />
+                      </span>
+                    )}
+                  </span>
                   {label}
                 </Link>
               ))}
@@ -94,7 +111,14 @@ export function MobileNav({ profile }: { profile: Profile | null }) {
                 active ? "text-accent-400" : "text-neutral-400",
               )}
             >
-              <Icon size={22} />
+              <span className="relative">
+                <Icon size={22} />
+                {(badgeByHref[href] ?? 0) > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5">
+                    <NotificationBadge count={badgeByHref[href] ?? 0} />
+                  </span>
+                )}
+              </span>
               {label}
             </Link>
           );

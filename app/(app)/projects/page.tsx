@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth";
-import { getProjectProgressMap, getProjectsForProfile } from "@/lib/store";
+import { getProjectProgressMap, getProjectsForProfile, markSectionSeen } from "@/lib/store";
 import { ProjectTypeTabs } from "@/components/ProjectTypeTabs";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,7 @@ export default async function ProjectsPage() {
     profile ? getProjectsForProfile(profile) : Promise.resolve([]),
     getProjectProgressMap(),
   ]);
+  if (profile) await markSectionSeen(profile.id, "projects");
   const active = projects.filter((p) => !p.archived);
 
   return (

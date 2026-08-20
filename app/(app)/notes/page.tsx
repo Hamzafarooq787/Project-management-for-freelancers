@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
-import { getProjectsForProfile, listNoteFolders, listNotes } from "@/lib/store";
+import { getProjectsForProfile, listNoteFolders, listNotes, markSectionSeen } from "@/lib/store";
 import { NotesPanel } from "@/components/NotesPanel";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,7 @@ export default async function NotesPage() {
   const isAdmin = profile.role === "admin";
   const projects = await getProjectsForProfile(profile);
   const [notes, folders] = await Promise.all([listNotes(profile.id, isAdmin), listNoteFolders(projects.map((p) => p.id))]);
+  await markSectionSeen(profile.id, "notes");
 
   return (
     <div className="flex flex-col gap-6">
