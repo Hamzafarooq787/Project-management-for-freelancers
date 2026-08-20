@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Search, Trash2, Pencil, Plus, X, Download, Upload, History, ChevronDown, ArrowUp, ArrowDown, Minus, LineChart, Check, FolderInput, FolderMinus } from "lucide-react";
+import { Search, Trash2, Pencil, Plus, X, Download, Upload, History, ChevronDown, ArrowUp, ArrowDown, Minus, LineChart, Check, FolderInput, FolderMinus, List } from "lucide-react";
 import type { Keyword, KeywordGroup, KeywordMonthlyPosition, KeywordPage, KeywordRankHistoryEntry, KeywordStatus } from "@/lib/types";
 import {
   addKeywordToPageAction,
@@ -151,6 +151,9 @@ export function KeywordsPanel({
   const [modalPage, setModalPage] = useState<KeywordPage | null>(null);
   const [selectedUngrouped, setSelectedUngrouped] = useState<Set<string>>(new Set());
   const [selectedInModal, setSelectedInModal] = useState<Set<string>>(new Set());
+  const [addingInModal, setAddingInModal] = useState(false);
+  const [allKeywordsOpen, setAllKeywordsOpen] = useState(false);
+  const [selectedAll, setSelectedAll] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function toggleSelected(setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) {
@@ -162,8 +165,16 @@ export function KeywordsPanel({
     });
   }
 
+  function toggleSelectAll(setter: React.Dispatch<React.SetStateAction<Set<string>>>, ids: string[]) {
+    setter((prev) => {
+      const allSelected = ids.length > 0 && ids.every((id) => prev.has(id));
+      return allSelected ? new Set() : new Set(ids);
+    });
+  }
+
   function openPage(page: KeywordPage | null) {
     setSelectedInModal(new Set());
+    setAddingInModal(false);
     setModalPage(page);
   }
 
@@ -289,6 +300,15 @@ export function KeywordsPanel({
         <div className="flex items-center gap-3">
           <button
             type="button"
+            onClick={() => setAllKeywordsOpen(true)}
+            disabled={keywords.length === 0}
+            className="flex items-center gap-1 text-xs text-neutral-400 hover:text-accent-300 disabled:opacity-40 disabled:hover:text-neutral-400"
+          >
+            <List size={13} />
+            All keywords
+          </button>
+          <button
+            type="button"
             onClick={() => exportKeywords(projectName, keywords)}
             disabled={keywords.length === 0}
             className="flex items-center gap-1 text-xs text-neutral-400 hover:text-accent-300 disabled:opacity-40 disabled:hover:text-neutral-400"
@@ -332,19 +352,30 @@ export function KeywordsPanel({
       )}
 
       {ungroupedKeywords.length > 1 && (
-        <div className="mb-3 flex items-center gap-2">
-          <label className="text-[11px] text-neutral-500">Sort</label>
-          <select
-            value={sortMode}
-            onChange={(e) => setSortMode(e.target.value as SortMode)}
-            className="rounded-md border border-base-600 bg-base-900 px-2 py-1 text-xs text-neutral-300 focus:border-accent-500 focus:outline-none"
-          >
-            {(Object.keys(SORT_LABEL) as SortMode[]).map((mode) => (
-              <option key={mode} value={mode}>
-                {SORT_LABEL[mode]}
-              </option>
-            ))}
-          </select>
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+            <input
+              type="checkbox"
+              checked={sortedKeywords.length > 0 && sortedKeywords.every((k) => selectedUngrouped.has(k.id))}
+              onChange={() => toggleSelectAll(setSelectedUngrouped, sortedKeywords.map((k) => k.id))}
+              className="accent-accent-500"
+            />
+            Select all
+          </label>
+          <div className="flex items-center gap-2">
+            <label className="text-[11px] text-neutral-500">Sort</label>
+            <select
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value as SortMode)}
+              className="rounded-md border border-base-600 bg-base-900 px-2 py-1 text-xs text-neutral-300 focus:border-accent-500 focus:outline-none"
+            >
+              {(Object.keys(SORT_LABEL) as SortMode[]).map((mode) => (
+                <option key={mode} value={mode}>
+                  {SORT_LABEL[mode]}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
 
@@ -364,7 +395,7 @@ export function KeywordsPanel({
         </p>
       )}
 
-      {sortedKeywords.length > 0 && groups.length > 0 && (
+      {sortedKeywords.length > 0 && (
         <BulkActionsBar
           selectedCount={selectedUngrouped.size}
           groups={groups}
@@ -377,6 +408,7 @@ export function KeywordsPanel({
               setSelectedUngrouped(new Set());
             });
           }}
+          onExport={() => exportKeywords(projectName, sortedKeywords.filter((k) => selectedUngrouped.has(k.id)))}
           onDelete={() => {
             if (!confirm(`Delete ${selectedUngrouped.size} keyword${selectedUngrouped.size === 1 ? "" : "s"}? This can't be undone.`)) return;
             const ids = [...selectedUngrouped];
@@ -408,17 +440,50 @@ export function KeywordsPanel({
               <h3 className="mt-0.5 truncate text-lg font-semibold text-neutral-100">{modalPage.name}</h3>
               {modalPage.url && <p className="mt-0.5 truncate text-xs text-neutral-500">{modalPage.url}</p>}
             </div>
-            <button
-              onClick={() => openPage(null)}
-              className="shrink-0 rounded-md p-1 text-neutral-500 hover:bg-base-700/60 hover:text-neutral-300"
-            >
-              <X size={18} />
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => exportKeywords(`${projectName}-${modalPage.name}`, modalKeywords)}
+                disabled={modalKeywords.length === 0}
+                className="flex items-center gap-1 text-xs text-neutral-400 hover:text-accent-300 disabled:opacity-40"
+              >
+                <Download size={13} />
+                Export
+              </button>
+              {!addingInModal && (
+                <button
+                  type="button"
+                  onClick={() => setAddingInModal(true)}
+                  className="flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300"
+                >
+                  <Plus size={13} />
+                  Add keyword
+                </button>
+              )}
+              <button
+                onClick={() => openPage(null)}
+                className="rounded-md p-1 text-neutral-500 hover:bg-base-700/60 hover:text-neutral-300"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
+
+          {addingInModal && (
+            <div className="mb-3">
+              <KeywordForm
+                projectId={projectId}
+                keyword={null}
+                defaultPageId={modalPage.id}
+                onCancel={() => setAddingInModal(false)}
+                onSaved={() => setAddingInModal(false)}
+              />
+            </div>
+          )}
 
           {modalKeywords.length === 0 ? (
             <p className="rounded-lg border border-dashed border-base-700 p-6 text-center text-sm text-neutral-500">
-              No keywords assigned to this page yet. Assign one from the Keywords list below.
+              No keywords assigned to this page yet. Assign one from the Keywords list below, or add one directly above.
             </p>
           ) : (
             <div className="max-h-[65vh] overflow-y-auto">
@@ -443,6 +508,7 @@ export function KeywordsPanel({
                     setSelectedInModal(new Set());
                   });
                 }}
+                onExport={() => exportKeywords(`${projectName}-${modalPage.name}`, modalKeywords.filter((k) => selectedInModal.has(k.id)))}
                 onDelete={() => {
                   if (!confirm(`Delete ${selectedInModal.size} keyword${selectedInModal.size === 1 ? "" : "s"}? This can't be undone.`))
                     return;
@@ -465,6 +531,134 @@ export function KeywordsPanel({
                 editingId={editingId}
                 selectedIds={selectedInModal}
                 onToggleSelect={(id) => toggleSelected(setSelectedInModal, id)}
+                onToggleSelectAll={() => toggleSelectAll(setSelectedInModal, modalKeywords.map((k) => k.id))}
+                onEdit={setEditingId}
+                onCancelEdit={() => setEditingId(null)}
+                onSaved={() => setEditingId(null)}
+                historyId={historyId}
+                onToggleHistory={(id) => setHistoryId(historyId === id ? null : id)}
+                onDelete={(keyword) => startTransition(() => deleteKeywordAction(keyword.id, projectId))}
+                onTogglePage={togglePage}
+                onToggleTracked={(keyword) =>
+                  startTransition(() => setKeywordTrackedAction(keyword.id, projectId, !keyword.isTracked))
+                }
+                onRankChange={(keyword, rank) => {
+                  const formData = new FormData();
+                  formData.set("id", keyword.id);
+                  formData.set("projectId", projectId);
+                  formData.set("keyword", keyword.keyword);
+                  formData.set("targetPage", keyword.targetPage);
+                  formData.set("searchVolume", keyword.searchVolume?.toString() ?? "");
+                  formData.set("difficulty", keyword.difficulty?.toString() ?? "");
+                  formData.set("currentRank", rank);
+                  formData.set("targetRank", keyword.targetRank?.toString() ?? "");
+                  formData.set("status", keyword.status);
+                  formData.set("notes", keyword.notes);
+                  startTransition(() => updateKeywordAction(formData));
+                }}
+                onStatusChange={(keyword, status) => {
+                  const formData = new FormData();
+                  formData.set("id", keyword.id);
+                  formData.set("projectId", projectId);
+                  formData.set("keyword", keyword.keyword);
+                  formData.set("targetPage", keyword.targetPage);
+                  formData.set("searchVolume", keyword.searchVolume?.toString() ?? "");
+                  formData.set("difficulty", keyword.difficulty?.toString() ?? "");
+                  formData.set("currentRank", keyword.currentRank?.toString() ?? "");
+                  formData.set("targetRank", keyword.targetRank?.toString() ?? "");
+                  formData.set("status", status);
+                  formData.set("notes", keyword.notes);
+                  startTransition(() => updateKeywordAction(formData));
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {allKeywordsOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10 backdrop-blur-sm"
+        onClick={() => {
+          setAllKeywordsOpen(false);
+          setSelectedAll(new Set());
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-5xl rounded-xl2 border border-base-700/60 bg-base-850 p-5 shadow-card"
+        >
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-wide text-neutral-500">{projectName}</p>
+              <h3 className="mt-0.5 text-lg font-semibold text-neutral-100">
+                All keywords ({keywords.length})
+              </h3>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => exportKeywords(projectName, keywords)}
+                disabled={keywords.length === 0}
+                className="flex items-center gap-1 text-xs text-neutral-400 hover:text-accent-300 disabled:opacity-40"
+              >
+                <Download size={13} />
+                Export all
+              </button>
+              <button
+                onClick={() => {
+                  setAllKeywordsOpen(false);
+                  setSelectedAll(new Set());
+                }}
+                className="rounded-md p-1 text-neutral-500 hover:bg-base-700/60 hover:text-neutral-300"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          {keywords.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-base-700 p-6 text-center text-sm text-neutral-500">
+              No keywords tracked yet.
+            </p>
+          ) : (
+            <div className="max-h-[70vh] overflow-y-auto">
+              <BulkActionsBar
+                selectedCount={selectedAll.size}
+                groups={groups}
+                pagesByGroup={pagesByGroup}
+                assignLabel="Add to group"
+                onAssign={(pageId) => {
+                  const ids = [...selectedAll];
+                  startTransition(async () => {
+                    await bulkAssignKeywordsToPageAction(ids, projectId, pageId);
+                    setSelectedAll(new Set());
+                  });
+                }}
+                onExport={() => exportKeywords(projectName, keywords.filter((k) => selectedAll.has(k.id)))}
+                onDelete={() => {
+                  if (!confirm(`Delete ${selectedAll.size} keyword${selectedAll.size === 1 ? "" : "s"}? This can't be undone.`)) return;
+                  const ids = [...selectedAll];
+                  startTransition(async () => {
+                    await bulkDeleteKeywordsAction(ids, projectId);
+                    setSelectedAll(new Set());
+                  });
+                }}
+                onClear={() => setSelectedAll(new Set())}
+                isPending={isPending}
+              />
+              <PageKeywordsTable
+                keywords={sortKeywords(keywords, sortMode)}
+                rankHistory={rankHistory}
+                groups={groups}
+                pagesByGroup={pagesByGroup}
+                projectId={projectId}
+                isPending={isPending}
+                editingId={editingId}
+                selectedIds={selectedAll}
+                onToggleSelect={(id) => toggleSelected(setSelectedAll, id)}
+                onToggleSelectAll={() => toggleSelectAll(setSelectedAll, keywords.map((k) => k.id))}
                 onEdit={setEditingId}
                 onCancelEdit={() => setEditingId(null)}
                 onSaved={() => setEditingId(null)}
@@ -521,6 +715,7 @@ function BulkActionsBar({
   assignLabel,
   onAssign,
   onRemoveFromGroup,
+  onExport,
   onDelete,
   onClear,
   isPending,
@@ -532,6 +727,7 @@ function BulkActionsBar({
   assignLabel: string;
   onAssign: (pageId: string) => void;
   onRemoveFromGroup?: () => void;
+  onExport?: () => void;
   onDelete: () => void;
   onClear: () => void;
   isPending: boolean;
@@ -553,6 +749,16 @@ function BulkActionsBar({
         >
           <FolderMinus size={13} />
           Remove from this group
+        </button>
+      )}
+      {onExport && (
+        <button
+          type="button"
+          onClick={onExport}
+          className="flex items-center gap-1.5 rounded-md border border-base-600 px-2.5 py-1.5 text-xs text-neutral-300 hover:border-accent-500/50 hover:text-accent-300"
+        >
+          <Download size={13} />
+          Export selected
         </button>
       )}
       <button
@@ -944,6 +1150,7 @@ function PageKeywordsTable({
   editingId,
   selectedIds,
   onToggleSelect,
+  onToggleSelectAll,
   onEdit,
   onCancelEdit,
   onSaved,
@@ -964,6 +1171,7 @@ function PageKeywordsTable({
   editingId: string | null;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
+  onToggleSelectAll: () => void;
   onEdit: (id: string) => void;
   onCancelEdit: () => void;
   onSaved: () => void;
@@ -976,13 +1184,22 @@ function PageKeywordsTable({
   onStatusChange: (keyword: Keyword, status: KeywordStatus) => void;
 }) {
   const allPages = useMemo(() => Object.values(pagesByGroup).flat(), [pagesByGroup]);
+  const allSelected = keywords.length > 0 && keywords.every((k) => selectedIds.has(k.id));
 
   return (
     <div className="overflow-x-auto rounded-lg border border-base-600">
       <table className="w-full min-w-[760px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-base-600 bg-base-900 text-left text-[11px] uppercase tracking-wide text-neutral-500">
-            <th className="w-8 px-3 py-2 font-medium" />
+            <th className="w-8 px-3 py-2 font-medium">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={onToggleSelectAll}
+                className="accent-accent-500"
+                aria-label="Select all keywords"
+              />
+            </th>
             <th className="px-3 py-2 font-medium">Keyword</th>
             <th className="px-3 py-2 font-medium">Vol</th>
             <th className="px-3 py-2 font-medium">KD</th>
@@ -1162,11 +1379,13 @@ function RankHistoryList({ history }: { history: KeywordRankHistoryEntry[] }) {
 function KeywordForm({
   projectId,
   keyword,
+  defaultPageId,
   onSaved,
   onCancel,
 }: {
   projectId: string;
   keyword: Keyword | null;
+  defaultPageId?: string;
   onSaved: () => void;
   onCancel: () => void;
 }) {
@@ -1177,6 +1396,7 @@ function KeywordForm({
       action={(formData) => {
         formData.set("projectId", projectId);
         if (keyword) formData.set("id", keyword.id);
+        else if (defaultPageId) formData.set("pageId", defaultPageId);
         startTransition(async () => {
           await (keyword ? updateKeywordAction(formData) : createKeywordAction(formData));
           onSaved();
