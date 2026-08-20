@@ -9,6 +9,21 @@ export function DeleteProjectPanel({ projectId }: { projectId: string }) {
   const [confirming, setConfirming] = useState(false);
   const [keepFinancialData, setKeepFinancialData] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function confirmDelete() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await deleteProjectAction(projectId, keepFinancialData);
+        if (result && !result.ok) setError(result.error);
+      } catch {
+        // redirect() on success throws internally to trigger navigation — that's
+        // expected and not an error. Any other failure already came back above
+        // as a typed result, so there's nothing left to surface here.
+      }
+    });
+  }
 
   if (!confirming) {
     return (
@@ -37,6 +52,7 @@ export function DeleteProjectPanel({ projectId }: { projectId: string }) {
         Keep its payment history (pricing plans still go with the project, but money already recorded as
         received stays counted in Finance totals)
       </label>
+      {error && <p className="text-left text-xs text-rose-300">{error}</p>}
       <div className="flex justify-end gap-2">
         <button
           disabled={isPending}
@@ -47,7 +63,7 @@ export function DeleteProjectPanel({ projectId }: { projectId: string }) {
         </button>
         <button
           disabled={isPending}
-          onClick={() => startTransition(() => deleteProjectAction(projectId, keepFinancialData))}
+          onClick={confirmDelete}
           className={cn(
             "rounded-md bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-500 disabled:opacity-60",
           )}

@@ -289,9 +289,18 @@ export async function archiveProjectAction(projectId: string, archived: boolean)
   refresh(projectId);
 }
 
-export async function deleteProjectAction(projectId: string, keepFinancialData: boolean) {
+export async function deleteProjectAction(
+  projectId: string,
+  keepFinancialData: boolean,
+): Promise<{ ok: false; error: string } | undefined> {
   await requireAdmin();
-  await store.deleteProject(projectId, keepFinancialData);
+
+  try {
+    await store.deleteProject(projectId, keepFinancialData);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Something went wrong deleting this project." };
+  }
+
   refresh(projectId);
   revalidatePath("/finance");
   redirect("/projects");
