@@ -658,7 +658,7 @@ export async function createKeywordAction(formData: FormData) {
   if (!projectId || !keyword) return;
   await requireProjectAccess(projectId);
 
-  await store.createKeyword({
+  const created = await store.createKeyword({
     projectId,
     keyword,
     targetPage: str(formData, "targetPage"),
@@ -669,6 +669,16 @@ export async function createKeywordAction(formData: FormData) {
     status: (str(formData, "status") || "not_started") as KeywordStatus,
     notes: str(formData, "notes"),
   });
+
+  const pageId = str(formData, "pageId");
+  if (pageId && !created.pageIds.includes(pageId)) {
+    try {
+      await store.addKeywordToPage(created.id, pageId);
+    } catch {
+      // Non-critical: the keyword itself was created fine even if this assignment failed.
+    }
+  }
+
   revalidatePath(`/projects/${projectId}`);
 }
 
