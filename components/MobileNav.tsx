@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ListChecks, FolderKanban, Archive, Settings, Plus, Shield, Wallet, Building2, MoreHorizontal, X } from "lucide-react";
+import { LayoutDashboard, ListChecks, FolderKanban, Archive, Settings, Plus, Shield, Wallet, Building2, Globe, MoreHorizontal, X } from "lucide-react";
 import type { Profile } from "@/lib/types";
 import { InstallAppButton } from "./InstallAppButton";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ const MORE_NAV = [
   { href: "/projects/new", label: "New Project", icon: Plus },
   { href: "/clients", label: "Clients", icon: Building2 },
   { href: "/finance", label: "Finance", icon: Wallet },
+  { href: "/domains", label: "Domains", icon: Globe },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/admin", label: "Admin", icon: Shield },
 ];

@@ -10,12 +10,14 @@ import type {
   BacklinkLink,
   ChecklistItem,
   ClientDetails,
+  DnsRecordType,
   DomainStatus,
   KeywordGroupColor,
   KeywordStatus,
   PaymentKind,
   PaymentPlanType,
   ProjectType,
+  ResaleDomainStatus,
   Role,
   TaskPriority,
   TaskStatus,
@@ -856,4 +858,290 @@ export async function addClientTaskFileAction(formData: FormData) {
   await store.addTaskFile(taskId, uploaded);
   revalidatePath(`/share/${token}`);
   refresh(project.id);
+}
+
+/**
+ * Domain reselling. Admin-only, same as Finance — this is business inventory, not
+ * ordinary project/task management members should touch. Actions that talk to
+ * Dynadot return a typed {ok,error} result instead of throwing, since a reseller
+ * API call failing (bad key, domain not in that account, rate limit, etc.) should
+ * surface as an inline message, not crash the page.
+ */
+
+function refreshDomains() {
+  revalidatePath("/domains");
+}
+
+function domainActionErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (message === "NO_DYNADOT_KEY") {
+    return "No Dynadot API key is saved yet. Add one in Domains → Settings first.";
+  }
+  return message || "Something went wrong talking to Dynadot. Please try again.";
+}
+
+export async function createDomainClientAction(
+  formData: FormData,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  await requireAdmin();
+  const name = str(formData, "name");
+  if (!name) return { ok: false, error: "Name is required." };
+
+  const client = await store.createDomainClient({
+    name,
+    email: str(formData, "email"),
+    phone: str(formData, "phone"),
+    notes: str(formData, "notes"),
+  });
+  refreshDomains();
+  return { ok: true, id: client.id };
+}
+
+export async function updateDomainClientAction(id: string, formData: FormData) {
+  await requireAdmin();
+  await store.updateDomainClient(id, {
+    name: str(formData, "name"),
+    email: str(formData, "email"),
+    phone: str(formData, "phone"),
+    notes: str(formData, "notes"),
+  });
+  refreshDomains();
+}
+
+export async function deleteDomainClientAction(id: string) {
+  await requireAdmin();
+  await store.deleteDomainClient(id);
+  refreshDomains();
+}
+
+export async function createDomainAction(
+  formData: FormData,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  await requireAdmin();
+  const name = str(formData, "name").toLowerCase();
+  if (!name) return { ok: false, error: "Domain name is required." };
+
+  try {
+    const domain = await store.createDomain({
+      name,
+      domainClientId: str(formData, "domainClientId") || null,
+      registrar: str(formData, "registrar") || "Dynadot",
+      status: (str(formData, "status") || "available") as ResaleDomainStatus,
+      purchasePrice: numOrNull(str(formData, "purchasePrice")),
+      sellingPrice: numOrNull(str(formData, "sellingPrice")),
+      expiryDate: str(formData, "expiryDate") || null,
+      autoRenew: formData.get("autoRenew") === "on",
+      notes: str(formData, "notes"),
+    });
+    refreshDomains();
+    return { ok: true, id: domain.id };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("duplicate key")) return { ok: false, error: "That domain is already in your inventory." };
+    return { ok: false, error: "Something went wrong saving this domain. Please try again." };
+  }
+}
+
+export async function updateDomainAction(id: string, formData: FormData) {
+  await requireAdmin();
+  await store.updateDomain(id, {
+    domainClientId: str(formData, "domainClientId") || null,
+    registrar: str(formData, "registrar") || undefined,
+    status: (str(formData, "status") || undefined) as ResaleDomainStatus | undefined,
+    purchasePrice: numOrNull(str(formData, "purchasePrice")),
+    sellingPrice: numOrNull(str(formData, "sellingPrice")),
+    expiryDate: str(formData, "expiryDate") || null,
+    autoRenew: formData.get("autoRenew") === "on",
+    notes: str(formData, "notes"),
+  });
+  refreshDomains();
+}
+
+export async function deleteDomainAction(id: string) {
+  await requireAdmin();
+  await store.deleteDomain(id);
+  refreshDomains();
+}
+
+/**
+ * Toggles the lock on Dynadot first (if a key is saved and the domain's registrar
+ * looks like Dynadot), then persists locally only once that succeeds — so the app
+ * never shows a domain as locked/unlocked when the registrar-side call failed.
+ * If no Dynadot key is configured, this just records the flag locally.
+ */
+export async function setDomainLockedAction(
+  id: string,
+  domainName: string,
+  registrar: string,
+  locked: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  try {
+    if (registrar.toLowerCase().includes("dynadot")) {
+      const { getDomainSettings } = store;
+      const settings = await getDomainSettings();
+      if (settings.dynadotApiKeyEncrypted) {
+        const { lockDynadotDomain, unlockDynadotDomain } = await import("./dynadot");
+        if (locked) await lockDynadotDomain(domainName);
+        else await unlockDynadotDomain(domainName);
+      }
+    }
+    await store.setDomainLocked(id, locked);
+    refreshDomains();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: domainActionErrorMessage(error) };
+  }
+}
+
+export async function listDomainDnsRecordsAction(domainId: string) {
+  return store.listDomainDnsRecords(domainId);
+}
+
+export async function createDomainDnsRecordAction(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  const domainId = str(formData, "domainId");
+  const value = str(formData, "value");
+  if (!domainId || !value) return { ok: false, error: "A value is required." };
+
+  await store.createDomainDnsRecord({
+    domainId,
+    recordType: (str(formData, "recordType") || "A") as DnsRecordType,
+    host: str(formData, "host") || "@",
+    value,
+    priority: numOrNull(str(formData, "priority")),
+    ttl: numOrNull(str(formData, "ttl")),
+  });
+  refreshDomains();
+  return { ok: true };
+}
+
+export async function updateDomainDnsRecordAction(id: string, domainId: string, formData: FormData) {
+  await requireAdmin();
+  await store.updateDomainDnsRecord(id, {
+    recordType: (str(formData, "recordType") || undefined) as DnsRecordType | undefined,
+    host: str(formData, "host") || undefined,
+    value: str(formData, "value") || undefined,
+    priority: numOrNull(str(formData, "priority")),
+    ttl: numOrNull(str(formData, "ttl")),
+  });
+  refreshDomains();
+}
+
+export async function deleteDomainDnsRecordAction(id: string) {
+  await requireAdmin();
+  await store.deleteDomainDnsRecord(id);
+  refreshDomains();
+}
+
+/**
+ * Pushes this domain's locally-saved DNS records to Dynadot, replacing whatever
+ * is currently set there (set_dns2 is a full replace, not incremental — see
+ * lib/dynadot.ts). Only meaningful for domains actually registered at Dynadot.
+ */
+export async function pushDomainDnsToDynadotAction(
+  domainId: string,
+  domainName: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  try {
+    const records = await store.listDomainDnsRecords(domainId);
+    const { setDynadotDnsRecords } = await import("./dynadot");
+    await setDynadotDnsRecords(
+      domainName,
+      records.map((r) => ({ host: r.host, recordType: r.recordType, value: r.value })),
+    );
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: domainActionErrorMessage(error) };
+  }
+}
+
+export async function syncDomainFromDynadotAction(
+  domainId: string,
+  domainName: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  try {
+    const { getDynadotDomainInfo } = await import("./dynadot");
+    const info = await getDynadotDomainInfo(domainName);
+    await store.applyDynadotSync(domainId, {
+      expiryDate: info.expiration,
+      locked: info.locked,
+      autoRenew: info.autoRenew,
+      nameservers: info.nameservers,
+    });
+    refreshDomains();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: domainActionErrorMessage(error) };
+  }
+}
+
+/**
+ * Pulls the full domain list from Dynadot and creates any domain this app
+ * doesn't already have (matched by name), so a wholesaler's whole Dynadot
+ * portfolio can be imported in one click instead of typing each one in.
+ * Existing domains are left as-is here; use syncDomainFromDynadotAction to
+ * refresh one that's already in the inventory.
+ */
+export async function importDomainsFromDynadotAction(): Promise<
+  { ok: true; added: number } | { ok: false; error: string }
+> {
+  await requireAdmin();
+  try {
+    const { listDynadotDomains } = await import("./dynadot");
+    const [remoteNames, existing] = await Promise.all([listDynadotDomains(), store.listDomains()]);
+    const existingNames = new Set(existing.map((d) => d.name.toLowerCase()));
+    const toAdd = remoteNames.filter((name) => !existingNames.has(name.toLowerCase()));
+
+    for (const name of toAdd) {
+      await store.createDomain({
+        name: name.toLowerCase(),
+        domainClientId: null,
+        registrar: "Dynadot",
+        status: "available",
+        purchasePrice: null,
+        sellingPrice: null,
+        expiryDate: null,
+        autoRenew: false,
+        notes: "",
+      });
+    }
+    refreshDomains();
+    return { ok: true, added: toAdd.length };
+  } catch (error) {
+    return { ok: false, error: domainActionErrorMessage(error) };
+  }
+}
+
+export async function saveDynadotApiKeyAction(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  const apiKey = str(formData, "apiKey");
+  if (!apiKey) return { ok: false, error: "Enter an API key." };
+
+  try {
+    await store.setDynadotApiKey(apiKey);
+    refreshDomains();
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("DYNADOT_SECRET")) {
+      return {
+        ok: false,
+        error: "Can't save the key yet — DYNADOT_SECRET isn't configured. Ask your admin to set it in the environment.",
+      };
+    }
+    return { ok: false, error: "Something went wrong saving the key. Please try again." };
+  }
+}
+
+export async function clearDynadotApiKeyAction() {
+  await requireAdmin();
+  await store.setDynadotApiKey(null);
+  refreshDomains();
 }
