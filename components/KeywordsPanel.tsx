@@ -1,10 +1,13 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Search, Trash2, Pencil, Plus, X, Download, Upload, History, ChevronDown, ArrowUp, ArrowDown, Minus, LineChart, Check } from "lucide-react";
+import { Search, Trash2, Pencil, Plus, X, Download, Upload, History, ChevronDown, ArrowUp, ArrowDown, Minus, LineChart, Check, FolderInput, FolderMinus } from "lucide-react";
 import type { Keyword, KeywordGroup, KeywordMonthlyPosition, KeywordPage, KeywordRankHistoryEntry, KeywordStatus } from "@/lib/types";
 import {
   addKeywordToPageAction,
+  bulkAssignKeywordsToPageAction,
+  bulkDeleteKeywordsAction,
+  bulkRemoveKeywordsFromPageAction,
   createKeywordAction,
   deleteKeywordAction,
   importKeywordsAction,
@@ -146,7 +149,23 @@ export function KeywordsPanel({
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("default");
   const [modalPage, setModalPage] = useState<KeywordPage | null>(null);
+  const [selectedUngrouped, setSelectedUngrouped] = useState<Set<string>>(new Set());
+  const [selectedInModal, setSelectedInModal] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function toggleSelected(setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) {
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function openPage(page: KeywordPage | null) {
+    setSelectedInModal(new Set());
+    setModalPage(page);
+  }
 
   const ungroupedKeywords = useMemo(() => keywords.filter((k) => k.pageIds.length === 0), [keywords]);
   const sortedKeywords = useMemo(() => sortKeywords(ungroupedKeywords, sortMode), [ungroupedKeywords, sortMode]);
@@ -181,6 +200,8 @@ export function KeywordsPanel({
         groups={groups}
         pagesByGroup={pagesByGroup}
         isPending={isPending}
+        selected={selectedUngrouped.has(keyword.id)}
+        onToggleSelect={() => toggleSelected(setSelectedUngrouped, keyword.id)}
         historyOpen={historyId === keyword.id}
         onToggleHistory={() => setHistoryId(historyId === keyword.id ? null : keyword.id)}
         onEdit={() => setEditingId(keyword.id)}
@@ -249,7 +270,7 @@ export function KeywordsPanel({
         pagesByGroup={pagesByGroup}
         keywords={keywords}
         rankHistory={rankHistory}
-        onOpenPage={setModalPage}
+        onOpenPage={openPage}
       />
 
       <MonthlyPositionTracker
@@ -343,13 +364,39 @@ export function KeywordsPanel({
         </p>
       )}
 
+      {sortedKeywords.length > 0 && groups.length > 0 && (
+        <BulkActionsBar
+          selectedCount={selectedUngrouped.size}
+          groups={groups}
+          pagesByGroup={pagesByGroup}
+          assignLabel="Add to group"
+          onAssign={(pageId) => {
+            const ids = [...selectedUngrouped];
+            startTransition(async () => {
+              await bulkAssignKeywordsToPageAction(ids, projectId, pageId);
+              setSelectedUngrouped(new Set());
+            });
+          }}
+          onDelete={() => {
+            if (!confirm(`Delete ${selectedUngrouped.size} keyword${selectedUngrouped.size === 1 ? "" : "s"}? This can't be undone.`)) return;
+            const ids = [...selectedUngrouped];
+            startTransition(async () => {
+              await bulkDeleteKeywordsAction(ids, projectId);
+              setSelectedUngrouped(new Set());
+            });
+          }}
+          onClear={() => setSelectedUngrouped(new Set())}
+          isPending={isPending}
+        />
+      )}
+
       <div className="flex flex-col gap-4">{sortedKeywords.map((keyword) => renderKeywordRow(keyword))}</div>
     </div>
 
     {modalPage && (
       <div
         className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10 backdrop-blur-sm"
-        onClick={() => setModalPage(null)}
+        onClick={() => openPage(null)}
       >
         <div
           onClick={(e) => e.stopPropagation()}
@@ -362,7 +409,7 @@ export function KeywordsPanel({
               {modalPage.url && <p className="mt-0.5 truncate text-xs text-neutral-500">{modalPage.url}</p>}
             </div>
             <button
-              onClick={() => setModalPage(null)}
+              onClick={() => openPage(null)}
               className="shrink-0 rounded-md p-1 text-neutral-500 hover:bg-base-700/60 hover:text-neutral-300"
             >
               <X size={18} />
@@ -375,6 +422,39 @@ export function KeywordsPanel({
             </p>
           ) : (
             <div className="max-h-[65vh] overflow-y-auto">
+              <BulkActionsBar
+                selectedCount={selectedInModal.size}
+                groups={groups}
+                pagesByGroup={pagesByGroup}
+                excludePageId={modalPage.id}
+                assignLabel="Move to group"
+                onAssign={(pageId) => {
+                  const ids = [...selectedInModal];
+                  startTransition(async () => {
+                    await bulkAssignKeywordsToPageAction(ids, projectId, pageId);
+                    await bulkRemoveKeywordsFromPageAction(ids, projectId, modalPage.id);
+                    setSelectedInModal(new Set());
+                  });
+                }}
+                onRemoveFromGroup={() => {
+                  const ids = [...selectedInModal];
+                  startTransition(async () => {
+                    await bulkRemoveKeywordsFromPageAction(ids, projectId, modalPage.id);
+                    setSelectedInModal(new Set());
+                  });
+                }}
+                onDelete={() => {
+                  if (!confirm(`Delete ${selectedInModal.size} keyword${selectedInModal.size === 1 ? "" : "s"}? This can't be undone.`))
+                    return;
+                  const ids = [...selectedInModal];
+                  startTransition(async () => {
+                    await bulkDeleteKeywordsAction(ids, projectId);
+                    setSelectedInModal(new Set());
+                  });
+                }}
+                onClear={() => setSelectedInModal(new Set())}
+                isPending={isPending}
+              />
               <PageKeywordsTable
                 keywords={modalKeywords}
                 rankHistory={rankHistory}
@@ -383,6 +463,8 @@ export function KeywordsPanel({
                 projectId={projectId}
                 isPending={isPending}
                 editingId={editingId}
+                selectedIds={selectedInModal}
+                onToggleSelect={(id) => toggleSelected(setSelectedInModal, id)}
                 onEdit={setEditingId}
                 onCancelEdit={() => setEditingId(null)}
                 onSaved={() => setEditingId(null)}
@@ -431,6 +513,156 @@ export function KeywordsPanel({
   );
 }
 
+function BulkActionsBar({
+  selectedCount,
+  groups,
+  pagesByGroup,
+  excludePageId,
+  assignLabel,
+  onAssign,
+  onRemoveFromGroup,
+  onDelete,
+  onClear,
+  isPending,
+}: {
+  selectedCount: number;
+  groups: KeywordGroup[];
+  pagesByGroup: Record<string, KeywordPage[]>;
+  excludePageId?: string;
+  assignLabel: string;
+  onAssign: (pageId: string) => void;
+  onRemoveFromGroup?: () => void;
+  onDelete: () => void;
+  onClear: () => void;
+  isPending: boolean;
+}) {
+  if (selectedCount === 0) return null;
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-accent-500/30 bg-accent-500/5 px-3 py-2">
+      <span className="text-xs font-medium text-accent-300">
+        {selectedCount} keyword{selectedCount === 1 ? "" : "s"} selected
+      </span>
+      <BulkPagePicker groups={groups} pagesByGroup={pagesByGroup} excludePageId={excludePageId} label={assignLabel} onPick={onAssign} />
+      {onRemoveFromGroup && (
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={onRemoveFromGroup}
+          className="flex items-center gap-1.5 rounded-md border border-base-600 px-2.5 py-1.5 text-xs text-neutral-300 hover:border-amber-500/50 hover:text-amber-300 disabled:opacity-50"
+        >
+          <FolderMinus size={13} />
+          Remove from this group
+        </button>
+      )}
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={onDelete}
+        className="flex items-center gap-1.5 rounded-md border border-base-600 px-2.5 py-1.5 text-xs text-neutral-300 hover:border-rose-500/50 hover:text-rose-400 disabled:opacity-50"
+      >
+        <Trash2 size={13} />
+        Delete selected
+      </button>
+      <button type="button" onClick={onClear} className="ml-auto text-xs text-neutral-500 hover:text-neutral-300">
+        Clear selection
+      </button>
+    </div>
+  );
+}
+
+function BulkPagePicker({
+  groups,
+  pagesByGroup,
+  excludePageId,
+  label,
+  onPick,
+}: {
+  groups: KeywordGroup[];
+  pagesByGroup: Record<string, KeywordPage[]>;
+  excludePageId?: string;
+  label: string;
+  onPick: (pageId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const q = query.trim().toLowerCase();
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 rounded-md border border-base-600 px-2.5 py-1.5 text-xs text-neutral-300 hover:border-accent-500/50 hover:text-accent-300"
+      >
+        <FolderInput size={13} />
+        {label}
+        <ChevronDown size={11} className={cn("transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-[60] mt-1 w-64 overflow-hidden rounded-lg border border-base-600 bg-base-900 shadow-lg">
+          <div className="border-b border-base-700 p-2">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search pages…"
+              className="w-full rounded-md border border-base-600 bg-base-950 px-2 py-1 text-xs text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto p-1.5">
+            {groups.length === 0 && <p className="px-2 py-1.5 text-[11px] text-neutral-600">No groups yet</p>}
+            {groups.map((group) => {
+              const pages = (pagesByGroup[group.id] ?? [])
+                .filter((p) => p.id !== excludePageId)
+                .filter((p) => !q || p.name.toLowerCase().includes(q));
+              if (q && pages.length === 0) return null;
+              return (
+                <div key={group.id} className="mt-1.5 first:mt-0">
+                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">{group.name}</p>
+                  {pages.length === 0 ? (
+                    <p className="px-2 py-1 text-[11px] text-neutral-600">No pages</p>
+                  ) : (
+                    pages.map((page) => (
+                      <button
+                        key={page.id}
+                        type="button"
+                        onClick={() => {
+                          onPick(page.id);
+                          setOpen(false);
+                          setQuery("");
+                        }}
+                        className="flex w-full items-center truncate rounded-md px-2 py-1.5 text-left text-xs text-neutral-300 hover:bg-base-800"
+                      >
+                        <span className="truncate">{page.name}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function KeywordRow({
   keyword,
   history,
@@ -439,6 +671,8 @@ function KeywordRow({
   historyOpen,
   onToggleHistory,
   isPending,
+  selected,
+  onToggleSelect,
   onEdit,
   onDelete,
   onRankChange,
@@ -453,6 +687,8 @@ function KeywordRow({
   historyOpen: boolean;
   onToggleHistory: () => void;
   isPending: boolean;
+  selected: boolean;
+  onToggleSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onRankChange: (rank: string) => void;
@@ -465,9 +701,22 @@ function KeywordRow({
     .filter((p): p is KeywordPage => Boolean(p));
 
   return (
-    <div className="rounded-lg border border-base-600 bg-base-800 p-4 shadow-md transition-colors hover:border-accent-500/50">
+    <div
+      className={cn(
+        "rounded-lg border p-4 shadow-md transition-colors",
+        selected ? "border-accent-500/60 bg-accent-500/5" : "border-base-600 bg-base-800 hover:border-accent-500/50",
+      )}
+    >
       <div className="flex flex-col gap-3">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+            className="mt-1.5 shrink-0 accent-accent-500"
+            aria-label={`Select ${keyword.keyword}`}
+          />
+          <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="break-words text-base font-semibold text-neutral-100">{keyword.keyword}</p>
             {keyword.currentRank !== null && (
@@ -498,6 +747,7 @@ function KeywordRow({
             )}
           </div>
           {keyword.notes && <p className="mt-1.5 break-words text-xs text-neutral-500">{keyword.notes}</p>}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-t border-base-700 pt-3">
@@ -692,6 +942,8 @@ function PageKeywordsTable({
   projectId,
   isPending,
   editingId,
+  selectedIds,
+  onToggleSelect,
   onEdit,
   onCancelEdit,
   onSaved,
@@ -710,6 +962,8 @@ function PageKeywordsTable({
   projectId: string;
   isPending: boolean;
   editingId: string | null;
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
   onEdit: (id: string) => void;
   onCancelEdit: () => void;
   onSaved: () => void;
@@ -728,6 +982,7 @@ function PageKeywordsTable({
       <table className="w-full min-w-[760px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-base-600 bg-base-900 text-left text-[11px] uppercase tracking-wide text-neutral-500">
+            <th className="w-8 px-3 py-2 font-medium" />
             <th className="px-3 py-2 font-medium">Keyword</th>
             <th className="px-3 py-2 font-medium">Vol</th>
             <th className="px-3 py-2 font-medium">KD</th>
@@ -741,7 +996,7 @@ function PageKeywordsTable({
             if (editingId === keyword.id) {
               return (
                 <tr key={keyword.id} className="border-b border-base-700/60">
-                  <td colSpan={6} className="bg-base-850 p-2">
+                  <td colSpan={7} className="bg-base-850 p-2">
                     <KeywordForm projectId={projectId} keyword={keyword} onCancel={onCancelEdit} onSaved={onSaved} />
                   </td>
                 </tr>
@@ -755,7 +1010,21 @@ function PageKeywordsTable({
 
             return (
               <Fragment key={keyword.id}>
-                <tr className="border-b border-base-700/60 odd:bg-base-900/40 hover:bg-base-900">
+                <tr
+                  className={cn(
+                    "border-b border-base-700/60 hover:bg-base-900",
+                    selectedIds.has(keyword.id) ? "bg-accent-500/5" : "odd:bg-base-900/40",
+                  )}
+                >
+                  <td className="px-3 py-2 align-top">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(keyword.id)}
+                      onChange={() => onToggleSelect(keyword.id)}
+                      className="accent-accent-500"
+                      aria-label={`Select ${keyword.keyword}`}
+                    />
+                  </td>
                   <td className="px-3 py-2 align-top">
                     <p className="font-medium text-neutral-100">{keyword.keyword}</p>
                     {assignedPages.length > 0 && (
@@ -850,7 +1119,7 @@ function PageKeywordsTable({
                 </tr>
                 {historyId === keyword.id && history.length > 0 && (
                   <tr className="border-b border-base-700/60 bg-base-900/60">
-                    <td colSpan={6} className="px-3 py-2">
+                    <td colSpan={7} className="px-3 py-2">
                       <RankHistoryList history={history} />
                     </td>
                   </tr>
