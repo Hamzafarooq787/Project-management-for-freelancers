@@ -10,6 +10,11 @@ import type {
   ChecklistItem,
   Client,
   ClientDetails,
+  DnsRecordType,
+  Domain,
+  DomainClient,
+  DomainDnsRecord,
+  DomainSettings,
   Keyword,
   KeywordGroup,
   KeywordGroupColor,
@@ -25,6 +30,7 @@ import type {
   Profile,
   Project,
   ProjectType,
+  ResaleDomainStatus,
   Role,
   Stage,
   Task,
@@ -1894,4 +1900,305 @@ export async function getProjectByShareToken(token: string): Promise<Project | n
   if (stageError) throw stageError;
 
   return toProject(row, ((stageRows ?? []) as StageRow[]).map(toStage));
+}
+
+/**
+ * Domain reselling. Standalone from the project/Client system — see migration 020.
+ */
+
+interface DomainClientRow {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  notes: string;
+  created_at: string;
+}
+
+function toDomainClient(row: DomainClientRow): DomainClient {
+  return { id: row.id, name: row.name, email: row.email, phone: row.phone, notes: row.notes, createdAt: row.created_at };
+}
+
+export async function listDomainClients(): Promise<DomainClient[]> {
+  try {
+    const { data, error } = await getSupabase().from("freelance_hq_domain_clients").select("*").order("name");
+    if (error) throw error;
+    return ((data ?? []) as DomainClientRow[]).map(toDomainClient);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export async function createDomainClient(input: { name: string; email: string; phone: string; notes: string }): Promise<DomainClient> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_domain_clients")
+    .insert({ name: input.name, email: input.email, phone: input.phone, notes: input.notes })
+    .select()
+    .single();
+  if (error) throw error;
+  return toDomainClient(data as DomainClientRow);
+}
+
+export async function updateDomainClient(
+  id: string,
+  patch: Partial<{ name: string; email: string; phone: string; notes: string }>,
+): Promise<void> {
+  const { error } = await getSupabase()
+    .from("freelance_hq_domain_clients")
+    .update({ ...patch, updated_at: nowIso() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteDomainClient(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_domain_clients").delete().eq("id", id);
+  if (error) throw error;
+}
+
+interface DomainRow {
+  id: string;
+  name: string;
+  domain_client_id: string | null;
+  registrar: string;
+  status: ResaleDomainStatus;
+  purchase_price: number | null;
+  selling_price: number | null;
+  expiry_date: string | null;
+  auto_renew: boolean;
+  locked: boolean;
+  nameservers: string[] | null;
+  notes: string;
+  dynadot_synced_at: string | null;
+  created_at: string;
+}
+
+function toDomain(row: DomainRow): Domain {
+  return {
+    id: row.id,
+    name: row.name,
+    domainClientId: row.domain_client_id,
+    registrar: row.registrar,
+    status: row.status,
+    purchasePrice: row.purchase_price,
+    sellingPrice: row.selling_price,
+    expiryDate: row.expiry_date,
+    autoRenew: row.auto_renew,
+    locked: row.locked,
+    nameservers: row.nameservers ?? [],
+    notes: row.notes,
+    dynadotSyncedAt: row.dynadot_synced_at,
+    createdAt: row.created_at,
+  };
+}
+
+export async function listDomains(): Promise<Domain[]> {
+  try {
+    const { data, error } = await getSupabase().from("freelance_hq_domains").select("*").order("name");
+    if (error) throw error;
+    return ((data ?? []) as DomainRow[]).map(toDomain);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export async function getDomain(id: string): Promise<Domain | null> {
+  const { data, error } = await getSupabase().from("freelance_hq_domains").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data ? toDomain(data as DomainRow) : null;
+}
+
+export interface DomainInput {
+  name: string;
+  domainClientId: string | null;
+  registrar: string;
+  status: ResaleDomainStatus;
+  purchasePrice: number | null;
+  sellingPrice: number | null;
+  expiryDate: string | null;
+  autoRenew: boolean;
+  notes: string;
+}
+
+export async function createDomain(input: DomainInput): Promise<Domain> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_domains")
+    .insert({
+      name: input.name,
+      domain_client_id: input.domainClientId,
+      registrar: input.registrar,
+      status: input.status,
+      purchase_price: input.purchasePrice,
+      selling_price: input.sellingPrice,
+      expiry_date: input.expiryDate,
+      auto_renew: input.autoRenew,
+      notes: input.notes,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toDomain(data as DomainRow);
+}
+
+export async function updateDomain(id: string, patch: Partial<DomainInput>): Promise<void> {
+  const update: Record<string, unknown> = { updated_at: nowIso() };
+  if (patch.name !== undefined) update.name = patch.name;
+  if (patch.domainClientId !== undefined) update.domain_client_id = patch.domainClientId;
+  if (patch.registrar !== undefined) update.registrar = patch.registrar;
+  if (patch.status !== undefined) update.status = patch.status;
+  if (patch.purchasePrice !== undefined) update.purchase_price = patch.purchasePrice;
+  if (patch.sellingPrice !== undefined) update.selling_price = patch.sellingPrice;
+  if (patch.expiryDate !== undefined) update.expiry_date = patch.expiryDate;
+  if (patch.autoRenew !== undefined) update.auto_renew = patch.autoRenew;
+  if (patch.notes !== undefined) update.notes = patch.notes;
+
+  const { error } = await getSupabase().from("freelance_hq_domains").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function setDomainLocked(id: string, locked: boolean): Promise<void> {
+  const { error } = await getSupabase()
+    .from("freelance_hq_domains")
+    .update({ locked, updated_at: nowIso() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function setDomainNameservers(id: string, nameservers: string[]): Promise<void> {
+  const { error } = await getSupabase()
+    .from("freelance_hq_domains")
+    .update({ nameservers, updated_at: nowIso() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function applyDynadotSync(
+  id: string,
+  info: { expiryDate: string | null; locked: boolean; autoRenew: boolean; nameservers: string[] },
+): Promise<void> {
+  const { error } = await getSupabase()
+    .from("freelance_hq_domains")
+    .update({
+      expiry_date: info.expiryDate,
+      locked: info.locked,
+      auto_renew: info.autoRenew,
+      nameservers: info.nameservers,
+      dynadot_synced_at: nowIso(),
+      updated_at: nowIso(),
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteDomain(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_domains").delete().eq("id", id);
+  if (error) throw error;
+}
+
+interface DomainDnsRecordRow {
+  id: string;
+  domain_id: string;
+  record_type: DnsRecordType;
+  host: string;
+  value: string;
+  priority: number | null;
+  ttl: number | null;
+}
+
+function toDomainDnsRecord(row: DomainDnsRecordRow): DomainDnsRecord {
+  return {
+    id: row.id,
+    domainId: row.domain_id,
+    recordType: row.record_type,
+    host: row.host,
+    value: row.value,
+    priority: row.priority,
+    ttl: row.ttl,
+  };
+}
+
+export async function listDomainDnsRecords(domainId: string): Promise<DomainDnsRecord[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_domain_dns_records")
+      .select("*")
+      .eq("domain_id", domainId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return ((data ?? []) as DomainDnsRecordRow[]).map(toDomainDnsRecord);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export interface DomainDnsRecordInput {
+  domainId: string;
+  recordType: DnsRecordType;
+  host: string;
+  value: string;
+  priority: number | null;
+  ttl: number | null;
+}
+
+export async function createDomainDnsRecord(input: DomainDnsRecordInput): Promise<DomainDnsRecord> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_domain_dns_records")
+    .insert({
+      domain_id: input.domainId,
+      record_type: input.recordType,
+      host: input.host,
+      value: input.value,
+      priority: input.priority,
+      ttl: input.ttl,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toDomainDnsRecord(data as DomainDnsRecordRow);
+}
+
+export async function updateDomainDnsRecord(id: string, patch: Partial<Omit<DomainDnsRecordInput, "domainId">>): Promise<void> {
+  const update: Record<string, unknown> = { updated_at: nowIso() };
+  if (patch.recordType !== undefined) update.record_type = patch.recordType;
+  if (patch.host !== undefined) update.host = patch.host;
+  if (patch.value !== undefined) update.value = patch.value;
+  if (patch.priority !== undefined) update.priority = patch.priority;
+  if (patch.ttl !== undefined) update.ttl = patch.ttl;
+
+  const { error } = await getSupabase().from("freelance_hq_domain_dns_records").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteDomainDnsRecord(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_domain_dns_records").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function getDomainSettings(): Promise<DomainSettings> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_domain_settings")
+      .select("dynadot_api_key_encrypted")
+      .eq("id", true)
+      .maybeSingle();
+    if (error) throw error;
+    return { dynadotApiKeyEncrypted: (data as { dynadot_api_key_encrypted: string | null } | null)?.dynadot_api_key_encrypted ?? null };
+  } catch (error) {
+    if (isMissingTableError(error)) return { dynadotApiKeyEncrypted: null };
+    throw error;
+  }
+}
+
+export async function setDynadotApiKey(apiKey: string | null): Promise<void> {
+  const { encryptApiKey } = await import("./dynadotCrypto");
+  const { error } = await getSupabase()
+    .from("freelance_hq_domain_settings")
+    .upsert({
+      id: true,
+      dynadot_api_key_encrypted: apiKey ? encryptApiKey(apiKey) : null,
+      updated_at: nowIso(),
+    });
+  if (error) throw error;
 }

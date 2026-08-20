@@ -263,6 +263,23 @@ Finance page's totals, since that money was genuinely received.
 > keyword targets both a service page and a location page). Existing
 > single-page assignments are copied over automatically; nothing to redo by
 > hand.
+>
+> Already ran 019? Also run
+> [`supabase/migrations/020_domains.sql`](./supabase/migrations/020_domains.sql) —
+> adds `freelance_hq_domain_clients`, `freelance_hq_domains`,
+> `freelance_hq_domain_dns_records`, and `freelance_hq_domain_settings` tables.
+> This powers a new admin-only **Domains** tab (sidebar, separate from client
+> projects) for managing a domain resale inventory: add domains manually, assign
+> them to a lightweight domain-client contact, edit DNS records, and lock/unlock
+> or auto-renew. It can optionally sync against a Dynadot reseller account (API
+> key entered on the Domains → Dynadot Settings tab, encrypted at rest — see the
+> `DYNADOT_SECRET` env var below) to import your whole domain portfolio in one
+> click and push DNS/lock changes to the registrar. **Note:** the Dynadot API
+> commands in `lib/dynadot.ts` are implemented from Dynadot's documented API v3
+> shape but haven't been exercised against a live account from this environment
+> — test each sync/lock/DNS action against a throwaway domain first, and check
+> [dynadot.com/domain/api-commands](https://www.dynadot.com/domain/api-commands)
+> if a call fails with an unexpected error.
 
 ### 3. Get your API credentials
 
@@ -308,6 +325,11 @@ server-only, the other is exposed to the browser for the login flow.)
 > saved backlink login passwords at rest; everything else in the app works fine
 > without it. Set it once and don't change it — changing or losing it makes any
 > previously saved backlink passwords permanently undecryptable.
+
+> Using the **Domains** tab's Dynadot sync? Also set `DYNADOT_SECRET` — another
+> long random string, different from `BACKLINKS_SECRET`, e.g. `openssl rand -hex
+> 32`. It encrypts your saved Dynadot API key at rest; manual domain entry, DNS
+> records, and everything else on the Domains tab works fine without it.
 
 ### 5. Run it
 

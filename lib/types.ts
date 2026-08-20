@@ -243,3 +243,58 @@ export interface KeywordMonthlyPosition {
   month: string;
   rank: number | null;
 }
+
+/**
+ * Domain reselling. A standalone inventory of domains held for resale — separate
+ * from the project system's Clients. Domains can optionally be assigned to a
+ * DomainClient and can be synced against a Dynadot reseller account.
+ */
+export type ResaleDomainStatus = "available" | "reserved" | "sold";
+
+export interface DomainClient {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  notes: string;
+  createdAt: string;
+}
+
+export type DnsRecordType = "A" | "AAAA" | "CNAME" | "MX" | "TXT" | "NS" | "SRV";
+
+export interface DomainDnsRecord {
+  id: string;
+  domainId: string;
+  recordType: DnsRecordType;
+  host: string;
+  value: string;
+  priority: number | null;
+  ttl: number | null;
+}
+
+export interface Domain {
+  id: string;
+  name: string;
+  domainClientId: string | null;
+  registrar: string;
+  status: ResaleDomainStatus;
+  purchasePrice: number | null;
+  sellingPrice: number | null;
+  expiryDate: string | null;
+  autoRenew: boolean;
+  locked: boolean;
+  nameservers: string[];
+  notes: string;
+  dynadotSyncedAt: string | null;
+  createdAt: string;
+}
+
+/** Server-internal shape (store.ts / lib/dynadot.ts only) — never pass to a client component. */
+export interface DomainSettings {
+  dynadotApiKeyEncrypted: string | null;
+}
+
+/** Client-safe view of DomainSettings — never carries the encrypted key. */
+export interface DomainSettingsView {
+  hasDynadotApiKey: boolean;
+}
