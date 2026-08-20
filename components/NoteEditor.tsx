@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { ArrowLeft, Lock, Pin, Trash2 } from "lucide-react";
 import type { JSONContent } from "@tiptap/react";
-import type { Note, Profile, Project } from "@/lib/types";
+import type { Note, NoteFolder, Profile, Project } from "@/lib/types";
 import { deleteNoteAction, toggleNotePinAction, updateNoteAction } from "@/lib/actions";
 import { RichTextEditor } from "./RichTextEditor";
 import { formatRelativeDate } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { formatRelativeDate } from "@/lib/utils";
 export function NoteEditor({
   note,
   projects,
+  folders,
   members,
   isAdmin,
   canEdit,
@@ -20,6 +21,7 @@ export function NoteEditor({
 }: {
   note: Note;
   projects: Project[];
+  folders: NoteFolder[];
   members: Profile[];
   isAdmin: boolean;
   canEdit: boolean;
@@ -29,6 +31,7 @@ export function NoteEditor({
   const [isPending, startTransition] = useTransition();
   const [title, setTitle] = useState(note.title);
   const [projectId, setProjectId] = useState(note.projectId ?? "");
+  const [folderId, setFolderId] = useState(note.folderId ?? "");
   const [assignedToUserId, setAssignedToUserId] = useState(note.assignedToUserId ?? "");
   const [editableByAssignee, setEditableByAssignee] = useState(note.editableByAssignee);
   const [pinned, setPinned] = useState(note.pinned);
@@ -46,6 +49,7 @@ export function NoteEditor({
       formData.set("title", title || "Untitled");
       formData.set("contentJson", JSON.stringify(contentRef.current));
       formData.set("projectId", projectId);
+      formData.set("folderId", folderId);
       if (isAdmin) {
         formData.set("assignedToUserId", assignedToUserId);
         formData.set("editableByAssignee", editableByAssignee ? "on" : "off");
@@ -132,16 +136,38 @@ export function NoteEditor({
           <span>Project:</span>
           <select
             value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
+            onChange={(e) => {
+              setProjectId(e.target.value);
+              setFolderId("");
+            }}
             disabled={!canEdit}
             className="rounded-md border border-base-600 bg-base-900 px-2 py-1 text-xs text-neutral-200 focus:border-accent-500 focus:outline-none disabled:opacity-60"
           >
-            <option value="">None</option>
+            <option value="">General (no project)</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+          <span>Folder:</span>
+          <select
+            value={folderId}
+            onChange={(e) => setFolderId(e.target.value)}
+            disabled={!canEdit}
+            className="rounded-md border border-base-600 bg-base-900 px-2 py-1 text-xs text-neutral-200 focus:border-accent-500 focus:outline-none disabled:opacity-60"
+          >
+            <option value="">None (top level)</option>
+            {folders
+              .filter((f) => (f.projectId ?? "") === projectId)
+              .map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
           </select>
         </div>
 

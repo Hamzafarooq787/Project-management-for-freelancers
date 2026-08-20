@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
-import { getProjectsForProfile, listNotes, listTeamMembers } from "@/lib/store";
+import { getProjectsForProfile, listNoteFolders, listNotes } from "@/lib/store";
 import { NotesPanel } from "@/components/NotesPanel";
 
 export const dynamic = "force-dynamic";
@@ -10,11 +10,8 @@ export default async function NotesPage() {
   if (!profile) redirect("/login");
 
   const isAdmin = profile.role === "admin";
-  const [notes, projects, members] = await Promise.all([
-    listNotes(profile.id, isAdmin),
-    getProjectsForProfile(profile),
-    isAdmin ? listTeamMembers() : Promise.resolve([]),
-  ]);
+  const projects = await getProjectsForProfile(profile);
+  const [notes, folders] = await Promise.all([listNotes(profile.id, isAdmin), listNoteFolders(projects.map((p) => p.id))]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -22,11 +19,11 @@ export default async function NotesPage() {
         <h1 className="text-2xl font-semibold text-neutral-50">Notes</h1>
         <p className="mt-1 text-sm text-neutral-500">
           A shared docs space for the team — write articles, tables, and plans right here instead of a separate
-          doc tool. Pin the important ones to the dashboard.
+          doc tool. Organized by project, with folders for anything that needs more structure.
         </p>
       </div>
 
-      <NotesPanel notes={notes} projects={projects} members={members} currentUserId={profile.id} isAdmin={isAdmin} />
+      <NotesPanel notes={notes} folders={folders} projects={projects} currentUserId={profile.id} isAdmin={isAdmin} />
     </div>
   );
 }

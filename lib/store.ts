@@ -23,6 +23,7 @@ import type {
   KeywordRankHistoryEntry,
   KeywordStatus,
   Note,
+  NoteFolder,
   ProjectAttachment,
   Payment,
   PaymentKind,
@@ -2220,6 +2221,7 @@ interface NoteRow {
   editable_by_assignee: boolean;
   pinned: boolean;
   project_id: string | null;
+  folder_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -2238,6 +2240,7 @@ async function toNote(row: NoteRow): Promise<Note> {
     editableByAssignee: row.editable_by_assignee,
     pinned: row.pinned,
     projectId: row.project_id,
+    folderId: row.folder_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -2283,6 +2286,7 @@ export interface NoteInput {
   editableByAssignee: boolean;
   pinned: boolean;
   projectId: string | null;
+  folderId: string | null;
 }
 
 export async function createNote(input: NoteInput): Promise<Note> {
@@ -2296,6 +2300,7 @@ export async function createNote(input: NoteInput): Promise<Note> {
       editable_by_assignee: input.editableByAssignee,
       pinned: input.pinned,
       project_id: input.projectId,
+      folder_id: input.folderId,
     })
     .select()
     .single();
@@ -2314,6 +2319,7 @@ export async function updateNote(
   if (patch.editableByAssignee !== undefined) update.editable_by_assignee = patch.editableByAssignee;
   if (patch.pinned !== undefined) update.pinned = patch.pinned;
   if (patch.projectId !== undefined) update.project_id = patch.projectId;
+  if (patch.folderId !== undefined) update.folder_id = patch.folderId;
 
   const { error } = await getSupabase().from("freelance_hq_notes").update(update).eq("id", id);
   if (error) throw error;
@@ -2321,6 +2327,75 @@ export async function updateNote(
 
 export async function deleteNote(id: string): Promise<void> {
   const { error } = await getSupabase().from("freelance_hq_notes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Note folders: one level, scoped to a project (or to the project-independent
+ * "General" bucket when projectId is null). Visibility/create/rename/delete
+ * permission is "anyone who can access the project" (checked in actions.ts),
+ * distinct from the per-note author/admin/assignee rules above.
+ */
+interface NoteFolderRow {
+  id: string;
+  name: string;
+  project_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function toNoteFolder(row: NoteFolderRow): NoteFolder {
+  return { id: row.id, name: row.name, projectId: row.project_id, createdAt: row.created_at, updatedAt: row.updated_at };
+}
+
+/** All folders visible to a user: General (project_id null) plus folders in `accessibleProjectIds`. */
+export async function listNoteFolders(accessibleProjectIds: string[]): Promise<NoteFolder[]> {
+  try {
+    let query = getSupabase().from("freelance_hq_note_folders").select("*").order("name");
+    query =
+      accessibleProjectIds.length > 0
+        ? query.or(`project_id.is.null,project_id.in.(${accessibleProjectIds.join(",")})`)
+        : query.is("project_id", null);
+    const { data, error } = await query;
+    if (error) throw error;
+    return ((data ?? []) as NoteFolderRow[]).map(toNoteFolder);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export async function getNoteFolder(id: string): Promise<NoteFolder | null> {
+  try {
+    const { data, error } = await getSupabase().from("freelance_hq_note_folders").select("*").eq("id", id).maybeSingle();
+    if (error) throw error;
+    return data ? toNoteFolder(data as NoteFolderRow) : null;
+  } catch (error) {
+    if (isMissingTableError(error)) return null;
+    throw error;
+  }
+}
+
+export async function createNoteFolder(name: string, projectId: string | null): Promise<NoteFolder> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_note_folders")
+    .insert({ name, project_id: projectId })
+    .select()
+    .single();
+  if (error) throw error;
+  return toNoteFolder(data as NoteFolderRow);
+}
+
+export async function renameNoteFolder(id: string, name: string): Promise<void> {
+  const { error } = await getSupabase()
+    .from("freelance_hq_note_folders")
+    .update({ name, updated_at: nowIso() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteNoteFolder(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_note_folders").delete().eq("id", id);
   if (error) throw error;
 }
 
