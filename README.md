@@ -302,6 +302,14 @@ Finance page's totals, since that money was genuinely received.
 > create/rename/delete its folders; General is open to everyone. This is
 > layout only — the per-note author/admin/assignee visibility rules from 021
 > are unchanged.
+>
+> Already ran 022? Also run
+> [`supabase/migrations/023_notifications.sql`](./supabase/migrations/023_notifications.sql) —
+> adds `freelance_hq_notification_seen`, which powers small red count badges
+> on the **Projects** and **Notes** tabs (sidebar and mobile nav). A member
+> sees a badge when an admin assigns them a new project or a new note; the
+> badge clears the moment they open that tab. Admins see a badge on Projects
+> for any project created since they last opened it.
 
 ### 3. Get your API credentials
 

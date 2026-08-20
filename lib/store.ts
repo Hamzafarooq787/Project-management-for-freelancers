@@ -897,15 +897,34 @@ export async function isProjectAssignedToUser(projectId: string, userId: string)
   }
 }
 
+/**
+ * Diffs against the current assignment set instead of delete-all-then-reinsert,
+ * so an assignment's created_at survives being re-saved unchanged — that
+ * timestamp powers the "new project assigned to you" notification badge, and
+ * a full delete/reinsert would reset it (and re-trigger the badge) for every
+ * member on every save, even ones whose access didn't actually change.
+ */
 export async function setMemberAssignments(userId: string, projectIds: string[]): Promise<void> {
-  const { error: deleteError } = await getSupabase().from("freelance_hq_project_assignments").delete().eq("user_id", userId);
-  if (deleteError) throw deleteError;
-  if (projectIds.length === 0) return;
+  const current = new Set(await getAssignedProjectIds(userId));
+  const next = new Set(projectIds);
 
-  const { error: insertError } = await getSupabase()
-    .from("freelance_hq_project_assignments")
-    .insert(projectIds.map((projectId) => ({ project_id: projectId, user_id: userId })));
-  if (insertError) throw insertError;
+  const toRemove = [...current].filter((id) => !next.has(id));
+  const toAdd = [...next].filter((id) => !current.has(id));
+
+  if (toRemove.length > 0) {
+    const { error } = await getSupabase()
+      .from("freelance_hq_project_assignments")
+      .delete()
+      .eq("user_id", userId)
+      .in("project_id", toRemove);
+    if (error) throw error;
+  }
+  if (toAdd.length > 0) {
+    const { error } = await getSupabase()
+      .from("freelance_hq_project_assignments")
+      .insert(toAdd.map((projectId) => ({ project_id: projectId, user_id: userId })));
+    if (error) throw error;
+  }
 }
 
 export async function getProjectsForProfile(profile: Profile): Promise<Project[]> {
@@ -2429,4 +2448,80 @@ export async function upsertTaskNote(taskId: string, content: RichContent, updat
     .single();
   if (error) throw error;
   return toTaskNote(data as TaskNoteRow);
+}
+
+/**
+ * "Unseen count" notification badges (e.g. Projects/Notes tabs in the
+ * sidebar). One row per (user, section) tracks when that user last opened
+ * that section; badge counts are computed by comparing against it.
+ */
+const EPOCH = "1970-01-01T00:00:00.000Z";
+
+async function getLastSeen(userId: string, section: string): Promise<string> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_notification_seen")
+      .select("last_seen_at")
+      .eq("user_id", userId)
+      .eq("section", section)
+      .maybeSingle();
+    if (error) throw error;
+    return (data as { last_seen_at: string } | null)?.last_seen_at ?? EPOCH;
+  } catch (error) {
+    if (isMissingTableError(error)) return EPOCH;
+    throw error;
+  }
+}
+
+export async function markSectionSeen(userId: string, section: string): Promise<void> {
+  try {
+    const { error } = await getSupabase()
+      .from("freelance_hq_notification_seen")
+      .upsert({ user_id: userId, section, last_seen_at: nowIso() });
+    if (error) throw error;
+  } catch (error) {
+    if (!isMissingTableError(error)) throw error;
+  }
+}
+
+/** New project assignments (or, for an admin, new projects) since the user last opened Projects. */
+export async function countUnseenProjects(userId: string, isAdmin: boolean): Promise<number> {
+  const lastSeen = await getLastSeen(userId, "projects");
+  try {
+    if (isAdmin) {
+      const { count, error } = await getSupabase()
+        .from("freelance_hq_projects")
+        .select("*", { count: "exact", head: true })
+        .gt("created_at", lastSeen);
+      if (error) throw error;
+      return count ?? 0;
+    }
+    const { count, error } = await getSupabase()
+      .from("freelance_hq_project_assignments")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gt("created_at", lastSeen);
+    if (error) throw error;
+    return count ?? 0;
+  } catch (error) {
+    if (isMissingTableError(error)) return 0;
+    throw error;
+  }
+}
+
+/** Notes an admin has assigned to this user since they last opened Notes. */
+export async function countUnseenNotes(userId: string): Promise<number> {
+  const lastSeen = await getLastSeen(userId, "notes");
+  try {
+    const { count, error } = await getSupabase()
+      .from("freelance_hq_notes")
+      .select("*", { count: "exact", head: true })
+      .eq("assigned_to_user_id", userId)
+      .gt("created_at", lastSeen);
+    if (error) throw error;
+    return count ?? 0;
+  } catch (error) {
+    if (isMissingTableError(error)) return 0;
+    throw error;
+  }
 }
