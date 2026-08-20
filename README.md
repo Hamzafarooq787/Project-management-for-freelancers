@@ -280,6 +280,17 @@ Finance page's totals, since that money was genuinely received.
 > — test each sync/lock/DNS action against a throwaway domain first, and check
 > [dynadot.com/domain/api-commands](https://www.dynadot.com/domain/api-commands)
 > if a call fails with an unexpected error.
+>
+> Already ran 020? Also run
+> [`supabase/migrations/021_notes.sql`](./supabase/migrations/021_notes.sql) —
+> adds `freelance_hq_notes` and `freelance_hq_task_notes` tables. This powers
+> a new **Notes** tab (sidebar, everyone can use it) — a shared, docs-like
+> space where SEO/content writers can write articles, tables, and plans right
+> in the app instead of Google Docs — plus a "Notes" tab on every task's
+> detail modal for task-specific writing. A note is visible to its author and
+> to admins; an admin can also assign a note to a specific member, and choose
+> whether that member can edit it or only view it. Any note can be pinned so
+> it shows on the dashboard.
 
 ### 3. Get your API credentials
 

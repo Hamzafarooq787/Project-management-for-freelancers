@@ -44,3 +44,92 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background-color: #162e25;
 }
+
+/* RichTextEditor (Tiptap) content styling — used for both global notes and
+   per-task notes so "docs-like" writing (headings, lists, tables) reads well
+   in this dark theme without pulling in a full typography plugin. */
+.rte-content {
+  outline: none;
+  min-height: 8rem;
+  color: #e5e5e5;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.rte-content > * + * {
+  margin-top: 0.6em;
+}
+.rte-content h1 {
+  font-size: 1.4em;
+  font-weight: 700;
+  color: #fafafa;
+}
+.rte-content h2 {
+  font-size: 1.2em;
+  font-weight: 700;
+  color: #fafafa;
+}
+.rte-content h3 {
+  font-size: 1.05em;
+  font-weight: 600;
+  color: #fafafa;
+}
+.rte-content ul {
+  list-style: disc;
+  padding-left: 1.4em;
+}
+.rte-content ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.rte-content a {
+  color: #33d485;
+  text-decoration: underline;
+}
+.rte-content blockquote {
+  border-left: 3px solid #10231c;
+  padding-left: 0.9em;
+  color: #a3a3a3;
+}
+.rte-content code {
+  background: #0b1914;
+  border: 1px solid #10231c;
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.85em;
+}
+.rte-content pre {
+  background: #0b1914;
+  border: 1px solid #10231c;
+  border-radius: 8px;
+  padding: 0.75em;
+  overflow-x: auto;
+}
+.rte-content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.rte-content table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+.rte-content th,
+.rte-content td {
+  border: 1px solid #10231c;
+  padding: 0.4em 0.6em;
+  vertical-align: top;
+  position: relative;
+}
+.rte-content th {
+  background: #0b1914;
+  font-weight: 600;
+  text-align: left;
+}
+.rte-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #525252;
+  pointer-events: none;
+  height: 0;
+}

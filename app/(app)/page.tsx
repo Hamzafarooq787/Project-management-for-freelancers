@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ListTodo, FolderKanban, CheckCircle2, ArrowRight, Plus, Wallet, TrendingUp, AlertCircle, PiggyBank, Hourglass } from "lucide-react";
+import { ListTodo, FolderKanban, CheckCircle2, ArrowRight, Plus, Wallet, TrendingUp, AlertCircle, PiggyBank, Hourglass, Pin, FileText } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth";
 import {
   getCompletedTasks,
@@ -8,26 +8,28 @@ import {
   getProjectsForProfile,
   listAllPayments,
   listPaymentPlans,
+  listPinnedNotes,
 } from "@/lib/store";
 import { StatCard } from "@/components/StatCard";
 import { ScheduledTodayStat } from "@/components/ScheduledTodayStat";
 import { TaskRow } from "@/components/TaskRow";
 import { ProjectTypeTabs } from "@/components/ProjectTypeTabs";
 import type { ProjectPaymentSummary } from "@/components/ProjectCardClient";
-import { currentMonthKey, formatMoney, resolveSelectedCurrency, sortCurrencies } from "@/lib/utils";
+import { currentMonthKey, formatMoney, formatRelativeDate, resolveSelectedCurrency, sortCurrencies } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage({ searchParams }: { searchParams: { currency?: string } }) {
   const profile = await getCurrentProfile();
   const isAdmin = profile?.role === "admin";
-  const [allOpenTasks, projects, allCompletedTasks, progress, plans, payments] = await Promise.all([
+  const [allOpenTasks, projects, allCompletedTasks, progress, plans, payments, pinnedNotes] = await Promise.all([
     getOpenTasks(),
     profile ? getProjectsForProfile(profile) : Promise.resolve([]),
     getCompletedTasks(),
     getProjectProgressMap(),
     isAdmin ? listPaymentPlans() : Promise.resolve([]),
     isAdmin ? listAllPayments() : Promise.resolve([]),
+    profile ? listPinnedNotes(profile.id, isAdmin) : Promise.resolve([]),
   ]);
 
   const visibleIds = new Set(projects.map((p) => p.id));
@@ -104,6 +106,30 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         </div>
         <ProjectTypeTabs projects={activeProjects} progress={progress} paymentByProject={paymentByProject} />
       </section>
+
+      {pinnedNotes.length > 0 && (
+        <section>
+          <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-neutral-400">
+            <Pin size={13} className="text-accent-400" />
+            Pinned Notes
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {pinnedNotes.map((note) => (
+              <Link
+                key={note.id}
+                href={`/notes/${note.id}`}
+                className="flex flex-col gap-1.5 rounded-xl2 border border-base-700/60 bg-base-850 p-4 hover:border-accent-500/50"
+              >
+                <div className="flex items-center gap-1.5 text-neutral-100">
+                  <FileText size={14} className="shrink-0 text-neutral-500" />
+                  <p className="truncate text-sm font-medium">{note.title || "Untitled"}</p>
+                </div>
+                <p className="text-[11px] text-neutral-500">Updated {formatRelativeDate(note.updatedAt)}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Open tasks" value={openTasks.length} icon={ListTodo} tone="accent" />

@@ -1,11 +1,13 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { X, Trash2, Clock, CalendarDays, ListChecks } from "lucide-react";
+import { X, Trash2, Clock, CalendarDays, ListChecks, FileText } from "lucide-react";
 import type { ChecklistItem, Stage, Task, TaskStatus } from "@/lib/types";
 import { deleteTaskAction, updateTaskDetailsAction } from "@/lib/actions";
 import { formatRelativeDate } from "@/lib/utils";
 import { TaskFiles } from "./TaskFiles";
+import { TaskNotesEditor } from "./TaskNotesEditor";
+import { cn } from "@/lib/utils";
 
 function todayKey(): string {
   const d = new Date();
@@ -30,6 +32,7 @@ export function TaskDetailModal({
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(task.checklist);
+  const [tab, setTab] = useState<"details" | "notes">("details");
 
   function addChecklistItem() {
     setChecklist((items) => [...items, { id: crypto.randomUUID(), text: "", done: false }]);
@@ -57,7 +60,10 @@ export function TaskDetailModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-xl2 border border-base-700/60 bg-base-850 p-5 shadow-card"
+        className={cn(
+          "w-full rounded-xl2 border border-base-700/60 bg-base-850 p-5 shadow-card",
+          tab === "notes" ? "max-w-2xl" : "max-w-lg",
+        )}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -69,6 +75,32 @@ export function TaskDetailModal({
           </button>
         </div>
 
+        <div className="mb-3 flex items-center gap-1 rounded-lg border border-base-700/60 bg-base-900 p-1">
+          <button
+            type="button"
+            onClick={() => setTab("details")}
+            className={cn(
+              "flex-1 rounded-md px-3 py-1.5 text-xs font-medium",
+              tab === "details" ? "bg-accent-500/15 text-accent-300" : "text-neutral-400 hover:text-neutral-200",
+            )}
+          >
+            Details
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("notes")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+              tab === "notes" ? "bg-accent-500/15 text-accent-300" : "text-neutral-400 hover:text-neutral-200",
+            )}
+          >
+            <FileText size={13} />
+            Notes
+          </button>
+        </div>
+
+        {tab === "notes" && <TaskNotesEditor taskId={task.id} projectId={task.projectId} />}
+
         <form
           ref={formRef}
           action={(formData) => {
@@ -78,7 +110,7 @@ export function TaskDetailModal({
               onClose();
             });
           }}
-          className="flex flex-col gap-3"
+          className={cn("flex flex-col gap-3", tab === "notes" && "hidden")}
         >
           <input type="hidden" name="taskId" value={task.id} />
           <input type="hidden" name="projectId" value={task.projectId} />

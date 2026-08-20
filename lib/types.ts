@@ -298,3 +298,36 @@ export interface DomainSettings {
 export interface DomainSettingsView {
   hasDynadotApiKey: boolean;
 }
+
+/** Tiptap's document JSON shape — opaque here, rendered/edited only by RichTextEditor. */
+export type RichContent = Record<string, unknown>;
+
+/**
+ * A docs-style note, shown in the global Notes sidebar. Visibility/edit rules
+ * (see lib/actions.ts) are: admins can see and edit every note; a member can
+ * always see/edit notes they authored; a note an admin assigns to a member is
+ * also visible to that member, and editable by them unless the admin sets
+ * editableByAssignee to false.
+ */
+export interface Note {
+  id: string;
+  title: string;
+  content: RichContent;
+  authorId: string;
+  authorName: string;
+  assignedToUserId: string | null;
+  assignedToName: string | null;
+  editableByAssignee: boolean;
+  pinned: boolean;
+  projectId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** One rich-text note per task, shown in a "Notes" tab on the task detail modal. */
+export interface TaskNote {
+  taskId: string;
+  content: RichContent;
+  updatedAt: string;
+  updatedBy: string | null;
+}
