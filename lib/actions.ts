@@ -1196,6 +1196,7 @@ export async function createNoteAction(
       editableByAssignee: formData.get("editableByAssignee") !== "off",
       pinned: formData.get("pinned") === "on",
       projectId: str(formData, "projectId") || null,
+      folderId: str(formData, "folderId") || null,
     });
     refreshNotes(note.id);
     return { ok: true, id: note.id };
@@ -1215,6 +1216,7 @@ export async function updateNoteAction(
       title: str(formData, "title") || "Untitled",
       content: parseRichContent(str(formData, "contentJson")),
       projectId: str(formData, "projectId") || null,
+      folderId: str(formData, "folderId") || null,
     };
     if (profile.role === "admin") {
       patch.assignedToUserId = str(formData, "assignedToUserId") || null;
@@ -1259,4 +1261,46 @@ export async function getTaskNoteAction(taskId: string, projectId: string): Prom
   await requireProjectAccess(projectId);
   const note = await store.getTaskNote(taskId);
   return note?.content ?? {};
+}
+
+/**
+ * Note folders: one level under a project (or under the project-independent
+ * "General" bucket when projectId is null). Anyone who can access the
+ * project can create/rename/delete its folders — General is open to any
+ * signed-in user. This is separate from each note's own author/admin/
+ * assignee edit rules.
+ */
+async function requireFolderAccess(projectId: string | null) {
+  if (projectId) return requireProjectAccess(projectId);
+  return requireProfile();
+}
+
+export async function createNoteFolderAction(
+  name: string,
+  projectId: string | null,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  try {
+    await requireFolderAccess(projectId);
+    const folder = await store.createNoteFolder(name || "Untitled folder", projectId);
+    refreshNotes();
+    return { ok: true, id: folder.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't create the folder." };
+  }
+}
+
+export async function renameNoteFolderAction(folderId: string, name: string) {
+  const folder = await store.getNoteFolder(folderId);
+  if (!folder) return;
+  await requireFolderAccess(folder.projectId);
+  await store.renameNoteFolder(folderId, name || "Untitled folder");
+  refreshNotes();
+}
+
+export async function deleteNoteFolderAction(folderId: string) {
+  const folder = await store.getNoteFolder(folderId);
+  if (!folder) return;
+  await requireFolderAccess(folder.projectId);
+  await store.deleteNoteFolder(folderId);
+  refreshNotes();
 }

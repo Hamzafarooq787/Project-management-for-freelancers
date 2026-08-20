@@ -291,6 +291,17 @@ Finance page's totals, since that money was genuinely received.
 > to admins; an admin can also assign a note to a specific member, and choose
 > whether that member can edit it or only view it. Any note can be pinned so
 > it shows on the dashboard.
+>
+> Already ran 021? Also run
+> [`supabase/migrations/022_note_folders.sql`](./supabase/migrations/022_note_folders.sql) —
+> adds `freelance_hq_note_folders` and a `folder_id` column on
+> `freelance_hq_notes`. Notes are now organized like a small file explorer:
+> your Projects (plus a project-independent **General** bucket) show first,
+> each can hold one level of folders and/or notes placed directly in it, and
+> folders hold their own notes. Anyone who can access a project can
+> create/rename/delete its folders; General is open to everyone. This is
+> layout only — the per-note author/admin/assignee visibility rules from 021
+> are unchanged.
 
 ### 3. Get your API credentials
 

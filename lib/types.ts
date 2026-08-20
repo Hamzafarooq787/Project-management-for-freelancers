@@ -320,6 +320,20 @@ export interface Note {
   editableByAssignee: boolean;
   pinned: boolean;
   projectId: string | null;
+  folderId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * One level of folders inside a project's notes (or, when projectId is
+ * null, inside the project-independent "General" notes bucket). Folders
+ * don't nest — a folder holds notes directly, not other folders.
+ */
+export interface NoteFolder {
+  id: string;
+  name: string;
+  projectId: string | null;
   createdAt: string;
   updatedAt: string;
 }
