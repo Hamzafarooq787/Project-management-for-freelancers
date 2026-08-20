@@ -744,6 +744,42 @@ export async function removeKeywordFromPageAction(keywordId: string, projectId: 
   }
 }
 
+export async function bulkAssignKeywordsToPageAction(keywordIds: string[], projectId: string, pageId: string) {
+  await requireProjectAccess(projectId);
+  await Promise.all(
+    keywordIds.map((keywordId) =>
+      store.addKeywordToPage(keywordId, pageId).catch(() => {
+        // Non-critical: one failed assignment shouldn't stop the rest of the bulk action.
+      }),
+    ),
+  );
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function bulkRemoveKeywordsFromPageAction(keywordIds: string[], projectId: string, pageId: string) {
+  await requireProjectAccess(projectId);
+  await Promise.all(
+    keywordIds.map((keywordId) =>
+      store.removeKeywordFromPage(keywordId, pageId).catch(() => {
+        // Non-critical: one failed removal shouldn't stop the rest of the bulk action.
+      }),
+    ),
+  );
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function bulkDeleteKeywordsAction(keywordIds: string[], projectId: string) {
+  await requireProjectAccess(projectId);
+  await Promise.all(
+    keywordIds.map((keywordId) =>
+      store.deleteKeyword(keywordId).catch(() => {
+        // Non-critical: one failed deletion shouldn't stop the rest of the bulk action.
+      }),
+    ),
+  );
+  revalidatePath(`/projects/${projectId}`);
+}
+
 export async function createKeywordGroupAction(projectId: string, name: string, color: KeywordGroupColor) {
   if (!name.trim()) return;
   await requireProjectAccess(projectId);
