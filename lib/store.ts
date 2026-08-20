@@ -22,6 +22,7 @@ import type {
   KeywordPage,
   KeywordRankHistoryEntry,
   KeywordStatus,
+  Note,
   ProjectAttachment,
   Payment,
   PaymentKind,
@@ -31,10 +32,12 @@ import type {
   Project,
   ProjectType,
   ResaleDomainStatus,
+  RichContent,
   Role,
   Stage,
   Task,
   TaskFile,
+  TaskNote,
   TaskPriority,
   TaskStatus,
   WebDevDetails,
@@ -2201,4 +2204,154 @@ export async function setDynadotApiKey(apiKey: string | null): Promise<void> {
       updated_at: nowIso(),
     });
   if (error) throw error;
+}
+
+/**
+ * Docs-style notes. Visibility/edit permission is decided in lib/actions.ts
+ * (the caller passes in the current profile so this stays a pure data layer);
+ * these list/get functions just apply the DB-level "which rows" filter.
+ */
+interface NoteRow {
+  id: string;
+  title: string;
+  content: RichContent;
+  author_id: string;
+  assigned_to_user_id: string | null;
+  editable_by_assignee: boolean;
+  pinned: boolean;
+  project_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+async function toNote(row: NoteRow): Promise<Note> {
+  const members = await listTeamMembers();
+  const nameById = new Map(members.map((m) => [m.id, m.name || m.email]));
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content ?? {},
+    authorId: row.author_id,
+    authorName: nameById.get(row.author_id) ?? "Unknown",
+    assignedToUserId: row.assigned_to_user_id,
+    assignedToName: row.assigned_to_user_id ? nameById.get(row.assigned_to_user_id) ?? "Unknown" : null,
+    editableByAssignee: row.editable_by_assignee,
+    pinned: row.pinned,
+    projectId: row.project_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/** All notes visible to an admin, or to `userId` if not an admin (authored by or assigned to them). */
+export async function listNotes(userId: string, isAdmin: boolean): Promise<Note[]> {
+  try {
+    let query = getSupabase().from("freelance_hq_notes").select("*").order("pinned", { ascending: false }).order("updated_at", { ascending: false });
+    if (!isAdmin) {
+      query = query.or(`author_id.eq.${userId},assigned_to_user_id.eq.${userId}`);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return Promise.all(((data ?? []) as NoteRow[]).map(toNote));
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export async function listPinnedNotes(userId: string, isAdmin: boolean): Promise<Note[]> {
+  const notes = await listNotes(userId, isAdmin);
+  return notes.filter((n) => n.pinned);
+}
+
+export async function getNote(id: string): Promise<Note | null> {
+  try {
+    const { data, error } = await getSupabase().from("freelance_hq_notes").select("*").eq("id", id).maybeSingle();
+    if (error) throw error;
+    return data ? toNote(data as NoteRow) : null;
+  } catch (error) {
+    if (isMissingTableError(error)) return null;
+    throw error;
+  }
+}
+
+export interface NoteInput {
+  title: string;
+  content: RichContent;
+  authorId: string;
+  assignedToUserId: string | null;
+  editableByAssignee: boolean;
+  pinned: boolean;
+  projectId: string | null;
+}
+
+export async function createNote(input: NoteInput): Promise<Note> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_notes")
+    .insert({
+      title: input.title,
+      content: input.content,
+      author_id: input.authorId,
+      assigned_to_user_id: input.assignedToUserId,
+      editable_by_assignee: input.editableByAssignee,
+      pinned: input.pinned,
+      project_id: input.projectId,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toNote(data as NoteRow);
+}
+
+export async function updateNote(
+  id: string,
+  patch: Partial<Omit<NoteInput, "authorId">>,
+): Promise<void> {
+  const update: Record<string, unknown> = { updated_at: nowIso() };
+  if (patch.title !== undefined) update.title = patch.title;
+  if (patch.content !== undefined) update.content = patch.content;
+  if (patch.assignedToUserId !== undefined) update.assigned_to_user_id = patch.assignedToUserId;
+  if (patch.editableByAssignee !== undefined) update.editable_by_assignee = patch.editableByAssignee;
+  if (patch.pinned !== undefined) update.pinned = patch.pinned;
+  if (patch.projectId !== undefined) update.project_id = patch.projectId;
+
+  const { error } = await getSupabase().from("freelance_hq_notes").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_notes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+interface TaskNoteRow {
+  task_id: string;
+  content: RichContent;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+function toTaskNote(row: TaskNoteRow): TaskNote {
+  return { taskId: row.task_id, content: row.content ?? {}, updatedAt: row.updated_at, updatedBy: row.updated_by };
+}
+
+export async function getTaskNote(taskId: string): Promise<TaskNote | null> {
+  try {
+    const { data, error } = await getSupabase().from("freelance_hq_task_notes").select("*").eq("task_id", taskId).maybeSingle();
+    if (error) throw error;
+    return data ? toTaskNote(data as TaskNoteRow) : null;
+  } catch (error) {
+    if (isMissingTableError(error)) return null;
+    throw error;
+  }
+}
+
+export async function upsertTaskNote(taskId: string, content: RichContent, updatedBy: string): Promise<TaskNote> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_task_notes")
+    .upsert({ task_id: taskId, content, updated_by: updatedBy, updated_at: nowIso() })
+    .select()
+    .single();
+  if (error) throw error;
+  return toTaskNote(data as TaskNoteRow);
 }

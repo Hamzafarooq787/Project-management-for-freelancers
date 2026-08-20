@@ -18,6 +18,7 @@ import type {
   PaymentPlanType,
   ProjectType,
   ResaleDomainStatus,
+  RichContent,
   Role,
   TaskPriority,
   TaskStatus,
@@ -1144,4 +1145,118 @@ export async function clearDynadotApiKeyAction() {
   await requireAdmin();
   await store.setDynadotApiKey(null);
   refreshDomains();
+}
+
+/**
+ * Docs-style notes. Edit/delete permission: admins can touch any note; a
+ * member can always touch a note they authored; a member can touch a note
+ * assigned to them only if the admin left editableByAssignee on.
+ */
+function refreshNotes(id?: string) {
+  revalidatePath("/notes");
+  revalidatePath("/");
+  if (id) revalidatePath(`/notes/${id}`);
+}
+
+async function canEditNote(noteId: string): Promise<{ profile: Awaited<ReturnType<typeof requireProfile>>; note: NonNullable<Awaited<ReturnType<typeof store.getNote>>> }> {
+  const profile = await requireProfile();
+  const note = await store.getNote(noteId);
+  if (!note) throw new Error("Note not found.");
+  const canEdit =
+    profile.role === "admin" ||
+    note.authorId === profile.id ||
+    (note.assignedToUserId === profile.id && note.editableByAssignee);
+  if (!canEdit) throw new Error("You don't have permission to edit this note.");
+  return { profile, note };
+}
+
+function parseRichContent(raw: string): RichContent {
+  try {
+    const parsed = JSON.parse(raw || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function createNoteAction(
+  formData: FormData,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const profile = await requireProfile();
+  const title = str(formData, "title") || "Untitled";
+
+  const assignedToUserId = profile.role === "admin" ? str(formData, "assignedToUserId") || null : null;
+
+  try {
+    const note = await store.createNote({
+      title,
+      content: parseRichContent(str(formData, "contentJson")),
+      authorId: profile.id,
+      assignedToUserId,
+      editableByAssignee: formData.get("editableByAssignee") !== "off",
+      pinned: formData.get("pinned") === "on",
+      projectId: str(formData, "projectId") || null,
+    });
+    refreshNotes(note.id);
+    return { ok: true, id: note.id };
+  } catch {
+    return { ok: false, error: "Something went wrong creating this note. Please try again." };
+  }
+}
+
+export async function updateNoteAction(
+  noteId: string,
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { profile, note } = await canEditNote(noteId);
+
+    const patch: Parameters<typeof store.updateNote>[1] = {
+      title: str(formData, "title") || "Untitled",
+      content: parseRichContent(str(formData, "contentJson")),
+      projectId: str(formData, "projectId") || null,
+    };
+    if (profile.role === "admin") {
+      patch.assignedToUserId = str(formData, "assignedToUserId") || null;
+      patch.editableByAssignee = formData.get("editableByAssignee") !== "off";
+    }
+    if (profile.role === "admin" || note.authorId === profile.id) {
+      patch.pinned = formData.get("pinned") === "on";
+    }
+
+    await store.updateNote(noteId, patch);
+    refreshNotes(noteId);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Something went wrong saving this note." };
+  }
+}
+
+export async function toggleNotePinAction(noteId: string, pinned: boolean) {
+  await canEditNote(noteId);
+  await store.updateNote(noteId, { pinned });
+  refreshNotes(noteId);
+}
+
+export async function deleteNoteAction(noteId: string) {
+  const profile = await requireProfile();
+  const note = await store.getNote(noteId);
+  if (!note) return;
+  if (profile.role !== "admin" && note.authorId !== profile.id) {
+    throw new Error("Only the author or an admin can delete this note.");
+  }
+  await store.deleteNote(noteId);
+  refreshNotes();
+}
+
+export async function saveTaskNoteAction(taskId: string, projectId: string, contentJson: string) {
+  const profile = await requireProjectAccess(projectId);
+  await store.upsertTaskNote(taskId, parseRichContent(contentJson), profile.id);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function getTaskNoteAction(taskId: string, projectId: string): Promise<RichContent> {
+  await requireProjectAccess(projectId);
+  const note = await store.getTaskNote(taskId);
+  return note?.content ?? {};
 }
