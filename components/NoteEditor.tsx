@@ -42,6 +42,16 @@ export function NoteEditor({
   const canDelete = isAdmin || note.authorId === currentUserId;
   const isRestrictedView = !canEdit;
 
+  // Land back exactly where this note was opened from — its own project/folder
+  // view — instead of always resetting to the top-level Notes list.
+  const backHref = (() => {
+    if (!note.projectId && !note.folderId) return "/notes";
+    const params = new URLSearchParams();
+    params.set("project", note.projectId ?? "general");
+    if (note.folderId) params.set("folder", note.folderId);
+    return `/notes?${params.toString()}`;
+  })();
+
   function save() {
     setError(null);
     startTransition(async () => {
@@ -71,15 +81,15 @@ export function NoteEditor({
     if (!confirm("Delete this note? This can't be undone.")) return;
     startTransition(async () => {
       await deleteNoteAction(note.id);
-      router.push("/notes");
+      router.push(backHref);
     });
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <Link href="/notes" className="flex w-fit items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-300">
+      <Link href={backHref} className="flex w-fit items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-300">
         <ArrowLeft size={13} />
-        All notes
+        Back
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
