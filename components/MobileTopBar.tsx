@@ -1,4 +1,5 @@
 import { Leaf } from "lucide-react";
+import { RefreshButton } from "./RefreshButton";
 
 export function MobileTopBar() {
   return (
@@ -7,6 +8,7 @@ export function MobileTopBar() {
         <Leaf size={17} />
       </span>
       <span className="text-sm font-semibold tracking-wide text-neutral-100">Freelance HQ</span>
+      <RefreshButton className="ml-auto" />
     </header>
   );
 }

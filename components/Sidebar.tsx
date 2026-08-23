@@ -4,6 +4,7 @@ import type { Profile, Project } from "@/lib/types";
 import { SidebarProjectGroups } from "./SidebarProjectGroups";
 import { InstallAppButton } from "./InstallAppButton";
 import { NotificationBadge } from "./NotificationBadge";
+import { RefreshButton } from "./RefreshButton";
 import { logoutAction } from "@/app/login/actions";
 
 const NAV = [
@@ -36,6 +37,7 @@ export function Sidebar({
         <span className="text-sm font-semibold tracking-wide text-neutral-100">
           Freelance HQ
         </span>
+        <RefreshButton className="ml-auto" />
       </div>
 
       <nav className="flex flex-col gap-1">
