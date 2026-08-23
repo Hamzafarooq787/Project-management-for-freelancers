@@ -5,7 +5,11 @@ import { NotesPanel } from "@/components/NotesPanel";
 
 export const dynamic = "force-dynamic";
 
-export default async function NotesPage() {
+export default async function NotesPage({
+  searchParams,
+}: {
+  searchParams: { project?: string; folder?: string };
+}) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -24,7 +28,15 @@ export default async function NotesPage() {
         </p>
       </div>
 
-      <NotesPanel notes={notes} folders={folders} projects={projects} currentUserId={profile.id} isAdmin={isAdmin} />
+      <NotesPanel
+        notes={notes}
+        folders={folders}
+        projects={projects}
+        currentUserId={profile.id}
+        isAdmin={isAdmin}
+        initialProjectId={searchParams.project ?? null}
+        initialFolderId={searchParams.folder ?? null}
+      />
     </div>
   );
 }

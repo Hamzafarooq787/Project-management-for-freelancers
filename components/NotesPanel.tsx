@@ -17,23 +17,45 @@ type View = { projectId: string | null; folderId: string | null } | null;
  * of folders and/or notes placed directly in the project, and folders
  * holding their own notes.
  */
+function viewFromParams(projectParam: string | null, folderParam: string | null): View {
+  if (!projectParam) return null;
+  return { projectId: projectParam === "general" ? null : projectParam, folderId: folderParam || null };
+}
+
+function urlForView(view: View): string {
+  if (view === null) return "/notes";
+  const params = new URLSearchParams();
+  params.set("project", view.projectId ?? "general");
+  if (view.folderId) params.set("folder", view.folderId);
+  return `/notes?${params.toString()}`;
+}
+
 export function NotesPanel({
   notes,
   folders,
   projects,
   currentUserId,
   isAdmin,
+  initialProjectId = null,
+  initialFolderId = null,
 }: {
   notes: Note[];
   folders: NoteFolder[];
   projects: Project[];
   currentUserId: string;
   isAdmin: boolean;
+  initialProjectId?: string | null;
+  initialFolderId?: string | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [view, setView] = useState<View>(null);
+  const [view, setViewState] = useState<View>(viewFromParams(initialProjectId, initialFolderId));
   const [error, setError] = useState<string | null>(null);
+
+  function setView(next: View) {
+    setViewState(next);
+    router.replace(urlForView(next), { scroll: false });
+  }
 
   const projectById = new Map(projects.map((p) => [p.id, p]));
   const folderById = new Map(folders.map((f) => [f.id, f]));
