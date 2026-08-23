@@ -29,7 +29,7 @@ export function Sidebar({
   const isAdmin = profile?.role === "admin";
   const badgeByHref: Record<string, number> = { "/projects": unseenProjects, "/notes": unseenNotes };
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col md:overflow-y-auto border-r border-base-700/60 bg-base-900/60 backdrop-blur-sm px-4 py-6 gap-6">
+    <aside className="hidden md:flex md:h-screen md:w-64 md:flex-col border-r border-base-700/60 bg-base-900/60 backdrop-blur-sm px-4 py-6 gap-6">
       <div className="flex items-center gap-2 px-2">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-500/15 text-accent-400">
           <Leaf size={18} />
@@ -103,14 +103,14 @@ export function Sidebar({
         </Link>
       )}
 
-      <div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
           Your Projects
         </p>
         <SidebarProjectGroups projects={projects} />
       </div>
 
-      <div className="mt-auto flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         <div className="rounded-xl border border-base-700/60 bg-base-850 p-3 text-xs text-neutral-500">
           Set your company name and logo in Settings so client reports are properly
           branded.
