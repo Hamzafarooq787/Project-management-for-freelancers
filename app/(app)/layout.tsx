@@ -16,9 +16,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen md:h-screen md:overflow-hidden">
       <Sidebar projects={projects} profile={profile} unseenProjects={unseenProjects} unseenNotes={unseenNotes} />
-      <div className="flex-1">
+      <div className="flex-1 md:h-screen md:overflow-y-auto">
         <MobileTopBar />
         <main className="pb-24 md:pb-0">
           <div className="mx-auto max-w-6xl px-4 py-5 md:px-8 md:py-8">{children}</div>
