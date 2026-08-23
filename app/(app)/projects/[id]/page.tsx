@@ -35,7 +35,8 @@ import { KeywordsPanel } from "@/components/KeywordsPanel";
 import { ProjectAttachments } from "@/components/ProjectAttachments";
 import { BacklinksPanel } from "@/components/BacklinksPanel";
 import { PROJECT_THEME } from "@/lib/projectTheme";
-import { CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -170,6 +171,14 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
   return (
     <div className="flex flex-col gap-6">
+      <Link
+        href={project.archived ? "/projects/closed" : "/projects"}
+        className="flex w-fit items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-300"
+      >
+        <ArrowLeft size={13} />
+        Back
+      </Link>
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
