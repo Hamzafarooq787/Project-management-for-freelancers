@@ -111,10 +111,6 @@ export function Sidebar({
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="rounded-xl border border-base-700/60 bg-base-850 p-3 text-xs text-neutral-500">
-          Set your company name and logo in Settings so client reports are properly
-          branded.
-        </div>
         <InstallAppButton />
         <form action={logoutAction}>
           <button
