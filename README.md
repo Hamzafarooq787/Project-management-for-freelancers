@@ -377,3 +377,103 @@ The app still builds and lints without the two env vars set, since every
 data-driven route renders dynamically (no build-time database calls). It will
 throw a clear error at request time, though, so you do need Supabase configured
 to actually run it.
+
+## Android / iOS apps (Capacitor)
+
+This is a full Next.js **server** (server actions, cookie-based auth,
+server-only Supabase calls) — it can't be exported as static HTML and bundled
+on-device the way a plain single-page app can. So instead of bundling files,
+[Capacitor](https://capacitorjs.com) wraps a thin native shell (an Android
+`WebView` / iOS `WKWebView`) that loads the app straight from its live
+production URL, configured in `capacitor.config.ts` (`server.url`). Update
+that URL if the production domain ever changes (e.g. once a custom domain
+replaces the default `*.vercel.app` one) — everything else in the shell stays
+the same.
+
+This means:
+- The web app in this repo is the single source of truth — there's nothing
+  to keep in sync between "the web app" and "the mobile app."
+- The device needs network access to your production deployment to use the
+  app, same as visiting the site in a browser (there's no offline bundle).
+- Publishing an update to production (merge to `main`, promote in Vercel) is
+  enough to update everyone using the native apps too — no app-store update
+  needed for ordinary code changes. You only need to rebuild/resubmit the
+  native app itself when something in `capacitor.config.ts`, an icon, a
+  permission, or a native plugin changes.
+
+### What's already set up
+
+- `android/` — a full Android Studio/Gradle project.
+- `ios/` — a full Xcode project.
+- `www/` — a placeholder `index.html` Capacitor requires on disk as its
+  `webDir`; in practice it's never shown, since the app always loads
+  `server.url` instead.
+- `capacitor.config.ts` — app id (`com.freelancehq.app`), app name, and the
+  production URL the shell loads.
+
+Whenever you change `capacitor.config.ts` (or install a Capacitor plugin),
+re-sync the native projects:
+
+```bash
+npm run cap:sync
+```
+
+### Building for Android
+
+Requires [Android Studio](https://developer.android.com/studio) (Android SDK
++ a JDK) installed locally — this can't be done in a browser or this
+environment.
+
+```bash
+npm run cap:android   # opens the android/ project in Android Studio
+```
+
+From Android Studio: **Build → Generate Signed App Bundle/APK**. You'll need
+to create a signing keystore the first time (Android Studio walks you through
+it) — keep that keystore file and its passwords somewhere safe, since you
+need the *same* one for every future update.
+
+- To distribute directly from your own website (no store): build a **signed
+  APK**, host the `.apk` file, and users install it after enabling "install
+  from unknown sources." You maintain your own update notifications — there's
+  no store to check for updates automatically.
+- To publish on the **Google Play Store**: build a **signed AAB**, create a
+  [Google Play Console](https://play.google.com/console) account ($25
+  one-time), create an app listing (icon, screenshots, description, privacy
+  policy URL), and upload the AAB.
+
+### Building for iOS
+
+Requires a **Mac** with [Xcode](https://developer.apple.com/xcode/) installed
+— Apple only allows building/signing iOS apps on macOS, so this step can't be
+done from this Linux environment either.
+
+```bash
+npm run cap:ios   # opens the ios/ project in Xcode
+```
+
+iOS has no direct "download the app from a website" option — see below.
+To ship it at all you need an [Apple Developer Program](https://developer.apple.com/programs/)
+account ($99/year), then in Xcode: set your Team under Signing & Capabilities,
+**Product → Archive**, then submit through **App Store Connect** — either to
+TestFlight (invited testers only, builds expire after 90 days) or for full
+App Store review and release.
+
+### App icons & splash screen
+
+The generated projects currently use Capacitor's default placeholder icon —
+`public/icon-512.png` isn't large enough for App Store submission (Apple
+requires a 1024×1024 source icon with no transparency). Once you have proper
+source art, generate all the platform-specific sizes with:
+
+```bash
+npm install --save-dev @capacitor/assets
+npx capacitor-assets generate
+```
+
+### Direct download vs. app stores, summarized
+
+| | Android | iOS |
+|---|---|---|
+| Download directly from your website | ✅ Yes — host a signed `.apk`, users sideload it | ❌ Not possible for a public app |
+| App/Play Store listing | Optional — Google Play Console, $25 one-time | Effectively required — Apple Developer Program, $99/year |
