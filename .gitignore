@@ -27,3 +27,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# capacitor native projects — the projects themselves are committed,
+# but not their local build output/caches
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/**/*.iml
+ios/App/Pods/
+ios/App/build/
+ios/App/DerivedData/
+ios/.xcode.env.local
+*.xcworkspace/xcuserdata
+*.xcodeproj/xcuserdata
+*.xcodeproj/project.xcworkspace/xcuserdata
