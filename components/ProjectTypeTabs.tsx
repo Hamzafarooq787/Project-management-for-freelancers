@@ -10,6 +10,7 @@ import { DragScrollRow } from "./DragScrollRow";
 const TABS: { type: ProjectType; label: string }[] = [
   { type: "seo", label: "SEO" },
   { type: "web_dev", label: "Web Development" },
+  { type: "web_app", label: "Web Application" },
   { type: "digital_marketing", label: "Digital Marketing" },
   { type: "other", label: "Other" },
 ];
@@ -28,10 +29,12 @@ export function ProjectTypeTabs({
       acc[tab.type] = projects.filter((p) => p.type === tab.type).length;
       return acc;
     },
-    { seo: 0, web_dev: 0, digital_marketing: 0, other: 0 },
+    { seo: 0, web_dev: 0, web_app: 0, digital_marketing: 0, other: 0 },
   );
 
-  const visibleTabs = TABS.filter((tab) => counts[tab.type] > 0 || tab.type === "seo" || tab.type === "web_dev");
+  const visibleTabs = TABS.filter(
+    (tab) => counts[tab.type] > 0 || tab.type === "seo" || tab.type === "web_dev" || tab.type === "web_app",
+  );
   const [active, setActive] = useState<ProjectType>(visibleTabs[0]?.type ?? "seo");
 
   const filtered = projects.filter((p) => p.type === active);

@@ -310,6 +310,16 @@ Finance page's totals, since that money was genuinely received.
 > sees a badge when an admin assigns them a new project or a new note; the
 > badge clears the moment they open that tab. Admins see a badge on Projects
 > for any project created since they last opened it.
+>
+> Already ran 023? Also run
+> [`supabase/migrations/024_web_app_features.sql`](./supabase/migrations/024_web_app_features.sql) —
+> adds `freelance_hq_web_app_features` and `freelance_hq_web_app_subfeatures`.
+> This powers a new **Web Application** project type: register a project the
+> same way as Web Development (website details fieldset included), then use
+> its **Features** tab to define features/tabs (e.g. "Customer") and, inside
+> each, the sub-features it needs (e.g. "Add customer", "Export customer
+> list") with a status per sub-feature. Both features and sub-features
+> support select-some/select-all bulk delete, duplicate, and xlsx export.
 
 ### 3. Get your API credentials
 

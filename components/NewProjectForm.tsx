@@ -128,7 +128,7 @@ export function NewProjectForm({ clients }: { clients: Client[] }) {
         </div>
       )}
 
-      {type === "web_dev" && (
+      {(type === "web_dev" || type === "web_app") && (
         <fieldset className="rounded-lg border border-sky-700/40 p-3">
           <legend className="px-1 text-xs font-medium text-neutral-400">Website details</legend>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -13,6 +13,12 @@ export const PROJECT_TEMPLATES: Record<ProjectType, ProjectTemplate> = {
     description: "Design, build, test and ship a website or app.",
     stages: ["Create Pages", "Services", "Contact Details", "Hosting Details"],
   },
+  web_app: {
+    type: "web_app",
+    label: "Web Application",
+    description: "Plan and build a custom web application, feature by feature.",
+    stages: ["Planning", "Design", "Build", "Testing", "Launch"],
+  },
   digital_marketing: {
     type: "digital_marketing",
     label: "Digital Marketing",
@@ -37,6 +43,7 @@ export const PROJECT_TEMPLATES: Record<ProjectType, ProjectTemplate> = {
 export const PROJECT_TYPE_OPTIONS: { value: ProjectType; label: string }[] = [
   { value: "seo", label: "SEO" },
   { value: "web_dev", label: "Web Development" },
+  { value: "web_app", label: "Web Application" },
   { value: "digital_marketing", label: "Digital Marketing" },
   { value: "other", label: "Other / Custom" },
 ];
