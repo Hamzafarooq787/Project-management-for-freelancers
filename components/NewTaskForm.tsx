@@ -106,12 +106,13 @@ export function NewTaskForm({ projectId, stageId }: { projectId: string; stageId
         </div>
         {checklist.map((item, i) => (
           <div key={i} className="flex items-center gap-1.5">
+            <span className="w-5 shrink-0 text-right text-xs text-neutral-500">{i + 1}.</span>
             <input
               value={item}
               onChange={(e) =>
                 setChecklist((items) => items.map((it, idx) => (idx === i ? e.target.value : it)))
               }
-              placeholder={`Checklist item ${i + 1}`}
+              placeholder="Checklist item"
               className="w-full rounded-md border border-base-600 bg-base-900 px-2.5 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
             />
             <button
