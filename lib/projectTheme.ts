@@ -1,4 +1,4 @@
-import { Search, Globe, Megaphone, Layers, type LucideIcon } from "lucide-react";
+import { Search, Globe, AppWindow, Megaphone, Layers, type LucideIcon } from "lucide-react";
 import type { ProjectType } from "./types";
 
 export interface ProjectTheme {
@@ -32,6 +32,16 @@ export const PROJECT_THEME: Record<ProjectType, ProjectTheme> = {
     iconBg: "bg-sky-500/15",
     iconText: "text-sky-400",
     ring: "ring-sky-500/30",
+  },
+  web_app: {
+    icon: AppWindow,
+    label: "Web Application",
+    accent: "#818cf8",
+    cardBg: "bg-gradient-to-br from-indigo-500/10 via-base-850 to-base-850",
+    cardBorder: "border-indigo-700/40 hover:border-indigo-400/60",
+    iconBg: "bg-indigo-500/15",
+    iconText: "text-indigo-400",
+    ring: "ring-indigo-500/30",
   },
   digital_marketing: {
     icon: Megaphone,

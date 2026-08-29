@@ -41,6 +41,8 @@ import type {
   TaskNote,
   TaskPriority,
   TaskStatus,
+  WebAppFeature,
+  WebAppSubFeature,
   WebDevDetails,
 } from "./types";
 
@@ -273,7 +275,9 @@ export async function createProject(input: {
   };
 
   const webDetails =
-    input.type === "web_dev" ? { ...emptyWebDetails(), ...(input.webDetails ?? {}) } : null;
+    input.type === "web_dev" || input.type === "web_app"
+      ? { ...emptyWebDetails(), ...(input.webDetails ?? {}) }
+      : null;
 
   const { data, error } = await getSupabase()
     .from("freelance_hq_projects")
@@ -2524,4 +2528,256 @@ export async function countUnseenNotes(userId: string): Promise<number> {
     if (isMissingTableError(error)) return 0;
     throw error;
   }
+}
+
+interface WebAppFeatureRow {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface WebAppSubFeatureRow {
+  id: string;
+  feature_id: string;
+  name: string;
+  description: string;
+  status: WebAppSubFeature["status"];
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+function toWebAppFeature(row: WebAppFeatureRow): WebAppFeature {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    name: row.name,
+    description: row.description,
+    order: row.order_index,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toWebAppSubFeature(row: WebAppSubFeatureRow): WebAppSubFeature {
+  return {
+    id: row.id,
+    featureId: row.feature_id,
+    name: row.name,
+    description: row.description,
+    status: row.status,
+    order: row.order_index,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function listWebAppFeatures(projectId: string): Promise<WebAppFeature[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_web_app_features")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("order_index", { ascending: true });
+    if (error) throw error;
+    return ((data ?? []) as WebAppFeatureRow[]).map(toWebAppFeature);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export async function listWebAppSubFeatures(featureIds: string[]): Promise<Record<string, WebAppSubFeature[]>> {
+  if (featureIds.length === 0) return {};
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_web_app_subfeatures")
+      .select("*")
+      .in("feature_id", featureIds)
+      .order("order_index", { ascending: true });
+    if (error) throw error;
+    const map: Record<string, WebAppSubFeature[]> = {};
+    for (const row of (data ?? []) as WebAppSubFeatureRow[]) {
+      const sub = toWebAppSubFeature(row);
+      const list = map[sub.featureId] ?? [];
+      list.push(sub);
+      map[sub.featureId] = list;
+    }
+    return map;
+  } catch (error) {
+    if (isMissingTableError(error)) return {};
+    throw error;
+  }
+}
+
+export async function createWebAppFeature(input: {
+  projectId: string;
+  name: string;
+  description: string;
+}): Promise<WebAppFeature> {
+  const { count } = await getSupabase()
+    .from("freelance_hq_web_app_features")
+    .select("*", { count: "exact", head: true })
+    .eq("project_id", input.projectId);
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_web_app_features")
+    .insert({
+      project_id: input.projectId,
+      name: input.name,
+      description: input.description,
+      order_index: count ?? 0,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toWebAppFeature(data as WebAppFeatureRow);
+}
+
+export async function updateWebAppFeature(id: string, patch: { name?: string; description?: string }): Promise<void> {
+  const update: Record<string, unknown> = { updated_at: nowIso() };
+  if (patch.name !== undefined) update.name = patch.name;
+  if (patch.description !== undefined) update.description = patch.description;
+  const { error } = await getSupabase().from("freelance_hq_web_app_features").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteWebAppFeature(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_web_app_features").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function bulkDeleteWebAppFeatures(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await getSupabase().from("freelance_hq_web_app_features").delete().in("id", ids);
+  if (error) throw error;
+}
+
+/** Duplicates each given feature (and all of its sub-features) as a new "<name> (copy)" feature. */
+export async function copyWebAppFeatures(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const [{ data: featureRows, error: featureError }, subFeaturesByFeature] = await Promise.all([
+    getSupabase().from("freelance_hq_web_app_features").select("*").in("id", ids),
+    listWebAppSubFeatures(ids),
+  ]);
+  if (featureError) throw featureError;
+
+  const { count } = await getSupabase()
+    .from("freelance_hq_web_app_features")
+    .select("*", { count: "exact", head: true });
+
+  let nextOrder = count ?? 0;
+  for (const row of (featureRows ?? []) as WebAppFeatureRow[]) {
+    const { data: newFeature, error: insertError } = await getSupabase()
+      .from("freelance_hq_web_app_features")
+      .insert({
+        project_id: row.project_id,
+        name: `${row.name} (copy)`,
+        description: row.description,
+        order_index: nextOrder++,
+      })
+      .select()
+      .single();
+    if (insertError) throw insertError;
+
+    const subFeatures = subFeaturesByFeature[row.id] ?? [];
+    if (subFeatures.length > 0) {
+      const { error: subError } = await getSupabase().from("freelance_hq_web_app_subfeatures").insert(
+        subFeatures.map((sub) => ({
+          feature_id: (newFeature as WebAppFeatureRow).id,
+          name: sub.name,
+          description: sub.description,
+          status: sub.status,
+          order_index: sub.order,
+        })),
+      );
+      if (subError) throw subError;
+    }
+  }
+}
+
+export async function createWebAppSubFeature(input: {
+  featureId: string;
+  name: string;
+  description: string;
+}): Promise<WebAppSubFeature> {
+  const { count } = await getSupabase()
+    .from("freelance_hq_web_app_subfeatures")
+    .select("*", { count: "exact", head: true })
+    .eq("feature_id", input.featureId);
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_web_app_subfeatures")
+    .insert({
+      feature_id: input.featureId,
+      name: input.name,
+      description: input.description,
+      order_index: count ?? 0,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toWebAppSubFeature(data as WebAppSubFeatureRow);
+}
+
+export async function updateWebAppSubFeature(
+  id: string,
+  patch: { name?: string; description?: string; status?: WebAppSubFeature["status"] },
+): Promise<void> {
+  const update: Record<string, unknown> = { updated_at: nowIso() };
+  if (patch.name !== undefined) update.name = patch.name;
+  if (patch.description !== undefined) update.description = patch.description;
+  if (patch.status !== undefined) update.status = patch.status;
+  const { error } = await getSupabase().from("freelance_hq_web_app_subfeatures").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteWebAppSubFeature(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_web_app_subfeatures").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function bulkDeleteWebAppSubFeatures(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await getSupabase().from("freelance_hq_web_app_subfeatures").delete().in("id", ids);
+  if (error) throw error;
+}
+
+/** Duplicates each given sub-feature within its own feature as a new "<name> (copy)" row. */
+export async function copyWebAppSubFeatures(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { data: rows, error } = await getSupabase().from("freelance_hq_web_app_subfeatures").select("*").in("id", ids);
+  if (error) throw error;
+
+  const countByFeature: Record<string, number> = {};
+  for (const row of (rows ?? []) as WebAppSubFeatureRow[]) {
+    if (!(row.feature_id in countByFeature)) {
+      const { count } = await getSupabase()
+        .from("freelance_hq_web_app_subfeatures")
+        .select("*", { count: "exact", head: true })
+        .eq("feature_id", row.feature_id);
+      countByFeature[row.feature_id] = count ?? 0;
+    }
+    const nextOrder = countByFeature[row.feature_id] ?? 0;
+    countByFeature[row.feature_id] = nextOrder + 1;
+    const { error: insertError } = await getSupabase().from("freelance_hq_web_app_subfeatures").insert({
+      feature_id: row.feature_id,
+      name: `${row.name} (copy)`,
+      description: row.description,
+      status: row.status,
+      order_index: nextOrder,
+    });
+    if (insertError) throw insertError;
+  }
+}
+
+export async function moveWebAppSubFeatures(ids: string[], targetFeatureId: string): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await getSupabase()
+    .from("freelance_hq_web_app_subfeatures")
+    .update({ feature_id: targetFeatureId, updated_at: nowIso() })
+    .in("id", ids);
+  if (error) throw error;
 }

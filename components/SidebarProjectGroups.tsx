@@ -7,7 +7,7 @@ import type { Project, ProjectType } from "@/lib/types";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { cn } from "@/lib/utils";
 
-const TYPES: ProjectType[] = ["seo", "web_dev", "digital_marketing", "other"];
+const TYPES: ProjectType[] = ["seo", "web_dev", "web_app", "digital_marketing", "other"];
 
 export function SidebarProjectGroups({ projects }: { projects: Project[] }) {
   const [openType, setOpenType] = useState<ProjectType | null>("seo");
@@ -17,7 +17,7 @@ export function SidebarProjectGroups({ projects }: { projects: Project[] }) {
     type,
     theme: PROJECT_THEME[type],
     items: active.filter((p) => p.type === type),
-  })).filter((g) => g.items.length > 0 || g.type === "seo" || g.type === "web_dev");
+  })).filter((g) => g.items.length > 0 || g.type === "seo" || g.type === "web_dev" || g.type === "web_app");
 
   return (
     <div className="flex flex-col gap-1">

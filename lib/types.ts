@@ -1,4 +1,4 @@
-export type ProjectType = "seo" | "web_dev" | "digital_marketing" | "other";
+export type ProjectType = "seo" | "web_dev" | "web_app" | "digital_marketing" | "other";
 
 export type TaskStatus = "todo" | "in_progress" | "done";
 
@@ -344,4 +344,33 @@ export interface TaskNote {
   content: RichContent;
   updatedAt: string;
   updatedBy: string | null;
+}
+
+/**
+ * "Web Application" project type: a Features -> Sub-features spec for
+ * planning a custom build. A Feature is a functional area (e.g. a
+ * "Customer" tab); its sub-features are the individual capabilities that
+ * area needs (e.g. "Add customer", "Export list").
+ */
+export type SubFeatureStatus = "not_started" | "in_progress" | "done";
+
+export interface WebAppFeature {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WebAppSubFeature {
+  id: string;
+  featureId: string;
+  name: string;
+  description: string;
+  status: SubFeatureStatus;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
 }

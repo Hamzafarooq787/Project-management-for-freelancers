@@ -20,6 +20,7 @@ import type {
   ResaleDomainStatus,
   RichContent,
   Role,
+  SubFeatureStatus,
   TaskPriority,
   TaskStatus,
   WebDevDetails,
@@ -81,7 +82,7 @@ export async function createProjectAction(formData: FormData) {
   if (!name || !clientId) return;
 
   const webDetails: Partial<WebDevDetails> | null =
-    type === "web_dev"
+    type === "web_dev" || type === "web_app"
       ? {
           websiteName: name,
           websiteUrl,
@@ -1358,4 +1359,93 @@ export async function deleteNoteFolderAction(folderId: string) {
   await requireFolderAccess(folder.projectId);
   await store.deleteNoteFolder(folderId);
   refreshNotes();
+}
+
+export async function createWebAppFeatureAction(formData: FormData) {
+  const projectId = str(formData, "projectId");
+  const name = str(formData, "name");
+  if (!projectId || !name) return;
+  await requireProjectAccess(projectId);
+  await store.createWebAppFeature({ projectId, name, description: str(formData, "description") });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateWebAppFeatureAction(formData: FormData) {
+  const id = str(formData, "id");
+  const projectId = str(formData, "projectId");
+  if (!id || !projectId) return;
+  await requireProjectAccess(projectId);
+  await store.updateWebAppFeature(id, { name: str(formData, "name"), description: str(formData, "description") });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteWebAppFeatureAction(id: string, projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.deleteWebAppFeature(id);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function bulkDeleteWebAppFeaturesAction(ids: string[], projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.bulkDeleteWebAppFeatures(ids);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function bulkCopyWebAppFeaturesAction(ids: string[], projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.copyWebAppFeatures(ids);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function createWebAppSubFeatureAction(formData: FormData) {
+  const featureId = str(formData, "featureId");
+  const projectId = str(formData, "projectId");
+  const name = str(formData, "name");
+  if (!featureId || !projectId || !name) return;
+  await requireProjectAccess(projectId);
+  await store.createWebAppSubFeature({ featureId, name, description: str(formData, "description") });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateWebAppSubFeatureAction(formData: FormData) {
+  const id = str(formData, "id");
+  const projectId = str(formData, "projectId");
+  if (!id || !projectId) return;
+  await requireProjectAccess(projectId);
+  await store.updateWebAppSubFeature(id, {
+    name: str(formData, "name"),
+    description: str(formData, "description"),
+    status: (str(formData, "status") || "not_started") as SubFeatureStatus,
+  });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function setWebAppSubFeatureStatusAction(id: string, projectId: string, status: string) {
+  await requireProjectAccess(projectId);
+  await store.updateWebAppSubFeature(id, { status: status as SubFeatureStatus });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteWebAppSubFeatureAction(id: string, projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.deleteWebAppSubFeature(id);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function bulkDeleteWebAppSubFeaturesAction(ids: string[], projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.bulkDeleteWebAppSubFeatures(ids);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function bulkCopyWebAppSubFeaturesAction(ids: string[], projectId: string) {
+  await requireProjectAccess(projectId);
+  await store.copyWebAppSubFeatures(ids);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function bulkMoveWebAppSubFeaturesAction(ids: string[], projectId: string, targetFeatureId: string) {
+  await requireProjectAccess(projectId);
+  await store.moveWebAppSubFeatures(ids, targetFeatureId);
+  revalidatePath(`/projects/${projectId}`);
 }

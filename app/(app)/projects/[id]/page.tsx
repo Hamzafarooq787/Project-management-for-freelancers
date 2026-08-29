@@ -17,6 +17,8 @@ import {
   isProjectAssignedToUser,
   listPaymentsForProject,
   getTasksByProject,
+  listWebAppFeatures,
+  listWebAppSubFeatures,
 } from "@/lib/store";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StageBoard } from "@/components/StageBoard";
@@ -34,6 +36,7 @@ import { PaymentsCard } from "@/components/PaymentsCard";
 import { KeywordsPanel } from "@/components/KeywordsPanel";
 import { ProjectAttachments } from "@/components/ProjectAttachments";
 import { BacklinksPanel } from "@/components/BacklinksPanel";
+import { WebAppFeaturesPanel } from "@/components/WebAppFeaturesPanel";
 import { PROJECT_THEME } from "@/lib/projectTheme";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
@@ -79,6 +82,10 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     backlinkCategories.length > 0 ? await listBacklinkEntries(backlinkCategories.map((c) => c.id)) : {};
   const vaultPasswordSet = project.type === "seo" ? await hasVaultPassword(profile.id) : false;
 
+  const webAppFeatures = project.type === "web_app" ? await listWebAppFeatures(project.id) : [];
+  const webAppSubFeaturesByFeature =
+    webAppFeatures.length > 0 ? await listWebAppSubFeatures(webAppFeatures.map((f) => f.id)) : {};
+
   const completed = tasks
     .filter((t) => t.status === "done")
     .sort((a, b) => ((a.completedAt ?? "") < (b.completedAt ?? "") ? 1 : -1));
@@ -101,11 +108,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           startDate={project.startDate}
           endDate={project.endDate}
           websiteUrl={project.websiteUrl}
-          showWebsiteUrl={project.type !== "web_dev"}
+          showWebsiteUrl={project.type !== "web_dev" && project.type !== "web_app"}
         />
       </div>
 
-      {project.type === "web_dev" && (
+      {(project.type === "web_dev" || project.type === "web_app") && (
         <WebsiteDetailsCard
           projectId={project.id}
           web={
@@ -234,6 +241,16 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         attachments={
           project.type === "seo" ? (
             <ProjectAttachments projectId={project.id} attachments={projectAttachments} />
+          ) : undefined
+        }
+        features={
+          project.type === "web_app" ? (
+            <WebAppFeaturesPanel
+              projectId={project.id}
+              projectName={project.name}
+              features={webAppFeatures}
+              subFeaturesByFeature={webAppSubFeaturesByFeature}
+            />
           ) : undefined
         }
         clientDetails={clientDetailsTab}
