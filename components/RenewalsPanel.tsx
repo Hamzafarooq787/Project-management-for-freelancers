@@ -22,7 +22,9 @@ import {
   updateRenewalAction,
 } from "@/lib/actions";
 import { StatCard } from "@/components/StatCard";
-import { cn } from "@/lib/utils";
+import { cn, currencySymbol, formatMoney, sortCurrencies } from "@/lib/utils";
+
+const ALL_CURRENCIES = ["PKR", "USD", "GBP"];
 
 const SERVICE_TYPE_LABEL: Record<RenewalServiceType, string> = {
   domain: "Domain",
@@ -39,8 +41,8 @@ const STATUS_LABEL: Record<RenewalStatus, string> = {
   completed: "Completed",
 };
 
-function money(value: number | null): string {
-  return `$${(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function money(value: number | null, currency: string): string {
+  return formatMoney(value ?? 0, currency);
 }
 
 function daysUntil(dateStr: string): number {
@@ -65,26 +67,52 @@ export function RenewalsPanel({ renewals, domainClients }: { renewals: Renewal[]
   const [editingId, setEditingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  const totals = useMemo(() => {
-    const earned = renewals.reduce((sum, r) => sum + (r.amountCharged ?? 0), 0);
-    const paid = renewals.reduce((sum, r) => sum + (r.amountPaid ?? 0), 0);
-    const dueSoon = renewals.filter((r) => {
-      const badge = dueBadge(r.dueDate, r.status);
-      return badge !== null;
-    }).length;
-    return { earned, paid, profit: earned - paid, dueSoon };
+  const currencies = useMemo(() => {
+    const present = sortCurrencies(Array.from(new Set(renewals.map((r) => r.currency))));
+    return present.length > 0 ? present : ALL_CURRENCIES;
   }, [renewals]);
+  const [currency, setCurrency] = useState(currencies[0] ?? "PKR");
+  const activeCurrency = currencies.includes(currency) ? currency : (currencies[0] ?? "PKR");
 
-  const filtered = renewals.filter((r) => statusFilter === "all" || r.status === statusFilter);
+  const byCurrency = renewals.filter((r) => r.currency === activeCurrency);
+
+  const totals = useMemo(() => {
+    const earned = byCurrency.reduce((sum, r) => sum + (r.amountCharged ?? 0), 0);
+    const paid = byCurrency.reduce((sum, r) => sum + (r.amountPaid ?? 0), 0);
+    const dueSoon = byCurrency.filter((r) => dueBadge(r.dueDate, r.status) !== null).length;
+    return { earned, paid, profit: earned - paid, dueSoon };
+  }, [byCurrency]);
+
+  const filtered = byCurrency.filter((r) => statusFilter === "all" || r.status === statusFilter);
 
   return (
     <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {currencies.length > 1 && (
+          <div className="flex gap-1 rounded-lg border border-base-700/60 bg-base-850 p-1">
+            {currencies.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCurrency(c)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  activeCurrency === c ? "bg-accent-500 text-base-950" : "text-neutral-400 hover:text-neutral-200",
+                )}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total earned" value={money(totals.earned)} icon={Wallet} tone="accent" />
-        <StatCard label="Total paid (cost)" value={money(totals.paid)} icon={Receipt} tone="sky" />
+        <StatCard label={`Total earned · ${activeCurrency}`} value={money(totals.earned, activeCurrency)} icon={Wallet} tone="accent" />
+        <StatCard label={`Total paid (cost) · ${activeCurrency}`} value={money(totals.paid, activeCurrency)} icon={Receipt} tone="sky" />
         <StatCard
-          label="Net profit"
-          value={money(totals.profit)}
+          label={`Net profit · ${activeCurrency}`}
+          value={money(totals.profit, activeCurrency)}
           icon={totals.profit >= 0 ? TrendingUp : TrendingDown}
           tone={totals.profit >= 0 ? "accent" : "rose"}
         />
@@ -128,7 +156,13 @@ export function RenewalsPanel({ renewals, domainClients }: { renewals: Renewal[]
 
         {adding && (
           <div className="mb-3">
-            <RenewalForm domainClients={domainClients} renewal={null} onCancel={() => setAdding(false)} onSaved={() => setAdding(false)} />
+            <RenewalForm
+              domainClients={domainClients}
+              renewal={null}
+              defaultCurrency={activeCurrency}
+              onCancel={() => setAdding(false)}
+              onSaved={() => setAdding(false)}
+            />
           </div>
         )}
 
@@ -136,7 +170,7 @@ export function RenewalsPanel({ renewals, domainClients }: { renewals: Renewal[]
           <p className="rounded-lg border border-dashed border-base-700 p-6 text-center text-sm text-neutral-500">
             {renewals.length === 0
               ? "No renewal records yet. Log a domain/hosting renewal, email service, or malware removal job above."
-              : "No renewals match this filter."}
+              : `No ${activeCurrency} renewals match this filter.`}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -146,6 +180,7 @@ export function RenewalsPanel({ renewals, domainClients }: { renewals: Renewal[]
                   key={renewal.id}
                   domainClients={domainClients}
                   renewal={renewal}
+                  defaultCurrency={renewal.currency}
                   onCancel={() => setEditingId(null)}
                   onSaved={() => setEditingId(null)}
                 />
@@ -192,15 +227,15 @@ function RenewalRow({ renewal, onEdit }: { renewal: Renewal; onEdit: () => void 
       <div className="flex shrink-0 flex-wrap items-center gap-4">
         <div className="text-right text-xs">
           <p className="text-neutral-500">Charged</p>
-          <p className="text-accent-300">{money(renewal.amountCharged)}</p>
+          <p className="text-accent-300">{money(renewal.amountCharged, renewal.currency)}</p>
         </div>
         <div className="text-right text-xs">
           <p className="text-neutral-500">Paid (cost)</p>
-          <p className="text-neutral-300">{money(renewal.amountPaid)}</p>
+          <p className="text-neutral-300">{money(renewal.amountPaid, renewal.currency)}</p>
         </div>
         <div className="text-right text-xs">
           <p className="text-neutral-500">Profit</p>
-          <p className={profit >= 0 ? "text-accent-300" : "text-rose-400"}>{money(profit)}</p>
+          <p className={profit >= 0 ? "text-accent-300" : "text-rose-400"}>{money(profit, renewal.currency)}</p>
         </div>
 
         <button
@@ -241,11 +276,13 @@ function RenewalRow({ renewal, onEdit }: { renewal: Renewal; onEdit: () => void 
 function RenewalForm({
   domainClients,
   renewal,
+  defaultCurrency,
   onCancel,
   onSaved,
 }: {
   domainClients: DomainClient[];
   renewal: Renewal | null;
+  defaultCurrency: string;
   onCancel: () => void;
   onSaved: () => void;
 }) {
@@ -345,7 +382,7 @@ function RenewalForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <div>
           <label className="mb-1 block text-[11px] text-neutral-500">Item / domain</label>
           <input
@@ -354,6 +391,20 @@ function RenewalForm({
             placeholder="e.g. example.com"
             className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-neutral-500">Currency</label>
+          <select
+            name="currency"
+            defaultValue={renewal?.currency ?? defaultCurrency}
+            className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 focus:border-accent-500 focus:outline-none"
+          >
+            {ALL_CURRENCIES.map((c) => (
+              <option key={c} value={c}>
+                {c} ({currencySymbol(c)})
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="mb-1 block text-[11px] text-neutral-500">Charged (earned)</label>

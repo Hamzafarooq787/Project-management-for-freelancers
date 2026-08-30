@@ -347,6 +347,15 @@ Finance page's totals, since that money was genuinely received.
 > and manage renewal records) without making them a full admin — toggle it
 > per member from the Admin page next to their Projects access. Admins
 > always have access regardless of this flag.
+>
+> Already ran 027? Also run
+> [`supabase/migrations/028_renewal_currency.sql`](./supabase/migrations/028_renewal_currency.sql) —
+> adds `currency` to `freelance_hq_renewals` (defaults existing rows to
+> `'PKR'`). Renewals now uses the same PKR/USD/GBP currency options as
+> Payments/Finance elsewhere in the app — pick a currency per renewal record,
+> and the Renewals page's totals and currency tabs (when you have records in
+> more than one currency) are scoped per currency, matching Finance's
+> pattern.
 
 ### 3. Get your API credentials
 

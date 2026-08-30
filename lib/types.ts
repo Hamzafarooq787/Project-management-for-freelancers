@@ -394,6 +394,7 @@ export interface Renewal {
   serviceTypes: RenewalServiceType[];
   amountCharged: number | null;
   amountPaid: number | null;
+  currency: string;
   dueDate: string | null;
   status: RenewalStatus;
   notes: string;
