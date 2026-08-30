@@ -5,9 +5,6 @@ import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import type { DomainExpiryTickerItem } from "@/lib/utils";
 
-/** Rotating palette for client/domain names in the ticker — distinct from the amber/rose used for the "is expiring" status text. */
-const NAME_COLORS = ["#5fe6a2", "#4fc3e0", "#f2b84b", "#f2707a", "#c9a8fa", "#f4a8d0"];
-
 export function DomainExpiryTicker({ items }: { items: DomainExpiryTickerItem[] }) {
   if (items.length === 0) return null;
 
@@ -22,14 +19,12 @@ export function DomainExpiryTicker({ items }: { items: DomainExpiryTickerItem[] 
         <div className="ticker-viewport min-w-0 flex-1 overflow-hidden">
           <div
             className="ticker-track whitespace-nowrap text-xs"
-            style={{ "--ticker-duration": `${Math.max(12, items.length * 8)}s` } as CSSProperties}
+            style={{ "--ticker-duration": `${Math.max(28, items.length * 14)}s` } as CSSProperties}
           >
             {items.map((item, i) => (
               <span key={item.id}>
                 {i > 0 && <span className="mx-8 text-neutral-600">•</span>}
-                <span className="ticker-name" style={{ color: NAME_COLORS[i % NAME_COLORS.length] }}>
-                  {item.who}
-                </span>
+                <span className="ticker-name">{item.who}</span>
                 <span className={item.overdue ? "text-rose-300" : "text-amber-200"}>{item.rest}</span>
               </span>
             ))}
