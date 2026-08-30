@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 export function DomainExpiryTicker({ items }: { items: DomainExpiryTickerItem[] }) {
   if (items.length === 0) return null;
 
-  const loopItems = items.length > 1 ? [...items, ...items] : items;
+  const loopItems = [...items, ...items];
 
   return (
     <div className="fixed inset-x-0 bottom-16 z-30 border-t border-amber-500/30 bg-base-900/95 backdrop-blur-sm md:bottom-0">
@@ -21,8 +21,8 @@ export function DomainExpiryTicker({ items }: { items: DomainExpiryTickerItem[] 
         <AlertTriangle size={14} className="shrink-0 text-amber-400" />
         <div className="ticker-viewport min-w-0 flex-1 overflow-hidden">
           <div
-            className={cn("ticker-track flex w-max items-center gap-10 whitespace-nowrap text-xs", items.length > 1 && "animate-ticker-scroll")}
-            style={items.length > 1 ? ({ "--ticker-duration": `${Math.max(15, items.length * 6)}s` } as CSSProperties) : undefined}
+            className={cn("ticker-track flex w-max items-center gap-10 whitespace-nowrap text-xs animate-ticker-scroll")}
+            style={{ "--ticker-duration": `${Math.max(15, items.length * 6)}s` } as CSSProperties}
           >
             {loopItems.map((item, i) => (
               <span key={`${item.id}-${i}`} className={item.overdue ? "text-rose-300" : "text-amber-200"}>
