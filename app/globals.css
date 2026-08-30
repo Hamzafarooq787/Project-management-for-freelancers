@@ -134,27 +134,55 @@ body {
   height: 0;
 }
 
-/* Bottom domain-expiry ticker: the track renders each item twice (see
-   DomainExpiryTicker.tsx) and scrolls exactly one copy-width, so the loop
-   point is seamless. Keyframes run track position from -50% up to 0%, so
-   content visibly enters from the left and exits to the right (left-to-right
-   flow) — no animation-direction trick, the keyframes themselves state the
-   direction. Duration scales with content via the --ticker-duration custom
-   property set inline. */
-@keyframes ticker-scroll {
+/* Bottom domain-expiry ticker (DomainExpiryTicker.tsx): a classic news-ticker
+   single-pass crawl, not a duplicated seamless-loop track. `padding-left:
+   100%` (percentage padding is relative to the *containing block's* width,
+   i.e. .ticker-viewport) pushes the actual text content exactly one
+   viewport-width to the right of the track's own left edge; animating from
+   translateX(-100%) (of the track's own width, which is viewport + text)
+   to translateX(0) then always carries the text from fully off-screen left
+   to fully off-screen right, regardless of how short or long the text is —
+   so it never "cuts off mid-way" the way a fixed-percentage duplicated
+   track does when the content is narrower than the viewport. Content is
+   rendered once (not duplicated), so nothing appears twice on screen at
+   once. */
+.ticker-track {
+  display: inline-block;
+  padding-left: 100%;
+  animation: ticker-crawl linear infinite;
+  animation-duration: var(--ticker-duration, 22s);
+}
+@keyframes ticker-crawl {
   from {
-    transform: translateX(-50%);
+    transform: translateX(-100%);
   }
   to {
     transform: translateX(0);
   }
 }
-.animate-ticker-scroll {
-  animation: ticker-scroll linear infinite;
-  animation-duration: var(--ticker-duration, 22s);
+
+/* Smooth fade blink on ticker client/domain names, distinct from the
+   scrolling motion of the track itself. */
+.ticker-name {
+  display: inline-block;
+  font-weight: 600;
+  animation: ticker-name-blink 2.2s ease-in-out infinite;
 }
+@keyframes ticker-name-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-ticker-scroll {
+  .ticker-track {
+    animation: none;
+  }
+  .ticker-name {
     animation: none;
   }
 }
