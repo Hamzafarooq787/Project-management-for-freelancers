@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function RenewalsPage() {
   const profile = await getCurrentProfile();
-  if (profile?.role !== "admin") notFound();
+  if (!profile || (profile.role !== "admin" && !profile.canAccessRenewals)) notFound();
 
   const [renewals, domainClients] = await Promise.all([listRenewals(), listDomainClients()]);
 

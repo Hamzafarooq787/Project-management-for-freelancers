@@ -46,13 +46,17 @@ export function MobileNav({
 }) {
   const pathname = usePathname();
   const isAdmin = profile?.role === "admin";
+  const canAccessRenewals = isAdmin || Boolean(profile?.canAccessRenewals);
   const [moreOpen, setMoreOpen] = useState(false);
   const badgeByHref: Record<string, number> = { "/projects": unseenProjects, "/notes": unseenNotes };
 
   const financeItem = isAdmin ? MORE_NAV.find((item) => item.href === "/finance") : undefined;
+  const renewalsItem = MORE_NAV.find((item) => item.href === "/renewals");
   const sheetItems = isAdmin
     ? [...COMMON_MORE_NAV, ...MORE_NAV.filter((item) => item.href !== "/finance")]
-    : COMMON_MORE_NAV;
+    : canAccessRenewals && renewalsItem
+      ? [...COMMON_MORE_NAV, renewalsItem]
+      : COMMON_MORE_NAV;
 
   return (
     <>

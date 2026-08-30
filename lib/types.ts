@@ -109,6 +109,8 @@ export interface Profile {
   email: string;
   name: string;
   role: Role;
+  /** Members (non-admins) can be individually granted access to the Renewals tab. Admins always have access. */
+  canAccessRenewals: boolean;
   createdAt: string;
 }
 

@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as store from "./store";
-import { requireAdmin, requireProfile, requireProjectAccess } from "./auth";
+import { requireAdmin, requireProfile, requireProjectAccess, requireRenewalsAccess } from "./auth";
 import { uploadLogo, uploadProjectAttachment, uploadTaskFile } from "./storage";
 import type {
   BacklinkLink,
@@ -577,6 +577,12 @@ export async function inviteTeamMemberAction(
 export async function updateMemberRoleAction(userId: string, role: Role) {
   await requireAdmin();
   await store.updateMemberRole(userId, role);
+  revalidatePath("/admin");
+}
+
+export async function setMemberRenewalsAccessAction(userId: string, allowed: boolean) {
+  await requireAdmin();
+  await store.setMemberRenewalsAccess(userId, allowed);
   revalidatePath("/admin");
 }
 
@@ -1464,7 +1470,7 @@ function parseServiceTypes(formData: FormData): RenewalServiceType[] {
 export async function createRenewalAction(
   formData: FormData,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  await requireAdmin();
+  await requireRenewalsAccess();
 
   let domainClientId = str(formData, "domainClientId") || null;
   const clientName = str(formData, "clientName");
@@ -1491,7 +1497,7 @@ export async function createRenewalAction(
 }
 
 export async function updateRenewalAction(id: string, formData: FormData) {
-  await requireAdmin();
+  await requireRenewalsAccess();
 
   let domainClientId = str(formData, "domainClientId") || null;
   const clientName = str(formData, "clientName");
@@ -1515,13 +1521,13 @@ export async function updateRenewalAction(id: string, formData: FormData) {
 }
 
 export async function setRenewalStatusAction(id: string, status: RenewalStatus) {
-  await requireAdmin();
+  await requireRenewalsAccess();
   await store.updateRenewal(id, { status });
   refreshRenewals();
 }
 
 export async function deleteRenewalAction(id: string) {
-  await requireAdmin();
+  await requireRenewalsAccess();
   await store.deleteRenewal(id);
   refreshRenewals();
 }
