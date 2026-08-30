@@ -3,23 +3,31 @@ import { MobileNav } from "@/components/MobileNav";
 import { MobileTopBar } from "@/components/MobileTopBar";
 import { DomainExpiryTicker } from "@/components/DomainExpiryTicker";
 import { getCurrentProfile } from "@/lib/auth";
-import { countUnseenNotes, countUnseenProjects, getProjectsForProfile, listDomainClients, listDomains } from "@/lib/store";
-import { buildDomainExpiryTickerItems } from "@/lib/utils";
+import {
+  countUnseenNotes,
+  countUnseenProjects,
+  getProjectsForProfile,
+  listDomainClients,
+  listDomains,
+  listRenewals,
+} from "@/lib/store";
+import { buildExpiryTickerItems } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
   const isAdmin = profile?.role === "admin";
-  const [projects, unseenProjects, unseenNotes, domains, domainClients] = await Promise.all([
+  const [projects, unseenProjects, unseenNotes, domains, domainClients, renewals] = await Promise.all([
     profile ? getProjectsForProfile(profile) : Promise.resolve([]),
     profile ? countUnseenProjects(profile.id, isAdmin) : Promise.resolve(0),
     profile ? countUnseenNotes(profile.id) : Promise.resolve(0),
     isAdmin ? listDomains() : Promise.resolve([]),
     isAdmin ? listDomainClients() : Promise.resolve([]),
+    isAdmin ? listRenewals() : Promise.resolve([]),
   ]);
 
-  const tickerItems = isAdmin ? buildDomainExpiryTickerItems(domains, domainClients) : [];
+  const tickerItems = isAdmin ? buildExpiryTickerItems(domains, domainClients, renewals) : [];
 
   return (
     <div className="flex min-h-screen md:h-screen md:overflow-hidden">

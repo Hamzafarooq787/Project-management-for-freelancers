@@ -1,5 +1,5 @@
 import { clsx, type ClassValue } from "clsx";
-import type { Domain, DomainClient } from "./types";
+import type { Domain, DomainClient, Renewal, RenewalServiceType } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
@@ -25,30 +25,73 @@ function relativeDayLabel(days: number): string {
   return `${Math.abs(days)} days ago`;
 }
 
+const TICKER_WINDOW_PAST_DAYS = 7;
+const TICKER_WINDOW_FUTURE_DAYS = 30;
+
+const RENEWAL_SERVICE_LABEL: Record<RenewalServiceType, string> = {
+  domain: "Domain",
+  hosting: "Hosting",
+  email: "Email Service",
+  malware_removal: "Malware Removal",
+  other: "Service",
+};
+
+interface DatedTickerSource {
+  id: string;
+  who: string;
+  what: string;
+  dueUtc: number;
+}
+
 /**
- * Builds "<Client>'s Domain & Hosting is Expiring <relative day>" ticker items for
- * domains expiring within a rolling window: 7 days in the past (still worth flagging
- * as overdue) through 30 days out. Domains without a linked DomainClient fall back to
- * the domain name itself.
+ * Builds "<Client>'s Domain & Hosting is Expiring <relative day>" ticker items,
+ * merging two sources within a rolling window (7 days in the past — still worth
+ * flagging as overdue — through 30 days out):
+ *  - Domains inventory, by expiry date (falls back to the domain name if no
+ *    Domain Client is linked)
+ *  - Pending Renewals, by due date (labeled by their service type(s), e.g.
+ *    "Domain & Hosting", "Email Service")
+ * Sorted soonest-due first across both sources combined.
  */
-export function buildDomainExpiryTickerItems(domains: Domain[], domainClients: DomainClient[]): DomainExpiryTickerItem[] {
+export function buildExpiryTickerItems(
+  domains: Domain[],
+  domainClients: DomainClient[],
+  renewals: Renewal[],
+): DomainExpiryTickerItem[] {
   const clientNameById = new Map(domainClients.map((c) => [c.id, c.name]));
   const now = new Date();
   const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  const windowStart = todayUtc - 7 * 86400000;
-  const windowEnd = todayUtc + 30 * 86400000;
+  const windowStart = todayUtc - TICKER_WINDOW_PAST_DAYS * 86400000;
+  const windowEnd = todayUtc + TICKER_WINDOW_FUTURE_DAYS * 86400000;
+  const inWindow = (dueUtc: number) => dueUtc >= windowStart && dueUtc <= windowEnd;
 
-  return domains
+  const domainSources: DatedTickerSource[] = domains
     .filter((d): d is Domain & { expiryDate: string } => Boolean(d.expiryDate))
-    .map((d) => ({ domain: d, dueUtc: parsePlainDateUtc(d.expiryDate) }))
-    .filter(({ dueUtc }) => dueUtc >= windowStart && dueUtc <= windowEnd)
+    .map((d) => ({
+      id: `domain-${d.id}`,
+      who: (d.domainClientId && clientNameById.get(d.domainClientId)) || d.name,
+      what: "Domain & Hosting",
+      dueUtc: parsePlainDateUtc(d.expiryDate),
+    }))
+    .filter((s) => inWindow(s.dueUtc));
+
+  const renewalSources: DatedTickerSource[] = renewals
+    .filter((r): r is Renewal & { dueDate: string } => r.status === "pending" && Boolean(r.dueDate))
+    .map((r) => ({
+      id: `renewal-${r.id}`,
+      who: r.clientName || r.itemName || "A client",
+      what: r.serviceTypes.length > 0 ? r.serviceTypes.map((t) => RENEWAL_SERVICE_LABEL[t]).join(" & ") : "Renewal",
+      dueUtc: parsePlainDateUtc(r.dueDate),
+    }))
+    .filter((s) => inWindow(s.dueUtc));
+
+  return [...domainSources, ...renewalSources]
     .sort((a, b) => a.dueUtc - b.dueUtc)
-    .map(({ domain, dueUtc }) => {
-      const days = Math.round((dueUtc - todayUtc) / 86400000);
-      const who = (domain.domainClientId && clientNameById.get(domain.domainClientId)) || domain.name;
+    .map((s) => {
+      const days = Math.round((s.dueUtc - todayUtc) / 86400000);
       return {
-        id: domain.id,
-        message: `${who}'s Domain & Hosting is Expiring ${relativeDayLabel(days)}`,
+        id: s.id,
+        message: `${s.who}'s ${s.what} is Expiring ${relativeDayLabel(days)}`,
         overdue: days < 0,
       };
     });
