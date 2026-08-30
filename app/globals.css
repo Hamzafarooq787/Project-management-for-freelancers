@@ -133,3 +133,26 @@ body {
   pointer-events: none;
   height: 0;
 }
+
+/* Bottom domain-expiry ticker: the track renders each item twice (see
+   DomainExpiryTicker.tsx) and scrolls exactly one copy-width left, so the
+   loop point is seamless. Duration scales with content via animation-duration
+   set inline would be nicer, but a single slow duration reads fine for the
+   short item counts this ticker expects. */
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.animate-ticker-scroll {
+  animation: ticker-scroll linear infinite;
+  animation-duration: var(--ticker-duration, 22s);
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-ticker-scroll {
+    animation: none;
+  }
+}

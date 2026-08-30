@@ -1,7 +1,57 @@
 import { clsx, type ClassValue } from "clsx";
+import type { Domain, DomainClient } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
+}
+
+export interface DomainExpiryTickerItem {
+  id: string;
+  message: string;
+  overdue: boolean;
+}
+
+/** Parses a plain 'YYYY-MM-DD' date string as a UTC-midnight timestamp, so day-diff math is never off by one from the server's local timezone. */
+function parsePlainDateUtc(dateStr: string): number {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+}
+
+function relativeDayLabel(days: number): string {
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  if (days === -1) return "Yesterday";
+  if (days > 1) return `in ${days} days`;
+  return `${Math.abs(days)} days ago`;
+}
+
+/**
+ * Builds "<Client>'s Domain & Hosting is Expiring <relative day>" ticker items for
+ * domains expiring within a rolling window: 7 days in the past (still worth flagging
+ * as overdue) through 30 days out. Domains without a linked DomainClient fall back to
+ * the domain name itself.
+ */
+export function buildDomainExpiryTickerItems(domains: Domain[], domainClients: DomainClient[]): DomainExpiryTickerItem[] {
+  const clientNameById = new Map(domainClients.map((c) => [c.id, c.name]));
+  const now = new Date();
+  const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const windowStart = todayUtc - 7 * 86400000;
+  const windowEnd = todayUtc + 30 * 86400000;
+
+  return domains
+    .filter((d): d is Domain & { expiryDate: string } => Boolean(d.expiryDate))
+    .map((d) => ({ domain: d, dueUtc: parsePlainDateUtc(d.expiryDate) }))
+    .filter(({ dueUtc }) => dueUtc >= windowStart && dueUtc <= windowEnd)
+    .sort((a, b) => a.dueUtc - b.dueUtc)
+    .map(({ domain, dueUtc }) => {
+      const days = Math.round((dueUtc - todayUtc) / 86400000);
+      const who = (domain.domainClientId && clientNameById.get(domain.domainClientId)) || domain.name;
+      return {
+        id: domain.id,
+        message: `${who}'s Domain & Hosting is Expiring ${relativeDayLabel(days)}`,
+        overdue: days < 0,
+      };
+    });
 }
 
 export function formatRelativeDate(iso: string): string {
