@@ -7,7 +7,10 @@ export function cn(...inputs: ClassValue[]) {
 
 export interface DomainExpiryTickerItem {
   id: string;
-  message: string;
+  /** The client/domain name — rendered distinctly (colored + blinking) from the rest of the message. */
+  who: string;
+  /** Everything after the name, e.g. "'s Domain & Hosting is Expiring Tomorrow". */
+  rest: string;
   overdue: boolean;
 }
 
@@ -91,7 +94,8 @@ export function buildExpiryTickerItems(
       const days = Math.round((s.dueUtc - todayUtc) / 86400000);
       return {
         id: s.id,
-        message: `${s.who}'s ${s.what} is Expiring ${relativeDayLabel(days)}`,
+        who: s.who,
+        rest: `'s ${s.what} is Expiring ${relativeDayLabel(days)}`,
         overdue: days < 0,
       };
     });
