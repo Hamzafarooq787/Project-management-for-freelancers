@@ -327,6 +327,18 @@ Finance page's totals, since that money was genuinely received.
 > `freelance_hq_projects.type` column still carried a check constraint from
 > before namespacing that didn't allow `'web_app'`, so creating a Web
 > Application project would fail with a server error until this runs.
+>
+> Already ran 025? Also run
+> [`supabase/migrations/026_renewals.sql`](./supabase/migrations/026_renewals.sql) —
+> adds `freelance_hq_renewals`. This powers a new **Renewals** tab (sidebar,
+> admin-only) for logging paid renewal work — domain, hosting, email
+> service, malware removal, or any combination — separate from both the
+> Domains resale inventory and client Projects. Each record can link to an
+> existing Domain Client or just carry a typed name (with an option to save
+> it as a Domain Client for next time), tracks what you charged vs. what it
+> cost you, a due date, and a pending/completed status. The page shows
+> total earned, total paid, net profit, and a due-soon/overdue count at a
+> glance.
 
 ### 3. Get your API credentials
 

@@ -39,6 +39,9 @@ import type {
   Task,
   TaskFile,
   TaskNote,
+  Renewal,
+  RenewalServiceType,
+  RenewalStatus,
   TaskPriority,
   TaskStatus,
   WebAppFeature,
@@ -2779,5 +2782,120 @@ export async function moveWebAppSubFeatures(ids: string[], targetFeatureId: stri
     .from("freelance_hq_web_app_subfeatures")
     .update({ feature_id: targetFeatureId, updated_at: nowIso() })
     .in("id", ids);
+  if (error) throw error;
+}
+
+/**
+ * Hosting/Domain Renewal tracker. Standalone from Domains and Projects — see
+ * migration 026.
+ */
+
+interface RenewalRow {
+  id: string;
+  domain_client_id: string | null;
+  client_name: string;
+  item_name: string;
+  service_types: RenewalServiceType[] | null;
+  amount_charged: number | null;
+  amount_paid: number | null;
+  due_date: string | null;
+  status: RenewalStatus;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function toRenewal(row: RenewalRow): Renewal {
+  return {
+    id: row.id,
+    domainClientId: row.domain_client_id,
+    clientName: row.client_name,
+    itemName: row.item_name,
+    serviceTypes: row.service_types ?? [],
+    amountCharged: row.amount_charged,
+    amountPaid: row.amount_paid,
+    dueDate: row.due_date,
+    status: row.status,
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function listRenewals(): Promise<Renewal[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_renewals")
+      .select("*")
+      .order("due_date", { ascending: true, nullsFirst: false });
+    if (error) throw error;
+    return ((data ?? []) as RenewalRow[]).map(toRenewal);
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
+}
+
+export async function createRenewal(input: {
+  domainClientId: string | null;
+  clientName: string;
+  itemName: string;
+  serviceTypes: RenewalServiceType[];
+  amountCharged: number | null;
+  amountPaid: number | null;
+  dueDate: string | null;
+  status: RenewalStatus;
+  notes: string;
+}): Promise<Renewal> {
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_renewals")
+    .insert({
+      domain_client_id: input.domainClientId,
+      client_name: input.clientName,
+      item_name: input.itemName,
+      service_types: input.serviceTypes,
+      amount_charged: input.amountCharged,
+      amount_paid: input.amountPaid,
+      due_date: input.dueDate,
+      status: input.status,
+      notes: input.notes,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return toRenewal(data as RenewalRow);
+}
+
+export async function updateRenewal(
+  id: string,
+  patch: Partial<{
+    domainClientId: string | null;
+    clientName: string;
+    itemName: string;
+    serviceTypes: RenewalServiceType[];
+    amountCharged: number | null;
+    amountPaid: number | null;
+    dueDate: string | null;
+    status: RenewalStatus;
+    notes: string;
+  }>,
+): Promise<void> {
+  const update: Record<string, unknown> = { updated_at: nowIso() };
+  if (patch.domainClientId !== undefined) update.domain_client_id = patch.domainClientId;
+  if (patch.clientName !== undefined) update.client_name = patch.clientName;
+  if (patch.itemName !== undefined) update.item_name = patch.itemName;
+  if (patch.serviceTypes !== undefined) update.service_types = patch.serviceTypes;
+  if (patch.amountCharged !== undefined) update.amount_charged = patch.amountCharged;
+  if (patch.amountPaid !== undefined) update.amount_paid = patch.amountPaid;
+  if (patch.dueDate !== undefined) update.due_date = patch.dueDate;
+  if (patch.status !== undefined) update.status = patch.status;
+  if (patch.notes !== undefined) update.notes = patch.notes;
+
+  const { error } = await getSupabase().from("freelance_hq_renewals").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteRenewal(id: string): Promise<void> {
+  const { error } = await getSupabase().from("freelance_hq_renewals").delete().eq("id", id);
   if (error) throw error;
 }
