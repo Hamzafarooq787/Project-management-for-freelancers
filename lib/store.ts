@@ -2824,6 +2824,7 @@ interface RenewalRow {
   service_types: RenewalServiceType[] | null;
   amount_charged: number | null;
   amount_paid: number | null;
+  currency: string | null;
   due_date: string | null;
   status: RenewalStatus;
   notes: string;
@@ -2840,6 +2841,7 @@ function toRenewal(row: RenewalRow): Renewal {
     serviceTypes: row.service_types ?? [],
     amountCharged: row.amount_charged,
     amountPaid: row.amount_paid,
+    currency: row.currency ?? "PKR",
     dueDate: row.due_date,
     status: row.status,
     notes: row.notes,
@@ -2869,6 +2871,7 @@ export async function createRenewal(input: {
   serviceTypes: RenewalServiceType[];
   amountCharged: number | null;
   amountPaid: number | null;
+  currency: string;
   dueDate: string | null;
   status: RenewalStatus;
   notes: string;
@@ -2882,6 +2885,7 @@ export async function createRenewal(input: {
       service_types: input.serviceTypes,
       amount_charged: input.amountCharged,
       amount_paid: input.amountPaid,
+      currency: input.currency,
       due_date: input.dueDate,
       status: input.status,
       notes: input.notes,
@@ -2901,6 +2905,7 @@ export async function updateRenewal(
     serviceTypes: RenewalServiceType[];
     amountCharged: number | null;
     amountPaid: number | null;
+    currency: string;
     dueDate: string | null;
     status: RenewalStatus;
     notes: string;
@@ -2913,6 +2918,7 @@ export async function updateRenewal(
   if (patch.serviceTypes !== undefined) update.service_types = patch.serviceTypes;
   if (patch.amountCharged !== undefined) update.amount_charged = patch.amountCharged;
   if (patch.amountPaid !== undefined) update.amount_paid = patch.amountPaid;
+  if (patch.currency !== undefined) update.currency = patch.currency;
   if (patch.dueDate !== undefined) update.due_date = patch.dueDate;
   if (patch.status !== undefined) update.status = patch.status;
   if (patch.notes !== undefined) update.notes = patch.notes;
