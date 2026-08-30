@@ -17,6 +17,8 @@ import type {
   PaymentKind,
   PaymentPlanType,
   ProjectType,
+  RenewalServiceType,
+  RenewalStatus,
   ResaleDomainStatus,
   RichContent,
   Role,
@@ -1448,4 +1450,78 @@ export async function bulkMoveWebAppSubFeaturesAction(ids: string[], projectId: 
   await requireProjectAccess(projectId);
   await store.moveWebAppSubFeatures(ids, targetFeatureId);
   revalidatePath(`/projects/${projectId}`);
+}
+
+function refreshRenewals() {
+  revalidatePath("/renewals");
+}
+
+function parseServiceTypes(formData: FormData): RenewalServiceType[] {
+  const valid: RenewalServiceType[] = ["domain", "hosting", "email", "malware_removal", "other"];
+  return formData.getAll("serviceTypes").filter((v): v is RenewalServiceType => valid.includes(v as RenewalServiceType));
+}
+
+export async function createRenewalAction(
+  formData: FormData,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  await requireAdmin();
+
+  let domainClientId = str(formData, "domainClientId") || null;
+  const clientName = str(formData, "clientName");
+  if (!clientName) return { ok: false, error: "A client name is required." };
+
+  if (!domainClientId && formData.get("saveNewClient") === "on") {
+    const created = await store.createDomainClient({ name: clientName, email: "", phone: "", notes: "" });
+    domainClientId = created.id;
+  }
+
+  const renewal = await store.createRenewal({
+    domainClientId,
+    clientName,
+    itemName: str(formData, "itemName"),
+    serviceTypes: parseServiceTypes(formData),
+    amountCharged: numOrNull(str(formData, "amountCharged")),
+    amountPaid: numOrNull(str(formData, "amountPaid")),
+    dueDate: str(formData, "dueDate") || null,
+    status: (str(formData, "status") || "pending") as RenewalStatus,
+    notes: str(formData, "notes"),
+  });
+  refreshRenewals();
+  return { ok: true, id: renewal.id };
+}
+
+export async function updateRenewalAction(id: string, formData: FormData) {
+  await requireAdmin();
+
+  let domainClientId = str(formData, "domainClientId") || null;
+  const clientName = str(formData, "clientName");
+  if (!domainClientId && clientName && formData.get("saveNewClient") === "on") {
+    const created = await store.createDomainClient({ name: clientName, email: "", phone: "", notes: "" });
+    domainClientId = created.id;
+  }
+
+  await store.updateRenewal(id, {
+    domainClientId,
+    clientName,
+    itemName: str(formData, "itemName"),
+    serviceTypes: parseServiceTypes(formData),
+    amountCharged: numOrNull(str(formData, "amountCharged")),
+    amountPaid: numOrNull(str(formData, "amountPaid")),
+    dueDate: str(formData, "dueDate") || null,
+    status: (str(formData, "status") || "pending") as RenewalStatus,
+    notes: str(formData, "notes"),
+  });
+  refreshRenewals();
+}
+
+export async function setRenewalStatusAction(id: string, status: RenewalStatus) {
+  await requireAdmin();
+  await store.updateRenewal(id, { status });
+  refreshRenewals();
+}
+
+export async function deleteRenewalAction(id: string) {
+  await requireAdmin();
+  await store.deleteRenewal(id);
+  refreshRenewals();
 }

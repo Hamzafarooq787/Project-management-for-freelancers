@@ -374,3 +374,27 @@ export interface WebAppSubFeature {
   createdAt: string;
   updatedAt: string;
 }
+
+/**
+ * Hosting/Domain Renewal tracker — standalone log of paid renewal work
+ * (domain, hosting, email service, malware removal, etc.), separate from
+ * both the Domains resale inventory and client Projects. Optionally links
+ * to a DomainClient; otherwise clientName is a free-text snapshot.
+ */
+export type RenewalServiceType = "domain" | "hosting" | "email" | "malware_removal" | "other";
+export type RenewalStatus = "pending" | "completed";
+
+export interface Renewal {
+  id: string;
+  domainClientId: string | null;
+  clientName: string;
+  itemName: string;
+  serviceTypes: RenewalServiceType[];
+  amountCharged: number | null;
+  amountPaid: number | null;
+  dueDate: string | null;
+  status: RenewalStatus;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
