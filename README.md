@@ -320,6 +320,13 @@ Finance page's totals, since that money was genuinely received.
 > each, the sub-features it needs (e.g. "Add customer", "Export customer
 > list") with a status per sub-feature. Both features and sub-features
 > support select-some/select-all bulk delete, duplicate, and xlsx export.
+>
+> Already ran 024? Also run
+> [`supabase/migrations/025_web_app_type_constraint.sql`](./supabase/migrations/025_web_app_type_constraint.sql) —
+> **required** for the Web Application project type to work. The
+> `freelance_hq_projects.type` column still carried a check constraint from
+> before namespacing that didn't allow `'web_app'`, so creating a Web
+> Application project would fail with a server error until this runs.
 
 ### 3. Get your API credentials
 

@@ -11,7 +11,7 @@ create table if not exists projects (
   name text not null,
   client text not null default '',
   client_details jsonb not null default '{}'::jsonb,
-  type text not null check (type in ('seo', 'web_dev', 'digital_marketing', 'other')),
+  type text not null check (type in ('seo', 'web_dev', 'web_app', 'digital_marketing', 'other')),
   description text not null default '',
   color text not null default '#33d485',
   archived boolean not null default false,
