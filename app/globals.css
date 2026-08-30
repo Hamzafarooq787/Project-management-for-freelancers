@@ -135,10 +135,10 @@ body {
 }
 
 /* Bottom domain-expiry ticker: the track renders each item twice (see
-   DomainExpiryTicker.tsx) and scrolls exactly one copy-width left, so the
-   loop point is seamless. Duration scales with content via animation-duration
-   set inline would be nicer, but a single slow duration reads fine for the
-   short item counts this ticker expects. */
+   DomainExpiryTicker.tsx) and scrolls exactly one copy-width, so the loop
+   point is seamless. Played in reverse (right-to-left keyframes, played
+   backwards) so content visibly moves left-to-right. Duration scales with
+   content via the --ticker-duration custom property set inline. */
 @keyframes ticker-scroll {
   from {
     transform: translateX(0);
@@ -148,7 +148,7 @@ body {
   }
 }
 .animate-ticker-scroll {
-  animation: ticker-scroll linear infinite;
+  animation: ticker-scroll linear infinite reverse;
   animation-duration: var(--ticker-duration, 22s);
 }
 @media (prefers-reduced-motion: reduce) {
