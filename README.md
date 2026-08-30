@@ -339,6 +339,14 @@ Finance page's totals, since that money was genuinely received.
 > cost you, a due date, and a pending/completed status. The page shows
 > total earned, total paid, net profit, and a due-soon/overdue count at a
 > glance.
+>
+> Already ran 026? Also run
+> [`supabase/migrations/027_member_renewals_access.sql`](./supabase/migrations/027_member_renewals_access.sql) —
+> adds `can_access_renewals` to `freelance_hq_profiles`. Renewals was
+> admin-only; this lets an admin grant individual members access to it (view
+> and manage renewal records) without making them a full admin — toggle it
+> per member from the Admin page next to their Projects access. Admins
+> always have access regardless of this flag.
 
 ### 3. Get your API credentials
 

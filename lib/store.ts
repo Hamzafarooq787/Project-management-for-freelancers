@@ -811,11 +811,19 @@ interface ProfileRow {
   email: string;
   name: string;
   role: Role;
+  can_access_renewals: boolean | null;
   created_at: string;
 }
 
 function toProfile(row: ProfileRow): Profile {
-  return { id: row.id, email: row.email, name: row.name, role: row.role, createdAt: row.created_at };
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: row.role,
+    canAccessRenewals: row.can_access_renewals ?? false,
+    createdAt: row.created_at,
+  };
 }
 
 export async function getProfile(userId: string): Promise<Profile | null> {
@@ -854,6 +862,24 @@ export async function listTeamMembers(): Promise<Profile[]> {
 export async function updateMemberRole(userId: string, role: Role): Promise<void> {
   const { error } = await getSupabase().from("freelance_hq_profiles").update({ role, updated_at: nowIso() }).eq("id", userId);
   if (error) throw error;
+}
+
+/**
+ * Fails open when the can_access_renewals column doesn't exist yet
+ * (migration 027 not run): granting Renewals access to a member is optional
+ * on top of the core profile record, so a missing column shouldn't break
+ * the Admin page.
+ */
+export async function setMemberRenewalsAccess(userId: string, allowed: boolean): Promise<void> {
+  try {
+    const { error } = await getSupabase()
+      .from("freelance_hq_profiles")
+      .update({ can_access_renewals: allowed, updated_at: nowIso() })
+      .eq("id", userId);
+    if (error) throw error;
+  } catch (error) {
+    if (!isMissingTableError(error)) throw error;
+  }
 }
 
 export async function inviteTeamMember(input: {

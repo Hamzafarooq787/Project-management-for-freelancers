@@ -37,7 +37,14 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     return await store.createProfile({ id: user.id, email: user.email ?? "", name, role });
   } catch (error) {
     if (isMissingTableError(error)) {
-      return { id: user.id, email: user.email ?? "", name: user.email?.split("@")[0] ?? "", role: "admin", createdAt: new Date().toISOString() };
+      return {
+        id: user.id,
+        email: user.email ?? "",
+        name: user.email?.split("@")[0] ?? "",
+        role: "admin",
+        canAccessRenewals: true,
+        createdAt: new Date().toISOString(),
+      };
     }
     throw error;
   }
@@ -52,6 +59,12 @@ export async function requireProfile(): Promise<Profile> {
 export async function requireAdmin(): Promise<Profile> {
   const profile = await requireProfile();
   if (profile.role !== "admin") throw new Error("Admin access required.");
+  return profile;
+}
+
+export async function requireRenewalsAccess(): Promise<Profile> {
+  const profile = await requireProfile();
+  if (profile.role !== "admin" && !profile.canAccessRenewals) throw new Error("You don't have access to Renewals.");
   return profile;
 }
 

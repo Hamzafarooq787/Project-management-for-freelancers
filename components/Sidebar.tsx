@@ -27,6 +27,7 @@ export function Sidebar({
   unseenNotes?: number;
 }) {
   const isAdmin = profile?.role === "admin";
+  const canAccessRenewals = isAdmin || Boolean(profile?.canAccessRenewals);
   const badgeByHref: Record<string, number> = { "/projects": unseenProjects, "/notes": unseenNotes };
   return (
     <aside className="hidden md:flex md:h-screen md:w-64 md:flex-col border-r border-base-700/60 bg-base-900/60 backdrop-blur-sm px-4 py-6 gap-6">
@@ -52,6 +53,15 @@ export function Sidebar({
             <NotificationBadge count={badgeByHref[href] ?? 0} />
           </Link>
         ))}
+        {canAccessRenewals && (
+          <Link
+            href="/renewals"
+            className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-300 hover:bg-base-800 hover:text-accent-300 transition-colors"
+          >
+            <RefreshCcw size={17} className="text-neutral-500 group-hover:text-accent-400" />
+            Renewals
+          </Link>
+        )}
         {isAdmin && (
           <>
             <Link
@@ -74,13 +84,6 @@ export function Sidebar({
             >
               <Globe size={17} className="text-neutral-500 group-hover:text-accent-400" />
               Domains
-            </Link>
-            <Link
-              href="/renewals"
-              className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-300 hover:bg-base-800 hover:text-accent-300 transition-colors"
-            >
-              <RefreshCcw size={17} className="text-neutral-500 group-hover:text-accent-400" />
-              Renewals
             </Link>
             <Link
               href="/settings"

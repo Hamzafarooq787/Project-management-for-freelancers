@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { UserPlus, Trash2, ChevronDown, ShieldCheck } from "lucide-react";
+import { UserPlus, Trash2, ChevronDown, ShieldCheck, RefreshCcw } from "lucide-react";
 import type { Profile, Project } from "@/lib/types";
 import {
   assignProjectsAction,
   inviteTeamMemberAction,
   removeMemberAction,
+  setMemberRenewalsAccessAction,
   updateMemberRoleAction,
 } from "@/lib/actions";
 import { PROJECT_THEME } from "@/lib/projectTheme";
@@ -178,6 +179,25 @@ function MemberRow({
             >
               Projects ({assignedIds.length})
               <ChevronDown size={13} className={cn("transition-transform", assignOpen && "rotate-180")} />
+            </button>
+          )}
+          {member.role === "member" && (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() =>
+                startTransition(() => setMemberRenewalsAccessAction(member.id, !member.canAccessRenewals))
+              }
+              className={cn(
+                "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs disabled:opacity-50",
+                member.canAccessRenewals
+                  ? "border-accent-500/50 bg-accent-500/10 text-accent-300"
+                  : "border-base-600 text-neutral-300 hover:border-accent-500/60 hover:text-accent-300",
+              )}
+              title={member.canAccessRenewals ? "Revoke Renewals access" : "Grant Renewals access"}
+            >
+              <RefreshCcw size={13} />
+              Renewals {member.canAccessRenewals ? "on" : "off"}
             </button>
           )}
           {!isSelf && (
