@@ -420,6 +420,9 @@ export interface Website {
   headScripts: string;
   bodyScripts: string;
   apiKey: string;
+  isOffline: boolean;
+  /** Stamped by the public /api/site-config endpoint on every successful fetch — the basis for the "Connected" signal. */
+  lastFetchedAt: string | null;
   notes: string;
   createdAt: string;
   updatedAt: string;
@@ -434,4 +437,6 @@ export interface WebsitePublicConfig {
   cities: string[];
   headScripts: string;
   bodyScripts: string;
+  /** When true, the live site should show a simple "temporarily offline" state instead of rendering normally. */
+  offline: boolean;
 }

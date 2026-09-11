@@ -359,17 +359,27 @@ Finance page's totals, since that money was genuinely received.
 >
 > Already ran 028? Also run
 > [`supabase/migrations/029_websites.sql`](./supabase/migrations/029_websites.sql) —
-> adds `freelance_hq_websites`. This powers a new **Websites** tab
-> (sidebar, admin-only) for managing the Next.js client sites you build:
-> attach one to a Domain in your inventory (and, through it, that domain's
-> Domain Client), then edit its contact info, service-area cities, and
-> Google Tag Manager/GA/Pixel head+body scripts here. Each website gets a
-> random 256-bit secret key; the live site fetches its config at runtime
-> from the new public `GET /api/site-config` endpoint (`Authorization:
-> Bearer <key>`, or `?key=` for a quick check) — no key, no data, and the
-> key is never echoed back by that endpoint. The Websites tab shows a
-> copy-paste "Setup instructions" prompt (pre-filled with that site's key
-> and URL) to hand to a Claude Code session inside the website's own repo.
+> adds `freelance_hq_websites`, for managing the Next.js client sites you
+> build: contact info, service-area cities, and Google Tag Manager/GA/Pixel
+> head+body scripts, fetched at runtime by the live site from a secret-keyed
+> public endpoint. See 030 below for how this is actually surfaced in the
+> UI — it changed after this migration first shipped.
+>
+> Already ran 029? Also run
+> [`supabase/migrations/030_website_domain_popup.sql`](./supabase/migrations/030_website_domain_popup.sql) —
+> adds `is_offline` and `last_fetched_at` to `freelance_hq_websites`, makes
+> `domain_id` one-to-one (a domain has at most one website config) and
+> cascades its deletion with the domain. This reworked Website Management
+> from its own tab into a **popup on each domain row in the Domains tab**
+> (click the "Website" button) — there is no separate Websites tab anymore.
+> The popup lets you edit contact info/cities/head+body scripts, shows a
+> **Connected** / **Not connected yet** / **Connection lost** / **Offline**
+> badge (based on when the live site last successfully fetched its config
+> from `GET /api/site-config`), a **Take offline** button that flips a flag
+> the site's own code is instructed to check and show a "temporarily
+> offline" page for, and the copy-paste "Setup instructions" prompt
+> (pre-filled with that domain's secret key and the config URL) to hand to
+> a Claude Code session inside the website's own repo to attach it.
 
 ### 3. Get your API credentials
 

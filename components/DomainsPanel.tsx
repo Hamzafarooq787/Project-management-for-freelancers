@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
-import { Globe, Plus, RefreshCw, Settings, Trash2, Users } from "lucide-react";
-import type { Domain, DomainClient, ResaleDomainStatus } from "@/lib/types";
+import { Globe, Layout, Plus, RefreshCw, Settings, Trash2, Users } from "lucide-react";
+import type { Domain, DomainClient, ResaleDomainStatus, Website } from "@/lib/types";
 import {
   clearDynadotApiKeyAction,
   createDomainAction,
@@ -13,6 +13,7 @@ import {
   importDomainsFromDynadotAction,
   saveDynadotApiKeyAction,
 } from "@/lib/actions";
+import { CONNECTION_BADGE, WebsiteConfigModal, getWebsiteConnectionStatus } from "@/components/WebsiteConfigModal";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLE: Record<ResaleDomainStatus, string> = {
@@ -25,10 +26,12 @@ export function DomainsPanel({
   domains,
   domainClients,
   hasDynadotApiKey,
+  websitesByDomainId,
 }: {
   domains: Domain[];
   domainClients: DomainClient[];
   hasDynadotApiKey: boolean;
+  websitesByDomainId: Record<string, Website>;
 }) {
   const [tab, setTab] = useState<"domains" | "clients" | "settings">("domains");
   const clientById = new Map(domainClients.map((c) => [c.id, c]));
@@ -58,7 +61,15 @@ export function DomainsPanel({
         ))}
       </div>
 
-      {tab === "domains" && <DomainsTab domains={domains} clientById={clientById} domainClients={domainClients} hasDynadotApiKey={hasDynadotApiKey} />}
+      {tab === "domains" && (
+        <DomainsTab
+          domains={domains}
+          clientById={clientById}
+          domainClients={domainClients}
+          hasDynadotApiKey={hasDynadotApiKey}
+          websitesByDomainId={websitesByDomainId}
+        />
+      )}
       {tab === "clients" && <DomainClientsTab domainClients={domainClients} />}
       {tab === "settings" && <DynadotSettingsTab hasDynadotApiKey={hasDynadotApiKey} />}
     </div>
@@ -70,14 +81,18 @@ function DomainsTab({
   clientById,
   domainClients,
   hasDynadotApiKey,
+  websitesByDomainId,
 }: {
   domains: Domain[];
   clientById: Map<string, DomainClient>;
   domainClients: DomainClient[];
   hasDynadotApiKey: boolean;
+  websitesByDomainId: Record<string, Website>;
 }) {
   const [isPending, startTransition] = useTransition();
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [websiteModalDomainId, setWebsiteModalDomainId] = useState<string | null>(null);
+  const websiteModalDomain = domains.find((d) => d.id === websiteModalDomainId) ?? null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -108,10 +123,24 @@ function DomainsTab({
 
       <div className="flex flex-col gap-2">
         {domains.map((domain) => (
-          <DomainRow key={domain.id} domain={domain} client={domain.domainClientId ? clientById.get(domain.domainClientId) : undefined} />
+          <DomainRow
+            key={domain.id}
+            domain={domain}
+            client={domain.domainClientId ? clientById.get(domain.domainClientId) : undefined}
+            website={websitesByDomainId[domain.id]}
+            onOpenWebsite={() => setWebsiteModalDomainId(domain.id)}
+          />
         ))}
         {domains.length === 0 && <p className="text-sm text-neutral-500">No domains yet — add one above.</p>}
       </div>
+
+      {websiteModalDomain && (
+        <WebsiteConfigModal
+          domain={websiteModalDomain}
+          website={websitesByDomainId[websiteModalDomain.id] ?? null}
+          onClose={() => setWebsiteModalDomainId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -207,8 +236,19 @@ function NewDomainForm({ domainClients }: { domainClients: DomainClient[] }) {
   );
 }
 
-function DomainRow({ domain, client }: { domain: Domain; client?: DomainClient }) {
+function DomainRow({
+  domain,
+  client,
+  website,
+  onOpenWebsite,
+}: {
+  domain: Domain;
+  client?: DomainClient;
+  website?: Website;
+  onOpenWebsite: () => void;
+}) {
   const [isPending, startTransition] = useTransition();
+  const websiteBadge = CONNECTION_BADGE[getWebsiteConnectionStatus(website)];
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl2 border border-base-700/60 bg-base-850 p-4">
@@ -228,6 +268,15 @@ function DomainRow({ domain, client }: { domain: Domain; client?: DomainClient }
         </p>
       </div>
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onOpenWebsite}
+          className="flex items-center gap-1.5 rounded-md border border-base-600 px-3 py-1.5 text-xs text-neutral-300 hover:border-sky-500/50 hover:text-sky-300"
+        >
+          <Layout size={13} />
+          Website
+          <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", websiteBadge.cls)}>{websiteBadge.label}</span>
+        </button>
         <Link href={`/domains/${domain.id}`} className="rounded-md border border-base-600 px-3 py-1.5 text-xs text-neutral-300 hover:border-accent-500/50 hover:text-accent-300">
           Manage
         </Link>
