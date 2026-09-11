@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, ListChecks, FolderKanban, Archive, Settings, Plus, Leaf, LogOut, Shield, Wallet, Building2, Globe, FileText, RefreshCcw } from "lucide-react";
+import { LayoutDashboard, ListChecks, FolderKanban, Archive, Settings, Plus, Leaf, LogOut, Shield, Wallet, Building2, Globe, FileText, RefreshCcw, LayoutTemplate } from "lucide-react";
 import type { Profile, Project } from "@/lib/types";
 import { SidebarProjectGroups } from "./SidebarProjectGroups";
 import { InstallAppButton } from "./InstallAppButton";
@@ -84,6 +84,13 @@ export function Sidebar({
             >
               <Globe size={17} className="text-neutral-500 group-hover:text-accent-400" />
               Domains
+            </Link>
+            <Link
+              href="/websites"
+              className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-300 hover:bg-base-800 hover:text-accent-300 transition-colors"
+            >
+              <LayoutTemplate size={17} className="text-neutral-500 group-hover:text-accent-400" />
+              Websites
             </Link>
             <Link
               href="/settings"

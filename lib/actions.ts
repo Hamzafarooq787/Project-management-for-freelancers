@@ -1533,3 +1533,72 @@ export async function deleteRenewalAction(id: string) {
   await store.deleteRenewal(id);
   refreshRenewals();
 }
+
+function refreshWebsites() {
+  revalidatePath("/websites");
+}
+
+function parseCities(formData: FormData): string[] {
+  return str(formData, "cities")
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
+}
+
+export async function createWebsiteAction(
+  formData: FormData,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  await requireAdmin();
+
+  const name = str(formData, "name");
+  if (!name) return { ok: false, error: "A website name is required." };
+
+  const website = await store.createWebsite({
+    domainId: str(formData, "domainId") || null,
+    name,
+    contactEmail: str(formData, "contactEmail"),
+    contactPhone: str(formData, "contactPhone"),
+    contactAddress: str(formData, "contactAddress"),
+    cities: parseCities(formData),
+    headScripts: str(formData, "headScripts"),
+    bodyScripts: str(formData, "bodyScripts"),
+    notes: str(formData, "notes"),
+  });
+  refreshWebsites();
+  return { ok: true, id: website.id };
+}
+
+export async function updateWebsiteAction(id: string, formData: FormData) {
+  await requireAdmin();
+  await store.updateWebsite(id, {
+    domainId: str(formData, "domainId") || null,
+    name: str(formData, "name"),
+    contactEmail: str(formData, "contactEmail"),
+    contactPhone: str(formData, "contactPhone"),
+    contactAddress: str(formData, "contactAddress"),
+    cities: parseCities(formData),
+    headScripts: str(formData, "headScripts"),
+    bodyScripts: str(formData, "bodyScripts"),
+    notes: str(formData, "notes"),
+  });
+  refreshWebsites();
+}
+
+export async function regenerateWebsiteApiKeyAction(
+  id: string,
+): Promise<{ ok: true; apiKey: string } | { ok: false; error: string }> {
+  await requireAdmin();
+  try {
+    const apiKey = await store.regenerateWebsiteApiKey(id);
+    refreshWebsites();
+    return { ok: true, apiKey };
+  } catch {
+    return { ok: false, error: "Couldn't rotate the key. Please try again." };
+  }
+}
+
+export async function deleteWebsiteAction(id: string) {
+  await requireAdmin();
+  await store.deleteWebsite(id);
+  refreshWebsites();
+}
