@@ -382,8 +382,12 @@ function RenewalForm({
         setError(null);
         startTransition(async () => {
           if (renewal) {
-            await updateRenewalAction(renewal.id, formData);
-            onSaved();
+            const result = await updateRenewalAction(renewal.id, formData);
+            if (result.ok) {
+              onSaved();
+            } else {
+              setError(result.error);
+            }
           } else {
             const result = await createRenewalAction(formData);
             if (result.ok) {

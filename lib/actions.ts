@@ -1503,56 +1503,70 @@ export async function createRenewalAction(
   const clientName = str(formData, "clientName");
   if (!clientName) return { ok: false, error: "A client name is required." };
 
-  if (!domainClientId && formData.get("saveNewClient") === "on") {
-    const created = await store.createDomainClient({ name: clientName, email: "", phone: "", notes: "" });
-    domainClientId = created.id;
+  try {
+    if (!domainClientId && formData.get("saveNewClient") === "on") {
+      const created = await store.createDomainClient({ name: clientName, email: "", phone: "", notes: "" });
+      domainClientId = created.id;
+    }
+
+    const domainId = profile.role === "admin" ? await resolveRenewalDomainId(formData) : null;
+
+    const renewal = await store.createRenewal({
+      domainClientId,
+      domainId,
+      clientName,
+      itemName: str(formData, "itemName"),
+      serviceTypes: parseServiceTypes(formData),
+      amountCharged: numOrNull(str(formData, "amountCharged")),
+      amountPaid: numOrNull(str(formData, "amountPaid")),
+      currency: str(formData, "currency") || "PKR",
+      dueDate: str(formData, "dueDate") || null,
+      status: (str(formData, "status") || "pending") as RenewalStatus,
+      notes: str(formData, "notes"),
+    });
+    refreshRenewals();
+    return { ok: true, id: renewal.id };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Something went wrong saving this renewal.";
+    return { ok: false, error: message };
   }
-
-  const domainId = profile.role === "admin" ? await resolveRenewalDomainId(formData) : null;
-
-  const renewal = await store.createRenewal({
-    domainClientId,
-    domainId,
-    clientName,
-    itemName: str(formData, "itemName"),
-    serviceTypes: parseServiceTypes(formData),
-    amountCharged: numOrNull(str(formData, "amountCharged")),
-    amountPaid: numOrNull(str(formData, "amountPaid")),
-    currency: str(formData, "currency") || "PKR",
-    dueDate: str(formData, "dueDate") || null,
-    status: (str(formData, "status") || "pending") as RenewalStatus,
-    notes: str(formData, "notes"),
-  });
-  refreshRenewals();
-  return { ok: true, id: renewal.id };
 }
 
-export async function updateRenewalAction(id: string, formData: FormData) {
+export async function updateRenewalAction(
+  id: string,
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const profile = await requireRenewalsAccess();
 
   let domainClientId = str(formData, "domainClientId") || null;
   const clientName = str(formData, "clientName");
-  if (!domainClientId && clientName && formData.get("saveNewClient") === "on") {
-    const created = await store.createDomainClient({ name: clientName, email: "", phone: "", notes: "" });
-    domainClientId = created.id;
+  try {
+    if (!domainClientId && clientName && formData.get("saveNewClient") === "on") {
+      const created = await store.createDomainClient({ name: clientName, email: "", phone: "", notes: "" });
+      domainClientId = created.id;
+    }
+
+    const domainId = profile.role === "admin" ? await resolveRenewalDomainId(formData) : undefined;
+
+    await store.updateRenewal(id, {
+      domainClientId,
+      domainId,
+      clientName,
+      itemName: str(formData, "itemName"),
+      serviceTypes: parseServiceTypes(formData),
+      amountCharged: numOrNull(str(formData, "amountCharged")),
+      amountPaid: numOrNull(str(formData, "amountPaid")),
+      currency: str(formData, "currency") || "PKR",
+      dueDate: str(formData, "dueDate") || null,
+      status: (str(formData, "status") || "pending") as RenewalStatus,
+      notes: str(formData, "notes"),
+    });
+    refreshRenewals();
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Something went wrong saving this renewal.";
+    return { ok: false, error: message };
   }
-
-  const domainId = profile.role === "admin" ? await resolveRenewalDomainId(formData) : undefined;
-
-  await store.updateRenewal(id, {
-    domainClientId,
-    domainId,
-    clientName,
-    itemName: str(formData, "itemName"),
-    serviceTypes: parseServiceTypes(formData),
-    amountCharged: numOrNull(str(formData, "amountCharged")),
-    amountPaid: numOrNull(str(formData, "amountPaid")),
-    currency: str(formData, "currency") || "PKR",
-    dueDate: str(formData, "dueDate") || null,
-    status: (str(formData, "status") || "pending") as RenewalStatus,
-    notes: str(formData, "notes"),
-  });
-  refreshRenewals();
 }
 
 export async function setRenewalStatusAction(id: string, status: RenewalStatus) {
