@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useRef, useState, useTransition } from "react";
 import {
   AlertTriangle,
   CalendarClock,
   CheckCircle2,
+  Layout,
   Pencil,
   Plus,
   Receipt,
@@ -14,7 +16,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import type { DomainClient, Renewal, RenewalServiceType, RenewalStatus } from "@/lib/types";
+import type { Domain, DomainClient, Renewal, RenewalServiceType, RenewalStatus, Website } from "@/lib/types";
 import {
   createRenewalAction,
   deleteRenewalAction,
@@ -22,6 +24,7 @@ import {
   updateRenewalAction,
 } from "@/lib/actions";
 import { StatCard } from "@/components/StatCard";
+import { CONNECTION_BADGE, WebsiteConfigModal, getWebsiteConnectionStatus } from "@/components/WebsiteConfigModal";
 import { cn, currencySymbol, formatMoney, sortCurrencies } from "@/lib/utils";
 
 const ALL_CURRENCIES = ["PKR", "USD", "GBP"];
@@ -62,10 +65,25 @@ function dueBadge(dueDate: string | null, status: RenewalStatus) {
 
 type StatusFilter = "all" | RenewalStatus;
 
-export function RenewalsPanel({ renewals, domainClients }: { renewals: Renewal[]; domainClients: DomainClient[] }) {
+export function RenewalsPanel({
+  renewals,
+  domainClients,
+  domains,
+  websitesByDomainId,
+  isAdmin,
+}: {
+  renewals: Renewal[];
+  domainClients: DomainClient[];
+  domains: Domain[];
+  websitesByDomainId: Record<string, Website>;
+  isAdmin: boolean;
+}) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [websiteModalDomainId, setWebsiteModalDomainId] = useState<string | null>(null);
+  const websiteModalDomain = domains.find((d) => d.id === websiteModalDomainId) ?? null;
+  const domainById = useMemo(() => new Map(domains.map((d) => [d.id, d])), [domains]);
 
   const currencies = useMemo(() => {
     const present = sortCurrencies(Array.from(new Set(renewals.map((r) => r.currency))));
@@ -158,6 +176,8 @@ export function RenewalsPanel({ renewals, domainClients }: { renewals: Renewal[]
           <div className="mb-3">
             <RenewalForm
               domainClients={domainClients}
+              domains={domains}
+              isAdmin={isAdmin}
               renewal={null}
               defaultCurrency={activeCurrency}
               onCancel={() => setAdding(false)}
@@ -179,26 +199,59 @@ export function RenewalsPanel({ renewals, domainClients }: { renewals: Renewal[]
                 <RenewalForm
                   key={renewal.id}
                   domainClients={domainClients}
+                  domains={domains}
+                  isAdmin={isAdmin}
                   renewal={renewal}
                   defaultCurrency={renewal.currency}
                   onCancel={() => setEditingId(null)}
                   onSaved={() => setEditingId(null)}
                 />
               ) : (
-                <RenewalRow key={renewal.id} renewal={renewal} onEdit={() => setEditingId(renewal.id)} />
+                <RenewalRow
+                  key={renewal.id}
+                  renewal={renewal}
+                  domain={renewal.domainId ? domainById.get(renewal.domainId) : undefined}
+                  website={renewal.domainId ? websitesByDomainId[renewal.domainId] : undefined}
+                  isAdmin={isAdmin}
+                  onEdit={() => setEditingId(renewal.id)}
+                  onOpenWebsite={() => setWebsiteModalDomainId(renewal.domainId)}
+                />
               ),
             )}
           </div>
         )}
       </div>
+
+      {websiteModalDomain && (
+        <WebsiteConfigModal
+          domain={websiteModalDomain}
+          website={websitesByDomainId[websiteModalDomain.id] ?? null}
+          onClose={() => setWebsiteModalDomainId(null)}
+        />
+      )}
     </div>
   );
 }
 
-function RenewalRow({ renewal, onEdit }: { renewal: Renewal; onEdit: () => void }) {
+function RenewalRow({
+  renewal,
+  domain,
+  website,
+  isAdmin,
+  onEdit,
+  onOpenWebsite,
+}: {
+  renewal: Renewal;
+  domain?: Domain;
+  website?: Website;
+  isAdmin: boolean;
+  onEdit: () => void;
+  onOpenWebsite: () => void;
+}) {
   const [isPending, startTransition] = useTransition();
   const badge = dueBadge(renewal.dueDate, renewal.status);
   const profit = (renewal.amountCharged ?? 0) - (renewal.amountPaid ?? 0);
+  const websiteBadge = CONNECTION_BADGE[getWebsiteConnectionStatus(website)];
 
   return (
     <div
@@ -238,6 +291,26 @@ function RenewalRow({ renewal, onEdit }: { renewal: Renewal; onEdit: () => void 
           <p className={profit >= 0 ? "text-accent-300" : "text-rose-400"}>{money(profit, renewal.currency)}</p>
         </div>
 
+        {isAdmin && domain && (
+          <button
+            type="button"
+            onClick={onOpenWebsite}
+            className="flex items-center gap-1.5 rounded-md border border-base-600 px-3 py-1.5 text-xs text-neutral-300 hover:border-sky-500/50 hover:text-sky-300"
+          >
+            <Layout size={13} />
+            Website
+            <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", websiteBadge.cls)}>{websiteBadge.label}</span>
+          </button>
+        )}
+        {isAdmin && domain && (
+          <Link
+            href={`/domains/${domain.id}`}
+            className="rounded-md border border-base-600 px-3 py-1.5 text-xs text-neutral-300 hover:border-accent-500/50 hover:text-accent-300"
+          >
+            Manage domain
+          </Link>
+        )}
+
         <button
           type="button"
           disabled={isPending}
@@ -275,12 +348,16 @@ function RenewalRow({ renewal, onEdit }: { renewal: Renewal; onEdit: () => void 
 
 function RenewalForm({
   domainClients,
+  domains,
+  isAdmin,
   renewal,
   defaultCurrency,
   onCancel,
   onSaved,
 }: {
   domainClients: DomainClient[];
+  domains: Domain[];
+  isAdmin: boolean;
   renewal: Renewal | null;
   defaultCurrency: string;
   onCancel: () => void;
@@ -290,9 +367,13 @@ function RenewalForm({
   const [error, setError] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState(renewal?.domainClientId ?? "");
   const [manualName, setManualName] = useState(renewal?.domainClientId ? "" : (renewal?.clientName ?? ""));
+  const [domainInput, setDomainInput] = useState(
+    () => domains.find((d) => d.id === renewal?.domainId)?.name ?? "",
+  );
   const formRef = useRef<HTMLFormElement>(null);
 
   const selectedClientName = domainClients.find((c) => c.id === selectedClientId)?.name ?? "";
+  const matchedDomain = domains.find((d) => d.name.toLowerCase() === domainInput.trim().toLowerCase());
 
   return (
     <form
@@ -381,6 +462,31 @@ function RenewalForm({
           ))}
         </div>
       </div>
+
+      {isAdmin && (
+        <div>
+          <label className="mb-1 block text-[11px] text-neutral-500">Link to a domain (optional, unlocks Website settings)</label>
+          <input
+            list="renewal-domain-options"
+            value={domainInput}
+            onChange={(e) => setDomainInput(e.target.value)}
+            placeholder="Search or type a new domain name"
+            className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
+          />
+          <datalist id="renewal-domain-options">
+            {domains.map((d) => (
+              <option key={d.id} value={d.name} />
+            ))}
+          </datalist>
+          <input type="hidden" name="domainId" value={matchedDomain?.id ?? ""} />
+          {!matchedDomain && <input type="hidden" name="newDomainName" value={domainInput.trim()} />}
+          {domainInput.trim() && !matchedDomain && (
+            <p className="mt-1 text-[11px] text-amber-400">
+              No existing domain matches — saving will register &ldquo;{domainInput.trim()}&rdquo; as a new domain.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <div>

@@ -1,36 +1,38 @@
 import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
-import { getDomainSettings, listDomainClients, listDomains, listWebsitesByDomainIds } from "@/lib/store";
+import { getDomainSettings, listDomainClients, listDomains, listRenewals, listWebsitesByDomainIds } from "@/lib/store";
 import { DomainsPanel } from "@/components/DomainsPanel";
 
 export const dynamic = "force-dynamic";
 
 export default async function DomainsPage() {
   const profile = await getCurrentProfile();
-  if (profile?.role !== "admin") notFound();
+  if (!profile || (profile.role !== "admin" && !profile.canAccessRenewals)) notFound();
+  const isAdmin = profile.role === "admin";
 
-  const [domains, domainClients, settings] = await Promise.all([
-    listDomains(),
-    listDomainClients(),
-    getDomainSettings(),
-  ]);
-  const websitesByDomainId = await listWebsitesByDomainIds(domains.map((d) => d.id));
+  const [renewals, domainClients] = await Promise.all([listRenewals(), listDomainClients()]);
+  const [domains, settings] = isAdmin
+    ? await Promise.all([listDomains(), getDomainSettings()])
+    : [[], { dynadotApiKeyEncrypted: null }];
+  const websitesByDomainId = isAdmin ? await listWebsitesByDomainIds(domains.map((d) => d.id)) : {};
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold text-neutral-50">Domains</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Your domain resale inventory — separate from client projects. Add domains manually or import your whole
-          Dynadot portfolio in one click.
+          Domain, hosting, email, and malware-removal renewal work. Link a renewal to a domain to manage its Google
+          Tag codes, contact info, and offline status.
         </p>
       </div>
 
       <DomainsPanel
-        domains={domains}
+        renewals={renewals}
         domainClients={domainClients}
-        hasDynadotApiKey={Boolean(settings.dynadotApiKeyEncrypted)}
+        domains={domains}
         websitesByDomainId={websitesByDomainId}
+        hasDynadotApiKey={Boolean(settings.dynadotApiKeyEncrypted)}
+        isAdmin={isAdmin}
       />
     </div>
   );
