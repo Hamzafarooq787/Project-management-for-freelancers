@@ -1535,7 +1535,7 @@ export async function deleteRenewalAction(id: string) {
 }
 
 function refreshWebsites() {
-  revalidatePath("/websites");
+  revalidatePath("/domains");
 }
 
 function parseCities(formData: FormData): string[] {
@@ -1545,51 +1545,38 @@ function parseCities(formData: FormData): string[] {
     .filter(Boolean);
 }
 
-export async function createWebsiteAction(
+export async function upsertWebsiteForDomainAction(
+  domainId: string,
   formData: FormData,
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+): Promise<{ ok: true } | { ok: false; error: string }> {
   await requireAdmin();
+  if (!domainId) return { ok: false, error: "No domain selected." };
 
-  const name = str(formData, "name");
-  if (!name) return { ok: false, error: "A website name is required." };
-
-  const website = await store.createWebsite({
-    domainId: str(formData, "domainId") || null,
-    name,
-    contactEmail: str(formData, "contactEmail"),
-    contactPhone: str(formData, "contactPhone"),
-    contactAddress: str(formData, "contactAddress"),
-    cities: parseCities(formData),
-    headScripts: str(formData, "headScripts"),
-    bodyScripts: str(formData, "bodyScripts"),
-    notes: str(formData, "notes"),
-  });
-  refreshWebsites();
-  return { ok: true, id: website.id };
+  try {
+    await store.upsertWebsiteForDomain(domainId, {
+      name: str(formData, "name"),
+      contactEmail: str(formData, "contactEmail"),
+      contactPhone: str(formData, "contactPhone"),
+      contactAddress: str(formData, "contactAddress"),
+      cities: parseCities(formData),
+      headScripts: str(formData, "headScripts"),
+      bodyScripts: str(formData, "bodyScripts"),
+      notes: str(formData, "notes"),
+    });
+    refreshWebsites();
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Couldn't save the website config. Please try again." };
+  }
 }
 
-export async function updateWebsiteAction(id: string, formData: FormData) {
-  await requireAdmin();
-  await store.updateWebsite(id, {
-    domainId: str(formData, "domainId") || null,
-    name: str(formData, "name"),
-    contactEmail: str(formData, "contactEmail"),
-    contactPhone: str(formData, "contactPhone"),
-    contactAddress: str(formData, "contactAddress"),
-    cities: parseCities(formData),
-    headScripts: str(formData, "headScripts"),
-    bodyScripts: str(formData, "bodyScripts"),
-    notes: str(formData, "notes"),
-  });
-  refreshWebsites();
-}
-
-export async function regenerateWebsiteApiKeyAction(
-  id: string,
+export async function regenerateWebsiteApiKeyForDomainAction(
+  domainId: string,
 ): Promise<{ ok: true; apiKey: string } | { ok: false; error: string }> {
   await requireAdmin();
   try {
-    const apiKey = await store.regenerateWebsiteApiKey(id);
+    const apiKey = await store.regenerateWebsiteApiKeyForDomain(domainId);
+    if (!apiKey) return { ok: false, error: "Save the website config before rotating its key." };
     refreshWebsites();
     return { ok: true, apiKey };
   } catch {
@@ -1597,8 +1584,8 @@ export async function regenerateWebsiteApiKeyAction(
   }
 }
 
-export async function deleteWebsiteAction(id: string) {
+export async function setWebsiteOfflineForDomainAction(domainId: string, offline: boolean) {
   await requireAdmin();
-  await store.deleteWebsite(id);
+  await store.setWebsiteOfflineForDomain(domainId, offline);
   refreshWebsites();
 }

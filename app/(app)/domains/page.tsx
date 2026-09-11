@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
-import { getDomainSettings, listDomainClients, listDomains } from "@/lib/store";
+import { getDomainSettings, listDomainClients, listDomains, listWebsitesByDomainIds } from "@/lib/store";
 import { DomainsPanel } from "@/components/DomainsPanel";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,7 @@ export default async function DomainsPage() {
     listDomainClients(),
     getDomainSettings(),
   ]);
+  const websitesByDomainId = await listWebsitesByDomainIds(domains.map((d) => d.id));
 
   return (
     <div className="flex flex-col gap-6">
@@ -25,7 +26,12 @@ export default async function DomainsPage() {
         </p>
       </div>
 
-      <DomainsPanel domains={domains} domainClients={domainClients} hasDynadotApiKey={Boolean(settings.dynadotApiKeyEncrypted)} />
+      <DomainsPanel
+        domains={domains}
+        domainClients={domainClients}
+        hasDynadotApiKey={Boolean(settings.dynadotApiKeyEncrypted)}
+        websitesByDomainId={websitesByDomainId}
+      />
     </div>
   );
 }

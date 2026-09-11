@@ -2934,12 +2934,16 @@ export async function deleteRenewal(id: string): Promise<void> {
 }
 
 /**
- * Client Website Management. Standalone from Domains/Renewals — see
- * migration 029. `api_key` is a random 64-hex-char secret (256 bits of
+ * Client Website Management — one config per Domain (migration 029/030),
+ * edited from a popup on that domain's row in the Domains tab rather than
+ * a separate list. `api_key` is a random 64-hex-char secret (256 bits of
  * entropy) generated server-side; it is never returned by any listing that
  * a browser could see except this app's own admin UI, and the public
  * /api/site-config endpoint takes it as an *input* to look up a row, never
- * echoes it back.
+ * echoes it back. `last_fetched_at` is stamped by that same endpoint on
+ * every successful lookup — the basis for the Domains tab's "Connected"
+ * signal, which the caller derives from recency (this module has no
+ * opinion on what counts as "recent").
  */
 
 interface WebsiteRow {
@@ -2953,6 +2957,8 @@ interface WebsiteRow {
   head_scripts: string;
   body_scripts: string;
   api_key: string;
+  is_offline: boolean;
+  last_fetched_at: string | null;
   notes: string;
   created_at: string;
   updated_at: string;
@@ -2970,6 +2976,8 @@ function toWebsite(row: WebsiteRow): Website {
     headScripts: row.head_scripts,
     bodyScripts: row.body_scripts,
     apiKey: row.api_key,
+    isOffline: row.is_offline,
+    lastFetchedAt: row.last_fetched_at,
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -2980,13 +2988,19 @@ function generateWebsiteApiKey(): string {
   return randomBytes(32).toString("hex");
 }
 
-export async function listWebsites(): Promise<Website[]> {
+/** Bulk-loads each domain's Website config (if any) for the Domains tab, keyed by domain_id. */
+export async function listWebsitesByDomainIds(domainIds: string[]): Promise<Record<string, Website>> {
+  if (domainIds.length === 0) return {};
   try {
-    const { data, error } = await getSupabase().from("freelance_hq_websites").select("*").order("created_at", { ascending: false });
+    const { data, error } = await getSupabase().from("freelance_hq_websites").select("*").in("domain_id", domainIds);
     if (error) throw error;
-    return ((data ?? []) as WebsiteRow[]).map(toWebsite);
+    const map: Record<string, Website> = {};
+    for (const row of (data ?? []) as WebsiteRow[]) {
+      if (row.domain_id) map[row.domain_id] = toWebsite(row);
+    }
+    return map;
   } catch (error) {
-    if (isMissingTableError(error)) return [];
+    if (isMissingTableError(error)) return {};
     throw error;
   }
 }
@@ -3004,21 +3018,63 @@ export async function getWebsiteByApiKey(apiKey: string): Promise<Website | null
   }
 }
 
-export async function createWebsite(input: {
-  domainId: string | null;
-  name: string;
-  contactEmail: string;
-  contactPhone: string;
-  contactAddress: string;
-  cities: string[];
-  headScripts: string;
-  bodyScripts: string;
-  notes: string;
-}): Promise<Website> {
+/**
+ * Fails open when the table doesn't exist yet: recording a fetch timestamp
+ * is a nice-to-have "connected" signal on top of serving the config, so a
+ * missing table shouldn't turn a successful config fetch into a 500 for
+ * the live site calling this endpoint.
+ */
+export async function touchWebsiteLastFetched(id: string): Promise<void> {
+  try {
+    const { error } = await getSupabase().from("freelance_hq_websites").update({ last_fetched_at: nowIso() }).eq("id", id);
+    if (error) throw error;
+  } catch (error) {
+    if (!isMissingTableError(error)) throw error;
+  }
+}
+
+/** Creates or updates the one Website config for a domain — the popup always saves through this. */
+export async function upsertWebsiteForDomain(
+  domainId: string,
+  input: {
+    name: string;
+    contactEmail: string;
+    contactPhone: string;
+    contactAddress: string;
+    cities: string[];
+    headScripts: string;
+    bodyScripts: string;
+    notes: string;
+  },
+): Promise<Website> {
+  const existing = await getSupabase().from("freelance_hq_websites").select("*").eq("domain_id", domainId).maybeSingle();
+  if (existing.error) throw existing.error;
+
+  if (existing.data) {
+    const { data, error } = await getSupabase()
+      .from("freelance_hq_websites")
+      .update({
+        name: input.name,
+        contact_email: input.contactEmail,
+        contact_phone: input.contactPhone,
+        contact_address: input.contactAddress,
+        cities: input.cities,
+        head_scripts: input.headScripts,
+        body_scripts: input.bodyScripts,
+        notes: input.notes,
+        updated_at: nowIso(),
+      })
+      .eq("id", (existing.data as WebsiteRow).id)
+      .select()
+      .single();
+    if (error) throw error;
+    return toWebsite(data as WebsiteRow);
+  }
+
   const { data, error } = await getSupabase()
     .from("freelance_hq_websites")
     .insert({
-      domain_id: input.domainId,
+      domain_id: domainId,
       name: input.name,
       contact_email: input.contactEmail,
       contact_phone: input.contactPhone,
@@ -3035,44 +3091,23 @@ export async function createWebsite(input: {
   return toWebsite(data as WebsiteRow);
 }
 
-export async function updateWebsite(
-  id: string,
-  patch: Partial<{
-    domainId: string | null;
-    name: string;
-    contactEmail: string;
-    contactPhone: string;
-    contactAddress: string;
-    cities: string[];
-    headScripts: string;
-    bodyScripts: string;
-    notes: string;
-  }>,
-): Promise<void> {
-  const update: Record<string, unknown> = { updated_at: nowIso() };
-  if (patch.domainId !== undefined) update.domain_id = patch.domainId;
-  if (patch.name !== undefined) update.name = patch.name;
-  if (patch.contactEmail !== undefined) update.contact_email = patch.contactEmail;
-  if (patch.contactPhone !== undefined) update.contact_phone = patch.contactPhone;
-  if (patch.contactAddress !== undefined) update.contact_address = patch.contactAddress;
-  if (patch.cities !== undefined) update.cities = patch.cities;
-  if (patch.headScripts !== undefined) update.head_scripts = patch.headScripts;
-  if (patch.bodyScripts !== undefined) update.body_scripts = patch.bodyScripts;
-  if (patch.notes !== undefined) update.notes = patch.notes;
-
-  const { error } = await getSupabase().from("freelance_hq_websites").update(update).eq("id", id);
-  if (error) throw error;
-}
-
-/** Rotates a website's secret key — use after a suspected leak, or any time you want to invalidate the old one. */
-export async function regenerateWebsiteApiKey(id: string): Promise<string> {
+/** Rotates a domain's website secret key — use after a suspected leak, or any time you want to invalidate the old one. */
+export async function regenerateWebsiteApiKeyForDomain(domainId: string): Promise<string | null> {
   const apiKey = generateWebsiteApiKey();
-  const { error } = await getSupabase().from("freelance_hq_websites").update({ api_key: apiKey, updated_at: nowIso() }).eq("id", id);
+  const { data, error } = await getSupabase()
+    .from("freelance_hq_websites")
+    .update({ api_key: apiKey, updated_at: nowIso() })
+    .eq("domain_id", domainId)
+    .select("id")
+    .maybeSingle();
   if (error) throw error;
-  return apiKey;
+  return data ? apiKey : null;
 }
 
-export async function deleteWebsite(id: string): Promise<void> {
-  const { error } = await getSupabase().from("freelance_hq_websites").delete().eq("id", id);
+export async function setWebsiteOfflineForDomain(domainId: string, offline: boolean): Promise<void> {
+  const { error } = await getSupabase()
+    .from("freelance_hq_websites")
+    .update({ is_offline: offline, updated_at: nowIso() })
+    .eq("domain_id", domainId);
   if (error) throw error;
 }
