@@ -311,15 +311,22 @@ function WebsiteForm({
   const [name, setName] = useState(website?.name ?? "");
   const [contactEmail, setContactEmail] = useState(website?.contactEmail ?? "");
   const [contactPhone, setContactPhone] = useState(website?.contactPhone ?? "");
+  // Tracks the values the *last* autofill wrote, so re-picking a different domain can refresh
+  // fields it previously filled in — without ever touching a field the admin typed into by hand.
+  const autoFilledRef = useRef({ name: "", email: "", phone: "" });
 
   function handleSelectDomain(domain: Domain | null) {
     setDomainId(domain?.id ?? "");
     if (!domain) return;
-    // Only fill in fields the admin hasn't already typed something into — never clobber existing edits.
-    if (!name.trim()) setName(domain.name);
     const client = domain.domainClientId ? domainClientById.get(domain.domainClientId) : undefined;
-    if (client?.email && !contactEmail.trim()) setContactEmail(client.email);
-    if (client?.phone && !contactPhone.trim()) setContactPhone(client.phone);
+    const nextName = domain.name;
+    const nextEmail = client?.email ?? "";
+    const nextPhone = client?.phone ?? "";
+
+    setName((prev) => (prev.trim() === "" || prev === autoFilledRef.current.name ? nextName : prev));
+    setContactEmail((prev) => (prev.trim() === "" || prev === autoFilledRef.current.email ? nextEmail : prev));
+    setContactPhone((prev) => (prev.trim() === "" || prev === autoFilledRef.current.phone ? nextPhone : prev));
+    autoFilledRef.current = { name: nextName, email: nextEmail, phone: nextPhone };
   }
 
   return (
