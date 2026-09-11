@@ -2820,6 +2820,7 @@ export async function moveWebAppSubFeatures(ids: string[], targetFeatureId: stri
 interface RenewalRow {
   id: string;
   domain_client_id: string | null;
+  domain_id: string | null;
   client_name: string;
   item_name: string;
   service_types: RenewalServiceType[] | null;
@@ -2837,6 +2838,7 @@ function toRenewal(row: RenewalRow): Renewal {
   return {
     id: row.id,
     domainClientId: row.domain_client_id,
+    domainId: row.domain_id,
     clientName: row.client_name,
     itemName: row.item_name,
     serviceTypes: row.service_types ?? [],
@@ -2867,6 +2869,7 @@ export async function listRenewals(): Promise<Renewal[]> {
 
 export async function createRenewal(input: {
   domainClientId: string | null;
+  domainId: string | null;
   clientName: string;
   itemName: string;
   serviceTypes: RenewalServiceType[];
@@ -2881,6 +2884,7 @@ export async function createRenewal(input: {
     .from("freelance_hq_renewals")
     .insert({
       domain_client_id: input.domainClientId,
+      domain_id: input.domainId,
       client_name: input.clientName,
       item_name: input.itemName,
       service_types: input.serviceTypes,
@@ -2901,6 +2905,7 @@ export async function updateRenewal(
   id: string,
   patch: Partial<{
     domainClientId: string | null;
+    domainId: string | null;
     clientName: string;
     itemName: string;
     serviceTypes: RenewalServiceType[];
@@ -2914,6 +2919,7 @@ export async function updateRenewal(
 ): Promise<void> {
   const update: Record<string, unknown> = { updated_at: nowIso() };
   if (patch.domainClientId !== undefined) update.domain_client_id = patch.domainClientId;
+  if (patch.domainId !== undefined) update.domain_id = patch.domainId;
   if (patch.clientName !== undefined) update.client_name = patch.clientName;
   if (patch.itemName !== undefined) update.item_name = patch.itemName;
   if (patch.serviceTypes !== undefined) update.service_types = patch.serviceTypes;

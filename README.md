@@ -380,6 +380,22 @@ Finance page's totals, since that money was genuinely received.
 > offline" page for, and the copy-paste "Setup instructions" prompt
 > (pre-filled with that domain's secret key and the config URL) to hand to
 > a Claude Code session inside the website's own repo to attach it.
+>
+> Already ran 030? Also run
+> [`supabase/migrations/031_renewals_domain_link.sql`](./supabase/migrations/031_renewals_domain_link.sql) —
+> adds a nullable `domain_id` to `freelance_hq_renewals` (set null if the
+> linked domain is removed from the inventory). This folds the standalone
+> Domains inventory tab into the Renewals tab, which is now the app's
+> **Domains** tab at `/domains` — the old resale-inventory-only Domains tab
+> is gone. Each renewal row can optionally link to a real domain (pick an
+> existing one or type a new name to register it on save); once linked, an
+> admin can open its **Website** button for the same Google Tag
+> codes/contact info/offline popup described above, plus a **Manage
+> domain** link to that domain's detail page. Admins also get two extra
+> sub-tabs on this page — **Domain Clients** and **Domain Inventory**
+> (Dynadot API key, bulk import, and manually registering a domain) —
+> moved over from the old Domains tab. Non-admin members granted Renewals
+> access only ever see the Renewals list itself, same as before.
 
 ### 3. Get your API credentials
 

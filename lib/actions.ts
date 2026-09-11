@@ -1459,7 +1459,34 @@ export async function bulkMoveWebAppSubFeaturesAction(ids: string[], projectId: 
 }
 
 function refreshRenewals() {
-  revalidatePath("/renewals");
+  revalidatePath("/domains");
+}
+
+/**
+ * Resolves the "link to domain" field on a renewal form: an existing domain
+ * id, a brand-new domain name to register, or neither. Only call this for an
+ * admin caller — domain linking touches the resale inventory, which
+ * non-admin Renewals-access members can't see or edit.
+ */
+async function resolveRenewalDomainId(formData: FormData): Promise<string | null> {
+  const domainId = str(formData, "domainId") || null;
+  if (domainId) return domainId;
+
+  const newDomainName = str(formData, "newDomainName").toLowerCase();
+  if (!newDomainName) return null;
+
+  const domain = await store.createDomain({
+    name: newDomainName,
+    domainClientId: null,
+    registrar: "Dynadot",
+    status: "available",
+    purchasePrice: null,
+    sellingPrice: null,
+    expiryDate: null,
+    autoRenew: false,
+    notes: "",
+  });
+  return domain.id;
 }
 
 function parseServiceTypes(formData: FormData): RenewalServiceType[] {
@@ -1470,7 +1497,7 @@ function parseServiceTypes(formData: FormData): RenewalServiceType[] {
 export async function createRenewalAction(
   formData: FormData,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  await requireRenewalsAccess();
+  const profile = await requireRenewalsAccess();
 
   let domainClientId = str(formData, "domainClientId") || null;
   const clientName = str(formData, "clientName");
@@ -1481,8 +1508,11 @@ export async function createRenewalAction(
     domainClientId = created.id;
   }
 
+  const domainId = profile.role === "admin" ? await resolveRenewalDomainId(formData) : null;
+
   const renewal = await store.createRenewal({
     domainClientId,
+    domainId,
     clientName,
     itemName: str(formData, "itemName"),
     serviceTypes: parseServiceTypes(formData),
@@ -1498,7 +1528,7 @@ export async function createRenewalAction(
 }
 
 export async function updateRenewalAction(id: string, formData: FormData) {
-  await requireRenewalsAccess();
+  const profile = await requireRenewalsAccess();
 
   let domainClientId = str(formData, "domainClientId") || null;
   const clientName = str(formData, "clientName");
@@ -1507,8 +1537,11 @@ export async function updateRenewalAction(id: string, formData: FormData) {
     domainClientId = created.id;
   }
 
+  const domainId = profile.role === "admin" ? await resolveRenewalDomainId(formData) : undefined;
+
   await store.updateRenewal(id, {
     domainClientId,
+    domainId,
     clientName,
     itemName: str(formData, "itemName"),
     serviceTypes: parseServiceTypes(formData),

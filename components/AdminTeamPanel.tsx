@@ -194,10 +194,10 @@ function MemberRow({
                   ? "border-accent-500/50 bg-accent-500/10 text-accent-300"
                   : "border-base-600 text-neutral-300 hover:border-accent-500/60 hover:text-accent-300",
               )}
-              title={member.canAccessRenewals ? "Revoke Renewals access" : "Grant Renewals access"}
+              title={member.canAccessRenewals ? "Revoke Domains tab access" : "Grant Domains tab access"}
             >
               <RefreshCcw size={13} />
-              Renewals {member.canAccessRenewals ? "on" : "off"}
+              Domains {member.canAccessRenewals ? "on" : "off"}
             </button>
           )}
           {!isSelf && (

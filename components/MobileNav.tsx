@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ListChecks, FolderKanban, Archive, Settings, Plus, Shield, Wallet, Building2, Globe, FileText, MoreHorizontal, RefreshCcw, X } from "lucide-react";
+import { LayoutDashboard, ListChecks, FolderKanban, Archive, Settings, Plus, Shield, Wallet, Building2, Globe, FileText, MoreHorizontal, X } from "lucide-react";
 import type { Profile } from "@/lib/types";
 import { InstallAppButton } from "./InstallAppButton";
 import { NotificationBadge } from "./NotificationBadge";
@@ -25,7 +25,6 @@ const MORE_NAV = [
   { href: "/clients", label: "Clients", icon: Building2 },
   { href: "/finance", label: "Finance", icon: Wallet },
   { href: "/domains", label: "Domains", icon: Globe },
-  { href: "/renewals", label: "Renewals", icon: RefreshCcw },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/admin", label: "Admin", icon: Shield },
 ];
@@ -51,11 +50,11 @@ export function MobileNav({
   const badgeByHref: Record<string, number> = { "/projects": unseenProjects, "/notes": unseenNotes };
 
   const financeItem = isAdmin ? MORE_NAV.find((item) => item.href === "/finance") : undefined;
-  const renewalsItem = MORE_NAV.find((item) => item.href === "/renewals");
+  const domainsItem = MORE_NAV.find((item) => item.href === "/domains");
   const sheetItems = isAdmin
     ? [...COMMON_MORE_NAV, ...MORE_NAV.filter((item) => item.href !== "/finance")]
-    : canAccessRenewals && renewalsItem
-      ? [...COMMON_MORE_NAV, renewalsItem]
+    : canAccessRenewals && domainsItem
+      ? [...COMMON_MORE_NAV, domainsItem]
       : COMMON_MORE_NAV;
 
   return (

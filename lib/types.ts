@@ -389,6 +389,8 @@ export type RenewalStatus = "pending" | "completed";
 export interface Renewal {
   id: string;
   domainClientId: string | null;
+  /** Optional link to a real inventory Domain — unlocks the Website settings popup on this renewal's row. */
+  domainId: string | null;
   clientName: string;
   itemName: string;
   serviceTypes: RenewalServiceType[];
