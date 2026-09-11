@@ -401,3 +401,37 @@ export interface Renewal {
   createdAt: string;
   updatedAt: string;
 }
+
+/**
+ * Client Website Management: a Next.js site you built, attached to a Domain
+ * (and, through it, that domain's Domain Client). Powers a public read-only
+ * config endpoint (app/api/site-config) the live site fetches at runtime —
+ * contact info, service-area cities, and head/body script injection (GTM,
+ * GA, Meta Pixel, etc.) — gated by apiKey.
+ */
+export interface Website {
+  id: string;
+  domainId: string | null;
+  name: string;
+  contactEmail: string;
+  contactPhone: string;
+  contactAddress: string;
+  cities: string[];
+  headScripts: string;
+  bodyScripts: string;
+  apiKey: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** The subset of a Website exposed by the public /api/site-config endpoint — never the id, domainId, notes, or apiKey itself. */
+export interface WebsitePublicConfig {
+  name: string;
+  contactEmail: string;
+  contactPhone: string;
+  contactAddress: string;
+  cities: string[];
+  headScripts: string;
+  bodyScripts: string;
+}

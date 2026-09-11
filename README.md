@@ -356,6 +356,20 @@ Finance page's totals, since that money was genuinely received.
 > and the Renewals page's totals and currency tabs (when you have records in
 > more than one currency) are scoped per currency, matching Finance's
 > pattern.
+>
+> Already ran 028? Also run
+> [`supabase/migrations/029_websites.sql`](./supabase/migrations/029_websites.sql) —
+> adds `freelance_hq_websites`. This powers a new **Websites** tab
+> (sidebar, admin-only) for managing the Next.js client sites you build:
+> attach one to a Domain in your inventory (and, through it, that domain's
+> Domain Client), then edit its contact info, service-area cities, and
+> Google Tag Manager/GA/Pixel head+body scripts here. Each website gets a
+> random 256-bit secret key; the live site fetches its config at runtime
+> from the new public `GET /api/site-config` endpoint (`Authorization:
+> Bearer <key>`, or `?key=` for a quick check) — no key, no data, and the
+> key is never echoed back by that endpoint. The Websites tab shows a
+> copy-paste "Setup instructions" prompt (pre-filled with that site's key
+> and URL) to hand to a Claude Code session inside the website's own repo.
 
 ### 3. Get your API credentials
 
