@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   Check,
   ChevronDown,
@@ -11,6 +11,8 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Search,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -79,6 +81,7 @@ export function WebsitesPanel({
 }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [justCreatedId, setJustCreatedId] = useState<string | null>(null);
   const domainClientById = new Map(domainClients.map((c) => [c.id, c]));
   const domainById = new Map(domains.map((d) => [d.id, d]));
 
@@ -98,7 +101,16 @@ export function WebsitesPanel({
       </div>
 
       {adding && (
-        <WebsiteForm domains={domains} website={null} onCancel={() => setAdding(false)} onSaved={() => setAdding(false)} />
+        <WebsiteForm
+          domains={domains}
+          domainClients={domainClients}
+          website={null}
+          onCancel={() => setAdding(false)}
+          onSaved={(newId) => {
+            setAdding(false);
+            if (newId) setJustCreatedId(newId);
+          }}
+        />
       )}
 
       {websites.length === 0 && !adding ? (
@@ -112,6 +124,7 @@ export function WebsitesPanel({
               <WebsiteForm
                 key={website.id}
                 domains={domains}
+                domainClients={domainClients}
                 website={website}
                 onCancel={() => setEditingId(null)}
                 onSaved={() => setEditingId(null)}
@@ -130,6 +143,7 @@ export function WebsitesPanel({
                     : undefined
                 }
                 onEdit={() => setEditingId(website.id)}
+                autoOpenSetup={website.id === justCreatedId}
               />
             ),
           )}
@@ -144,15 +158,17 @@ function WebsiteCard({
   domain,
   domainClient,
   onEdit,
+  autoOpenSetup = false,
 }: {
   website: Website;
   domain?: Domain;
   domainClient?: DomainClient;
   onEdit: () => void;
+  autoOpenSetup?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [keyVisible, setKeyVisible] = useState(false);
-  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(autoOpenSetup);
   const [rotateMessage, setRotateMessage] = useState<string | null>(null);
 
   const configUrl = useMemo(() => {
@@ -163,7 +179,13 @@ function WebsiteCard({
   const maskedKey = `${website.apiKey.slice(0, 4)}${"•".repeat(24)}${website.apiKey.slice(-4)}`;
 
   return (
-    <div className="rounded-xl2 border border-base-700/60 bg-base-850 p-4">
+    <div className={cn("rounded-xl2 border bg-base-850 p-4", autoOpenSetup ? "border-accent-500/60" : "border-base-700/60")}>
+      {autoOpenSetup && (
+        <div className="mb-3 flex items-center gap-1.5 rounded-md bg-accent-500/10 px-2.5 py-1.5 text-xs text-accent-300">
+          <Sparkles size={13} />
+          Website added — copy the setup instructions below into that site&rsquo;s repo to connect it.
+        </div>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -269,18 +291,43 @@ function WebsiteCard({
 
 function WebsiteForm({
   domains,
+  domainClients,
   website,
   onCancel,
   onSaved,
 }: {
   domains: Domain[];
+  domainClients: DomainClient[];
   website: Website | null;
   onCancel: () => void;
-  onSaved: () => void;
+  onSaved: (newId?: string) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const domainClientById = useMemo(() => new Map(domainClients.map((c) => [c.id, c])), [domainClients]);
+
+  const [domainId, setDomainId] = useState(website?.domainId ?? "");
+  const [name, setName] = useState(website?.name ?? "");
+  const [contactEmail, setContactEmail] = useState(website?.contactEmail ?? "");
+  const [contactPhone, setContactPhone] = useState(website?.contactPhone ?? "");
+  // Tracks the values the *last* autofill wrote, so re-picking a different domain can refresh
+  // fields it previously filled in — without ever touching a field the admin typed into by hand.
+  const autoFilledRef = useRef({ name: "", email: "", phone: "" });
+
+  function handleSelectDomain(domain: Domain | null) {
+    setDomainId(domain?.id ?? "");
+    if (!domain) return;
+    const client = domain.domainClientId ? domainClientById.get(domain.domainClientId) : undefined;
+    const nextName = domain.name;
+    const nextEmail = client?.email ?? "";
+    const nextPhone = client?.phone ?? "";
+
+    setName((prev) => (prev.trim() === "" || prev === autoFilledRef.current.name ? nextName : prev));
+    setContactEmail((prev) => (prev.trim() === "" || prev === autoFilledRef.current.email ? nextEmail : prev));
+    setContactPhone((prev) => (prev.trim() === "" || prev === autoFilledRef.current.phone ? nextPhone : prev));
+    autoFilledRef.current = { name: nextName, email: nextEmail, phone: nextPhone };
+  }
 
   return (
     <form
@@ -295,7 +342,7 @@ function WebsiteForm({
             const result = await createWebsiteAction(formData);
             if (result.ok) {
               formRef.current?.reset();
-              onSaved();
+              onSaved(result.id);
             } else {
               setError(result.error);
             }
@@ -318,25 +365,16 @@ function WebsiteForm({
           <input
             name="name"
             required
-            defaultValue={website?.name ?? ""}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Rapid Tyres"
             className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-accent-500 focus:outline-none"
           />
         </div>
         <div>
           <label className="mb-1 block text-[11px] text-neutral-500">Domain</label>
-          <select
-            name="domainId"
-            defaultValue={website?.domainId ?? ""}
-            className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 focus:border-accent-500 focus:outline-none"
-          >
-            <option value="">No domain linked</option>
-            {domains.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+          <input type="hidden" name="domainId" value={domainId} />
+          <DomainPicker domains={domains} domainClients={domainClients} selectedDomainId={domainId} onSelect={handleSelectDomain} />
         </div>
       </div>
 
@@ -346,7 +384,8 @@ function WebsiteForm({
           <input
             name="contactEmail"
             type="email"
-            defaultValue={website?.contactEmail ?? ""}
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
             className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 focus:border-accent-500 focus:outline-none"
           />
         </div>
@@ -354,7 +393,8 @@ function WebsiteForm({
           <label className="mb-1 block text-[11px] text-neutral-500">Contact phone</label>
           <input
             name="contactPhone"
-            defaultValue={website?.contactPhone ?? ""}
+            value={contactPhone}
+            onChange={(e) => setContactPhone(e.target.value)}
             className="w-full rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-sm text-neutral-100 focus:border-accent-500 focus:outline-none"
           />
         </div>
@@ -424,5 +464,101 @@ function WebsiteForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function DomainPicker({
+  domains,
+  domainClients,
+  selectedDomainId,
+  onSelect,
+}: {
+  domains: Domain[];
+  domainClients: DomainClient[];
+  selectedDomainId: string;
+  onSelect: (domain: Domain | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const domainClientById = useMemo(() => new Map(domainClients.map((c) => [c.id, c])), [domainClients]);
+  const selected = domains.find((d) => d.id === selectedDomainId);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const q = query.trim().toLowerCase();
+  const filtered = domains.filter((d) => !q || d.name.toLowerCase().includes(q));
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between gap-2 rounded-md border border-base-600 bg-base-950 px-2.5 py-1.5 text-left text-sm text-neutral-100 hover:border-accent-500/50 focus:border-accent-500 focus:outline-none"
+      >
+        <span className={cn("truncate", !selected && "text-neutral-500")}>{selected ? selected.name : "Search your domains…"}</span>
+        <ChevronDown size={13} className={cn("shrink-0 text-neutral-500 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-1 w-full min-w-[16rem] overflow-hidden rounded-lg border border-base-600 bg-base-900 shadow-lg">
+          <div className="flex items-center gap-1.5 border-b border-base-700 p-2">
+            <Search size={13} className="shrink-0 text-neutral-500" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search domains from your renewable inventory…"
+              className="w-full bg-transparent text-xs text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto p-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                onSelect(null);
+                setOpen(false);
+                setQuery("");
+              }}
+              className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs text-neutral-400 hover:bg-base-800"
+            >
+              No domain linked
+            </button>
+            {filtered.length === 0 && <p className="px-2 py-2 text-[11px] text-neutral-600">No domains match &ldquo;{query}&rdquo;.</p>}
+            {filtered.map((d) => {
+              const client = d.domainClientId ? domainClientById.get(d.domainClientId) : undefined;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => {
+                    onSelect(d);
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 truncate rounded-md px-2 py-1.5 text-left text-xs hover:bg-base-800",
+                    d.id === selectedDomainId ? "bg-accent-500/10 text-accent-300" : "text-neutral-300",
+                  )}
+                >
+                  <span className="truncate">{d.name}</span>
+                  {client && <span className="shrink-0 truncate text-neutral-500">{client.name}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
